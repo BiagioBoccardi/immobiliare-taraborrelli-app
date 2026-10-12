@@ -1,4 +1,5 @@
 from py_common.events.base import Event, EventPayload
+from py_common.events.consumer import RabbitMQConsumer
 from py_common.events.publisher import (
     EventPublisher,
     InMemoryEventPublisher,
@@ -10,5 +11,6 @@ __all__ = [
     "EventPayload",
     "EventPublisher",
     "InMemoryEventPublisher",
+    "RabbitMQConsumer",
     "RabbitMQEventPublisher",
 ]

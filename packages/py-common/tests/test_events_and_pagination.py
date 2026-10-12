@@ -61,3 +61,22 @@ def test_page_params_offset_and_page_count() -> None:
 
     assert params.offset == 20
     assert page.pages == 3
+
+
+def test_lead_consent_event_roundtrip_keeps_purposes() -> None:
+    from datetime import UTC, datetime
+
+    from py_common.events.lead import LeadConsentGivenV1
+
+    payload = LeadConsentGivenV1(
+        lead_id=uuid.uuid4(),
+        policy_version="2026-01",
+        purposes=("contact", "marketing"),
+        given_at=datetime(2026, 10, 12, tzinfo=UTC),
+    )
+    event = Event.wrap(payload, producer="lead")
+
+    parsed = Event[LeadConsentGivenV1].model_validate_json(event.model_dump_json())
+
+    assert parsed.routing_key == "lead.consent_given.v1"
+    assert parsed.payload.purposes == ("contact", "marketing")

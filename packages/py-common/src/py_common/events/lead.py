@@ -5,6 +5,7 @@ data must read it through the lead service API with the proper permissions.
 """
 
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from py_common.events.base import EventPayload
@@ -34,3 +35,15 @@ class OwnerRequestReceivedV1(EventPayload):
     priority: LeadPriority
     municipality: str
     property_type: str
+
+
+class LeadConsentGivenV1(EventPayload):
+    """Consents given by an owner when submitting a form, to be stored in the auth registry."""
+
+    event_type = "lead.consent_given"
+    version = 1
+
+    lead_id: uuid.UUID
+    policy_version: str
+    purposes: tuple[Literal["contact", "marketing"], ...]
+    given_at: datetime

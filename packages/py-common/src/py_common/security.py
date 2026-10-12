@@ -37,6 +37,10 @@ class TokenVerifier:
         self._audience = audience
         self._issuer = issuer
 
+    @property
+    def public_key(self) -> str:
+        return self._public_key
+
     def verify(self, token: str) -> Principal:
         if not self._public_key:
             raise UnauthorizedError("Token verification is not configured")
