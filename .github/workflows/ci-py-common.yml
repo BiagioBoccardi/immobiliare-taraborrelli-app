@@ -1,0 +1,35 @@
+name: CI py-common
+
+on:
+  pull_request:
+    paths:
+      - "packages/py-common/**"
+      - ".github/workflows/ci-py-common.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/py-common/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/py-common
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint and format
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy src
+      - name: Tests and coverage
+        run: uv run pytest --cov=py_common --cov-report=term-missing --cov-fail-under=80

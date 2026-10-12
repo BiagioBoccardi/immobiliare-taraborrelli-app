@@ -1,0 +1,22 @@
+# Static configuration of the local gateway.
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: taraborrelli
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+api:
+  dashboard: true
+  insecure: true  # Dashboard on :8080, local development only.
+
+accessLog:
+  format: json
+  fields:
+    headers:
+      defaultMode: drop  # Never log headers: they can carry tokens.

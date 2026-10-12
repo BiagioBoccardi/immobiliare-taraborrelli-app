@@ -1,0 +1,25 @@
+# Shared middlewares, referenced by services as <name>@file.
+http:
+  middlewares:
+    cors:
+      headers:
+        accessControlAllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+        accessControlAllowHeaders: [Authorization, Content-Type, X-Completion-Token, X-Request-ID]
+        accessControlAllowOriginList:
+          - http://localhost:5173  # admin (Vite)
+          - http://localhost:5174  # public valuation page (Vite)
+          - http://localhost:8081  # Expo web
+        accessControlMaxAge: 600
+        addVaryHeader: true
+
+    # Public owner forms: a person submits a few requests, not dozens.
+    public-forms-ratelimit:
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 5
+
+    api-ratelimit:
+      rateLimit:
+        average: 100
+        burst: 50

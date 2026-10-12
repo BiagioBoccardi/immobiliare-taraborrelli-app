@@ -1,0 +1,103 @@
+name: taraborrelli
+
+x-healthcheck: &default-healthcheck
+  interval: 5s
+  timeout: 5s
+  retries: 20
+
+services:
+  gateway:
+    image: traefik:v3.2
+    ports:
+      - "8000:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/gateway/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/gateway/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks: [taraborrelli]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-taraborrelli}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-taraborrelli}
+    ports:
+      - "15672:15672"
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+    networks: [taraborrelli]
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "redis-cli", "ping"]
+    networks: [taraborrelli]
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-taraborrelli}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-taraborrelli-minio}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks: [taraborrelli]
+
+  # One database per service.
+  lead-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lead
+      POSTGRES_PASSWORD: ${LEAD_DB_PASSWORD:-lead}
+      POSTGRES_DB: lead
+    volumes:
+      - lead-db-data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD-SHELL", "pg_isready -U lead"]
+    networks: [taraborrelli]
+
+  lead:
+    build:
+      context: .
+      dockerfile: services/lead/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lead:${LEAD_DB_PASSWORD:-lead}@lead-db:5432/lead
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-taraborrelli}:${RABBITMQ_PASSWORD:-taraborrelli}@rabbitmq:5672/
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-}
+    depends_on:
+      lead-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.lead.loadbalancer.server.port=8000
+      # Public owner forms, with a strict rate limit.
+      - traefik.http.routers.lead-public.rule=PathPrefix(`/api/v1/lead/valuations`) || PathPrefix(`/api/v1/lead/owner-requests`)
+      - traefik.http.routers.lead-public.entrypoints=web
+      - traefik.http.routers.lead-public.middlewares=cors@file,public-forms-ratelimit@file
+      - traefik.http.routers.lead-public.service=lead
+      # Everything else (staff CRM, docs).
+      - traefik.http.routers.lead.rule=PathPrefix(`/api/v1/lead`)
+      - traefik.http.routers.lead.entrypoints=web
+      - traefik.http.routers.lead.middlewares=cors@file,api-ratelimit@file
+      - traefik.http.routers.lead.service=lead
+    networks: [taraborrelli]
+
+networks:
+  taraborrelli:
+    name: taraborrelli
+
+volumes:
+  minio-data:
+  lead-db-data:

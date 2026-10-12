@@ -1,0 +1,45 @@
+name: CI lead
+
+on:
+  pull_request:
+    paths:
+      - "services/lead/**"
+      - "packages/py-common/**"
+      - ".github/workflows/ci-lead.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/lead/**"
+      - "packages/py-common/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/lead
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint and format
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy app
+      - name: Tests and coverage (PostgreSQL via testcontainers)
+        run: uv run pytest --cov=app --cov-report=term-missing --cov-fail-under=80
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -f services/lead/Dockerfile -t taraborrelli-lead:${{ github.sha }} .
