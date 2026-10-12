@@ -63,6 +63,49 @@ services:
       test: ["CMD-SHELL", "pg_isready -U lead"]
     networks: [taraborrelli]
 
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD:-auth}
+      POSTGRES_DB: auth
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD-SHELL", "pg_isready -U auth"]
+    networks: [taraborrelli]
+
+  auth:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://auth:${AUTH_DB_PASSWORD:-auth}@auth-db:5432/auth
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-taraborrelli}:${RABBITMQ_PASSWORD:-taraborrelli}@rabbitmq:5672/
+      JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?run infra/scripts/generate-jwt-keys.sh}
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      <<: *default-healthcheck
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.auth.loadbalancer.server.port=8000
+      # Credential endpoints, with a strict rate limit against password guessing.
+      - traefik.http.routers.auth-public.rule=Path(`/api/v1/auth/login`) || Path(`/api/v1/auth/register`) || Path(`/api/v1/auth/refresh`)
+      - traefik.http.routers.auth-public.entrypoints=web
+      - traefik.http.routers.auth-public.middlewares=cors@file,auth-ratelimit@file
+      - traefik.http.routers.auth-public.service=auth
+      - traefik.http.routers.auth.rule=PathPrefix(`/api/v1/auth`)
+      - traefik.http.routers.auth.entrypoints=web
+      - traefik.http.routers.auth.middlewares=cors@file,api-ratelimit@file
+      - traefik.http.routers.auth.service=auth
+    networks: [taraborrelli]
+
   lead:
     build:
       context: .
@@ -70,7 +113,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://lead:${LEAD_DB_PASSWORD:-lead}@lead-db:5432/lead
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-taraborrelli}:${RABBITMQ_PASSWORD:-taraborrelli}@rabbitmq:5672/
-      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?run infra/scripts/generate-jwt-keys.sh}
     depends_on:
       lead-db:
         condition: service_healthy
@@ -100,4 +143,5 @@ networks:
 
 volumes:
   minio-data:
+  auth-db-data:
   lead-db-data:
