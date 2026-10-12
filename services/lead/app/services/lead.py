@@ -3,11 +3,15 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from py_common.errors import AppError, ConflictError, NotFoundError
 from py_common.events import Event, EventPublisher
-from py_common.events.lead import OwnerRequestReceivedV1, ValuationRequestedV1
+from py_common.events.lead import (
+    LeadConsentGivenV1,
+    OwnerRequestReceivedV1,
+    ValuationRequestedV1,
+)
 from py_common.pagination import Page, PageParams
 
 from app.models.enums import LeadKind, LeadStatus
@@ -87,6 +91,7 @@ class LeadService:
                 property_type=lead.property_type.value,
             )
         )
+        await self._emit_consent(lead)
         return CreatedValuation(lead, token, now + self._completion_window)
 
     async def complete_valuation(
@@ -146,6 +151,7 @@ class LeadService:
                 property_type=lead.property_type.value,
             )
         )
+        await self._emit_consent(lead)
         return lead
 
     async def list_leads(self, filters: LeadFilters, params: PageParams) -> Page[LeadOut]:
@@ -178,6 +184,20 @@ class LeadService:
         lead = await self.get_lead(lead_id)
         await self._repo.delete(lead)
         await self._repo.commit()
+
+    async def _emit_consent(self, lead: Lead) -> None:
+        """Consents are stored in the auth registry (date, policy version, purpose)."""
+        purposes: tuple[Literal["contact", "marketing"], ...] = (
+            ("contact", "marketing") if lead.marketing_consent else ("contact",)
+        )
+        await self._emit(
+            LeadConsentGivenV1(
+                lead_id=lead.id,
+                policy_version=lead.privacy_policy_version,
+                purposes=purposes,
+                given_at=lead.contact_consent_at,
+            )
+        )
 
     async def _emit(self, payload: Any) -> None:
         # The lead is already stored: a broker failure must not lose the owner's request.

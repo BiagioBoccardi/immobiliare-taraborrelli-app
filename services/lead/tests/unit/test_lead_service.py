@@ -16,7 +16,12 @@ from app.schemas.lead import (
 )
 from app.services.lead import LeadService
 from app.services.tokens import token_matches
-from tests.factories import make_lead, owner_request_payload, valuation_payload
+from tests.factories import (
+    consent_payload,
+    make_lead,
+    owner_request_payload,
+    valuation_payload,
+)
 from tests.unit.fakes import FailingPublisher, FakeLeadRepository
 
 NOW = datetime(2026, 10, 12, 9, 0, tzinfo=UTC)
@@ -65,12 +70,14 @@ async def test_create_valuation_emits_event_without_personal_data() -> None:
     created = await service.create_valuation(ValuationCreate.model_validate(valuation_payload()))
 
     assert isinstance(publisher, InMemoryEventPublisher)
-    [event] = publisher.events
+    event, consent_event = publisher.events
     assert event.event_type == "lead.valuation_requested"
     assert event.payload.lead_id == created.lead.id
-    dumped = event.model_dump_json()
-    assert "Mario" not in dumped
-    assert "3330000000" not in dumped
+    assert consent_event.event_type == "lead.consent_given"
+    for emitted in publisher.events:
+        dumped = emitted.model_dump_json()
+        assert "Mario" not in dumped
+        assert "3330000000" not in dumped
 
 
 async def test_create_valuation_when_broker_fails_still_stores_lead() -> None:
@@ -135,7 +142,7 @@ async def test_create_owner_request_emits_event_with_kind(kind: str) -> None:
     )
 
     assert isinstance(publisher, InMemoryEventPublisher)
-    [event] = publisher.events
+    event = publisher.events[0]
     assert event.event_type == "lead.owner_request_received"
     assert event.payload.kind == kind
     assert repo.leads[lead.id].completion_token_hash is None
@@ -184,3 +191,22 @@ async def test_list_leads_returns_page() -> None:
 
     assert page.total == 3
     assert len(page.items) == 2
+
+
+@pytest.mark.parametrize(
+    ("marketing", "expected"), [(False, ("contact",)), (True, ("contact", "marketing"))]
+)
+async def test_create_valuation_emits_consent_with_given_purposes(
+    marketing: bool, expected: tuple[str, ...]
+) -> None:
+    service, _, publisher = build_service()
+    payload = valuation_payload(consent=consent_payload(marketing_accepted=marketing))
+
+    created = await service.create_valuation(ValuationCreate.model_validate(payload))
+
+    assert isinstance(publisher, InMemoryEventPublisher)
+    consent_event = publisher.events[-1]
+    assert consent_event.payload.lead_id == created.lead.id
+    assert consent_event.payload.purposes == expected
+    assert consent_event.payload.policy_version == "2026-01"
+    assert consent_event.payload.given_at == NOW
