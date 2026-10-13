@@ -1,0 +1,16 @@
+{
+  "name": "@taraborrelli/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typed client for the Taraborrelli backend, with types generated from each service's OpenAPI.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "generate": "sh scripts/export-openapi.sh && openapi-typescript openapi/auth.json --default-non-nullable false -o src/generated/auth.ts && openapi-typescript openapi/lead.json --default-non-nullable false -o src/generated/lead.ts && openapi-typescript openapi/property.json --default-non-nullable false -o src/generated/property.ts && prettier --write src/generated",
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0"
+  }
+}
