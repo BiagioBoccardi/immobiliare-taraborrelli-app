@@ -80,3 +80,25 @@ def test_lead_consent_event_roundtrip_keeps_purposes() -> None:
 
     assert parsed.routing_key == "lead.consent_given.v1"
     assert parsed.payload.purposes == ("contact", "marketing")
+
+
+def test_property_published_event_roundtrip_keeps_features() -> None:
+    from py_common.events.property import PropertyPublishedV1
+
+    payload = PropertyPublishedV1(
+        property_id=uuid.uuid4(),
+        contract="sale",
+        property_type="villa",
+        municipality="Chieti",
+        zone=None,
+        price=250_000,
+        surface_sqm=180,
+        rooms=6,
+        features=("garden", "garage"),
+    )
+    event = Event.wrap(payload, producer="property")
+
+    parsed = Event[PropertyPublishedV1].model_validate_json(event.model_dump_json())
+
+    assert parsed.routing_key == "property.published.v1"
+    assert parsed.payload.features == ("garden", "garage")
