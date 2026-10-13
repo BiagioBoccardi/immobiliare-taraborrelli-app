@@ -12,6 +12,7 @@ interfaccia) sono in [`CLAUDE.md`](CLAUDE.md).
 |---|---|
 | `packages/py-common` | Config, log JSON con `request_id`, formato errori unico, paginazione, verifica JWT, eventi versionati, publisher e consumer RabbitMQ |
 | `services/auth` | Registrazione, login, JWT (RS256) con refresh token a rotazione, ruoli, gestione account staff, registro dei consensi privacy, esportazione e cancellazione GDPR |
+| `services/property` | Catalogo con ricerca e filtri (anche mappa e affitti per studenti e lavoratori), scheda immobile, immobili venduti, gestione da admin con stati e foto su storage S3 |
 | `services/lead` | Richieste di valutazione (passo 1 + completamento facoltativo), richieste "Voglio vendere" / "Voglio affittare", CRM leggero per lo staff |
 | `infra/gateway` | Traefik con CORS e rate limiting sui moduli pubblici |
 | Altri servizi e app | Da sviluppare (vedi `CLAUDE.md`, sezione 10) |
@@ -24,7 +25,7 @@ infra/scripts/generate-jwt-keys.sh        # coppia di chiavi JWT per lo sviluppo
 docker compose up -d
 # Primo amministratore (la password viene chiesta dal terminale):
 docker compose exec auth python -m app.cli create-admin --email admin@example.com --name "Nome Cognome"
-# Documentazione API tramite gateway: http://localhost:8000/api/v1/auth/docs e /api/v1/lead/docs
+# Documentazione API tramite gateway: http://localhost:8000/api/v1/<auth|lead|property>/docs
 ```
 
 Sviluppo di un singolo servizio:
@@ -68,3 +69,31 @@ La priorità del lead deriva dal grado di intenzione del proprietario: `know_val
 I consensi dati nei moduli del servizio lead arrivano al registro tramite l'evento
 `lead.consent_given`; la cancellazione di un account emette `auth.user_deleted`, che gli altri
 servizi useranno per cancellare i dati collegati.
+
+## API del servizio property
+
+| Metodo | Percorso | Accesso |
+|---|---|---|
+| `GET` | `/api/v1/property/properties` | Pubblico — ricerca paginata (vedi filtri sotto) |
+| `GET` | `/api/v1/property/properties/{id}` | Pubblico — scheda dell'immobile pubblicato |
+| `GET` | `/api/v1/property/sold` | Pubblico — "Immobili venduti": solo zona, tipologia e foto autorizzate |
+| `GET` / `POST` | `/api/v1/property/admin/properties` | Staff — lista (filtri `status`, `contract`, `q`) e creazione in bozza |
+| `GET` / `PATCH` / `DELETE` | `/api/v1/property/admin/properties/{id}` | Staff — dettaglio con indirizzo, modifica, cancellazione (solo bozze e archiviati) |
+| `POST` | `/api/v1/property/admin/properties/{id}/status` | Staff — cambio di stato |
+| `POST` | `/api/v1/property/admin/properties/{id}/photos` | Staff — caricamento foto (JPEG, PNG, WebP, max 10 MB, max 40) |
+| `PATCH` / `DELETE` | `/api/v1/property/admin/properties/{id}/photos/{photo_id}` | Staff — didascalia, autorizzazione per i venduti, eliminazione |
+| `PUT` | `/api/v1/property/admin/properties/{id}/photos/order` | Staff — ordine delle foto (la prima è la copertina) |
+
+**Filtri di ricerca:** `contract`, `property_type` (ripetibile), `municipality`, `zone`,
+`price_min`/`price_max`, `surface_min`/`surface_max`, `rooms_min`, `bedrooms_min`,
+`bathrooms_min`, `feature` (ripetibile, tutte richieste), `energy_class` (ripetibile), `featured`,
+`tenant_type`, `accommodation`, `available_by`, area della mappa
+(`min_lat`, `max_lat`, `min_lng`, `max_lng`), `sort` (`newest`, `price_asc`, `price_desc`,
+`surface_desc`).
+
+**Stati:** `draft` → `published` ⇄ `reserved` → `sold` / `rented` → `archived`. Sono visibili al
+pubblico solo `published` e `reserved`; per pubblicare serve almeno una foto. L'indirizzo resta
+visibile solo allo staff e le coordinate pubbliche sono arrotondate a circa 100 metri, salvo che
+l'agenzia scelga di mostrare la posizione esatta.
+
+**Eventi:** `property.published`, `property.price_changed`, `property.unpublished`.

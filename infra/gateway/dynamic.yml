@@ -26,6 +26,11 @@ http:
         period: 1m
         burst: 10
 
+    # Upper bound for request bodies on photo uploads (the service enforces 10 MB per photo).
+    photo-upload-limit:
+      buffering:
+        maxRequestBodyBytes: 11534336
+
     api-ratelimit:
       rateLimit:
         average: 100
