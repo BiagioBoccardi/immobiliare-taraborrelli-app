@@ -1,0 +1,9 @@
+from typing import Protocol
+
+
+class MediaStorage(Protocol):
+    async def put(self, key: str, data: bytes, content_type: str) -> None: ...
+
+    async def delete(self, key: str) -> None: ...
+
+    def public_url(self, key: str) -> str: ...
