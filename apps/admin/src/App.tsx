@@ -1,0 +1,43 @@
+import { Route, Routes } from "react-router-dom";
+
+import { Layout } from "./components/Layout";
+import { RequireAuth } from "./components/RequireAuth";
+import { DashboardPage } from "./pages/DashboardPage";
+import { LeadDetailPage } from "./pages/LeadDetailPage";
+import { LeadsPage } from "./pages/LeadsPage";
+import { LoginPage } from "./pages/LoginPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+import { PropertiesPage } from "./pages/PropertiesPage";
+import { NewPropertyPage, PropertyEditPage } from "./pages/PropertyEditPage";
+import { UsersPage } from "./pages/UsersPage";
+
+export function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <RequireAuth>
+            <Layout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<DashboardPage />} />
+        <Route path="leads" element={<LeadsPage />} />
+        <Route path="leads/:id" element={<LeadDetailPage />} />
+        <Route path="properties" element={<PropertiesPage />} />
+        <Route path="properties/new" element={<NewPropertyPage />} />
+        <Route path="properties/:id" element={<PropertyEditPage />} />
+        <Route
+          path="users"
+          element={
+            <RequireAuth adminOnly>
+              <UsersPage />
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
+  );
+}
