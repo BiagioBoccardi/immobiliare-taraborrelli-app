@@ -15,6 +15,9 @@ interfaccia) sono in [`CLAUDE.md`](CLAUDE.md).
 | `services/property` | Catalogo con ricerca e filtri (anche mappa e affitti per studenti e lavoratori), scheda immobile, immobili venduti, gestione da admin con stati e foto su storage S3 |
 | `services/lead` | Richieste di valutazione (passo 1 + completamento facoltativo), richieste "Voglio vendere" / "Voglio affittare", CRM leggero per lo staff |
 | `infra/gateway` | Traefik con CORS e rate limiting sui moduli pubblici |
+| `packages/api-client` | Client TypeScript con tipi generati dall'OpenAPI dei servizi, rinnovo automatico della sessione |
+| `packages/theme` | Colori, spaziature e tipografia condivisi da admin, pagina web e app |
+| `apps/admin` | Pannello di amministrazione: riepilogo, richieste dei proprietari (CRM), immobili con foto e stati, account staff |
 | Altri servizi e app | Da sviluppare (vedi `CLAUDE.md`, sezione 10) |
 
 ## Avvio rapido
@@ -36,6 +39,20 @@ uv sync
 uv run pytest -m "not integration"   # test veloci
 uv run pytest                        # tutta la suite (richiede Docker)
 ```
+
+## Front-end
+
+```bash
+npm install                      # dalla radice: installa tutti i workspace
+npm run dev --workspace @taraborrelli/admin   # pannello su http://localhost:5173
+npm run lint && npm run typecheck && npm test
+npm run generate:api             # rigenera il client dopo ogni modifica alle API (richiede uv)
+```
+
+In sviluppo il pannello inoltra `/api` al gateway (`docker compose`, porta 8000). Lo staff accede
+con le credenziali create da un amministratore; il primo amministratore si crea con il comando
+`create-admin` del servizio auth. I colori del marchio e il logo sono provvisori finché l'agenzia
+non fornisce quelli definitivi.
 
 ## API del servizio lead
 

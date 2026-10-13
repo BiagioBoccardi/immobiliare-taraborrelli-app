@@ -1,0 +1,42 @@
+name: CI frontend
+
+on:
+  pull_request:
+    paths:
+      - "apps/admin/**"
+      - "packages/api-client/**"
+      - "packages/theme/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.base.json"
+      - "eslint.config.js"
+      - ".github/workflows/ci-frontend.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/admin/**"
+      - "packages/api-client/**"
+      - "packages/theme/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint and formatting
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+      - name: Build admin
+        run: npm run build --workspace @taraborrelli/admin

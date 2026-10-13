@@ -1,0 +1,36 @@
+name: CI api-client sync
+
+# The TypeScript client must be regenerated whenever a service's OpenAPI changes.
+on:
+  pull_request:
+    paths:
+      - "services/auth/app/**"
+      - "services/lead/app/**"
+      - "services/property/app/**"
+      - "packages/api-client/**"
+      - ".github/workflows/ci-api-client.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generated-client-is-up-to-date:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install service environments
+        run: for s in auth lead property; do (cd services/$s && uv sync --frozen); done
+      - name: Regenerate the client
+        run: npm run generate:api
+      - name: Fail if the generated files changed
+        run: git diff --exit-code -- packages/api-client
