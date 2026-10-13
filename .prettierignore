@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+services
+docs
+**/openapi/*.json
+package-lock.json
+*.md
+.github
+docker-compose.yml
+infra
+**/.venv
