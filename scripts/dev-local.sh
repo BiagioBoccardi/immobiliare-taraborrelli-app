@@ -43,15 +43,20 @@ wait_for() {
 # start_bg NAME DIR COMMAND...: runs COMMAND in DIR in the background, logging to .dev/logs.
 start_bg() {
   local name=$1 dir=$2; shift 2
-  ( cd "$dir" && "$@" >>"$STATE/logs/$name.log" 2>&1 & echo $! >>"$STATE/pids" )
+  (cd "$dir" && exec "$@") >>"$STATE/logs/$name.log" 2>&1 </dev/null &
+  echo $! >>"$STATE/pids"
+}
+
+# Stops a process and all its descendants (npm, uv and uvx start child processes).
+kill_tree() {
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$child"; done
+  kill "$1" 2>/dev/null || true
 }
 
 down() {
   if [ -f "$STATE/pids" ]; then
-    while read -r pid; do
-      pkill -P "$pid" 2>/dev/null || true
-      kill "$pid" 2>/dev/null || true
-    done <"$STATE/pids"
+    while read -r pid; do kill_tree "$pid"; done <"$STATE/pids"
     rm -f "$STATE/pids"
   fi
   docker rm -f "$DB_CONTAINER" >/dev/null 2>&1 || true

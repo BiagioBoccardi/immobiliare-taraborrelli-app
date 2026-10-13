@@ -20,6 +20,21 @@ interfaccia) sono in [`CLAUDE.md`](CLAUDE.md).
 | `apps/admin` | Pannello di amministrazione: riepilogo, richieste dei proprietari (CRM), immobili con foto e stati, account staff |
 | Altri servizi e app | Da sviluppare (vedi `CLAUDE.md`, sezione 10) |
 
+## Provare il pannello di amministrazione
+
+Requisiti: Docker, [uv](https://docs.astral.sh/uv/), Node.js 20+ e openssl (su Windows usare WSL2).
+
+```bash
+scripts/dev-local.sh up     # avvia tutto in circa 20 secondi (la prima volta di più)
+# apri http://localhost:5173 — admin@taraborrelli.test / Admin-di-prova-1
+scripts/dev-local.sh logs   # log dei servizi
+scripts/dev-local.sh down   # ferma tutto ed elimina i dati di prova
+```
+
+Lo script avvia PostgreSQL in Docker, i servizi auth, lead e property, uno storage S3 in memoria
+per le foto e il pannello. Ogni avvio riparte da dati vuoti, con un amministratore di prova e
+due richieste di esempio. Le porte usate sono 5173, 8001-8003, 9100 e 55432.
+
 ## Avvio rapido
 
 ```bash
