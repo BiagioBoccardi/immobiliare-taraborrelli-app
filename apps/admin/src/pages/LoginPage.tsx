@@ -1,4 +1,5 @@
 import { ApiError } from "@taraborrelli/api-client";
+import logo from "@taraborrelli/theme/assets/logo.png";
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
@@ -46,7 +47,7 @@ export function LoginPage() {
     <div className="login">
       <form className="card stack" onSubmit={submit} noValidate>
         <div className="login-brand">
-          <div className="brand-name">{t("app.name")}</div>
+          <img className="login-logo" src={logo} alt={t("app.name")} />
           <h1>{t("login.title")}</h1>
           <p className="muted">{t("login.subtitle")}</p>
         </div>

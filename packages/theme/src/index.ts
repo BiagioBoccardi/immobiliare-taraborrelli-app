@@ -1,15 +1,15 @@
 /**
  * Shared design tokens. Every color, spacing and font used by the apps comes from here.
  *
- * The brand colors are placeholders until the agency provides the exact codes and the logo
- * (open decision in CLAUDE.md, section 14): blue and light blue of the brand, white, light gray.
+ * The brand blue is measured from the agency logo (assets/logo-original.jpg); the darker
+ * shade and the light blue ("celeste") are derived from it.
  */
 
 export const colors = {
-  brandBlue: "#1F4E8C",
-  brandBlueDark: "#163A69",
-  brandLightBlue: "#5BA4D9",
-  brandLightBlueSoft: "#E6F1FA",
+  brandBlue: "#0361A4",
+  brandBlueDark: "#024C80",
+  brandLightBlue: "#74A8CD",
+  brandLightBlueSoft: "#E6EFF6",
   white: "#FFFFFF",
   gray50: "#F5F7FA",
   gray100: "#EBEEF3",

@@ -1,3 +1,4 @@
+import logoWhite from "@taraborrelli/theme/assets/logo-white.png";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useSession, useSessionStore } from "../auth/SessionContext";
@@ -17,7 +18,7 @@ export function Layout() {
     <div className="layout">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-name">{t("app.name")}</span>
+          <img className="brand-logo" src={logoWhite} alt={t("app.name")} />
           <span className="brand-area">{t("app.area")}</span>
         </div>
         <nav className="nav">

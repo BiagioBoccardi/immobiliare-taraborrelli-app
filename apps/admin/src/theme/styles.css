@@ -71,21 +71,24 @@ h3 {
 .brand {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xxs);
-  padding: 0 var(--space-sm);
+  align-items: center;
+  gap: var(--space-md);
+  padding: 0 var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--color-brand-blue-dark);
 }
 
-.brand-name {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.01em;
+.brand-logo {
+  display: block;
+  width: 100%;
+  max-width: 184px;
+  height: auto;
 }
 
 .brand-area {
   font-size: var(--font-size-xs);
   color: var(--color-brand-light-blue-soft);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .nav {
@@ -574,9 +577,12 @@ textarea:focus {
   text-align: center;
 }
 
-.login-brand .brand-name {
-  color: var(--color-brand-blue);
-  font-size: var(--font-size-xl);
+.login-logo {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto var(--space-xl);
 }
 
 /* Dialog */

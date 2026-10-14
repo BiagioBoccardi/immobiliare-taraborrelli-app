@@ -18,6 +18,7 @@ module.exports = {
   },
   moduleNameMapper: {
     "\\.css$": "<rootDir>/tests/styleStub.cjs",
+    "\\.(png|jpg|svg)$": "<rootDir>/tests/fileStub.cjs",
   },
   globals: { __API_BASE_URL__: "" },
   setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
