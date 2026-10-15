@@ -34,8 +34,8 @@ require() {
 }
 
 wait_for() {
-  local url=$1 name=$2
-  for _ in $(seq 1 60); do
+  local url=$1 name=$2 seconds=${3:-60}
+  for _ in $(seq 1 "$seconds"); do
     curl -fs "$url" >/dev/null 2>&1 && return 0
     sleep 1
   done
@@ -123,7 +123,9 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
     -H 'Content-Type: application/json' -d '{"kind":"rent","full_name":"Anna Bianchi","phone":"333 111 2222","municipality":"Chieti Scalo","property_type":"apartment","intention":"planning","message":"Bilocale vicino all università","consent":{"privacy_accepted":true,"privacy_policy_version":"2026-01"}}'
 
   info "Pannello di amministrazione…"
-  [ -d "$ROOT/node_modules" ] || (cd "$ROOT" && npm install --no-audit --no-fund >>"$STATE/logs/npm.log" 2>&1)
+  # Always run: after a git pull new packages may be needed (a no-op takes a few seconds).
+  (cd "$ROOT" && npm install --no-audit --no-fund >>"$STATE/logs/npm.log" 2>&1) \
+    || fail "Installazione dei pacchetti npm fallita: $STATE/logs/npm.log"
   start_bg admin "$ROOT" env VITE_LOCAL_SERVICES=1 npm run dev --workspace @taraborrelli/admin
   wait_for "http://localhost:5173" "Pannello"
 
@@ -134,7 +136,7 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
   info "App mobile nel browser (porta 8081)…"
   start_bg mobile "$ROOT/apps/mobile" env CI=1 EXPO_OFFLINE=1 \
     EXPO_PUBLIC_API_BASE_URL="http://localhost:5173" npx expo start --web --port 8081
-  wait_for "http://localhost:8081" "App mobile"
+  wait_for "http://localhost:8081" "App mobile" 180
 
   cat <<MSG
 
