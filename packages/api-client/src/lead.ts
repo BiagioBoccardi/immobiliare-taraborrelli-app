@@ -14,6 +14,7 @@ export type ValuationCreated = Schemas["ValuationCreatedOut"];
 export type ValuationDetails = Schemas["ValuationDetails"];
 export type OwnerRequestCreate = Schemas["OwnerRequestCreate"];
 export type LeadCreated = Schemas["LeadCreatedOut"];
+export type MyRequest = Schemas["MyRequestOut"];
 
 export interface LeadFilters extends PageQuery {
   kind?: LeadKind | undefined;
@@ -26,12 +27,9 @@ const BASE = "/api/v1/lead";
 
 export function leadApi(http: HttpClient) {
   return {
-    // Public owner forms (app and web valuation page).
+    // Owner forms. They work without an account; a logged-in user's token links the request.
     createValuation: (data: ValuationCreate) =>
-      http.request<ValuationCreated>("POST", `${BASE}/valuations`, {
-        json: data,
-        auth: false,
-      }),
+      http.request<ValuationCreated>("POST", `${BASE}/valuations`, { json: data }),
     completeValuation: (id: string, completionToken: string, details: ValuationDetails) =>
       http.request<undefined>("PUT", `${BASE}/valuations/${id}/details`, {
         json: details,
@@ -39,10 +37,9 @@ export function leadApi(http: HttpClient) {
         auth: false,
       }),
     createOwnerRequest: (data: OwnerRequestCreate) =>
-      http.request<LeadCreated>("POST", `${BASE}/owner-requests`, {
-        json: data,
-        auth: false,
-      }),
+      http.request<LeadCreated>("POST", `${BASE}/owner-requests`, { json: data }),
+    myRequests: (query: PageQuery) =>
+      http.request<Page<MyRequest>>("GET", `${BASE}/me/requests`, { query: { ...query } }),
 
     // Staff CRM.
     listLeads: (filters: LeadFilters) =>

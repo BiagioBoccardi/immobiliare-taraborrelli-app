@@ -248,3 +248,22 @@ describe("pageCount", () => {
     expect(pageCount({ total: 0, size: 20 })).toBe(1);
   });
 });
+
+describe("owner requests", () => {
+  it("send the access token when the user is logged in", async () => {
+    const fetch = fakeFetch(jsonResponse(201, {}));
+    const api = createApiClient({ baseUrl: "", auth: hooks(), fetch: fetch.impl });
+
+    await api.lead.createOwnerRequest({
+      kind: "sell",
+      full_name: "Mario Rossi",
+      phone: "3330000000",
+      municipality: "Chieti",
+      property_type: "house",
+      intention: "decided",
+      consent: { privacy_accepted: true, privacy_policy_version: "2026-01" },
+    });
+
+    expect(fetch.calls[0]?.init.headers).toMatchObject({ Authorization: "Bearer old-token" });
+  });
+});

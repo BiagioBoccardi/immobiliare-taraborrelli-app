@@ -8,6 +8,11 @@ export type User = Schemas["UserOut"];
 export type Role = Schemas["Role"];
 export type StaffCreate = Schemas["StaffCreate"];
 export type UserUpdate = Schemas["UserUpdate"];
+export type RegisterIn = Schemas["RegisterIn"];
+export type ConsentStatus = Schemas["ConsentStatus"];
+export type ConsentChange = Schemas["ConsentChange"];
+export type ConsentPurpose = Schemas["ConsentPurpose"];
+export type UserExport = Schemas["UserExport"];
 
 const BASE = "/api/v1/auth";
 
@@ -28,7 +33,14 @@ export function authApi(http: HttpClient) {
         json: { refresh_token: refreshToken },
         auth: false,
       }),
+    register: (data: RegisterIn) =>
+      http.request<TokenPair>("POST", `${BASE}/register`, { json: data, auth: false }),
     me: () => http.request<User>("GET", `${BASE}/me`),
+    deleteMe: () => http.request<undefined>("DELETE", `${BASE}/me`),
+    exportMe: () => http.request<UserExport>("GET", `${BASE}/me/export`),
+    consents: () => http.request<ConsentStatus[]>("GET", `${BASE}/me/consents`),
+    changeConsent: (change: ConsentChange) =>
+      http.request<ConsentStatus[]>("POST", `${BASE}/me/consents`, { json: change }),
     listUsers: (query: PageQuery & { role?: Role | undefined }) =>
       http.request<Page<User>>("GET", `${BASE}/users`, { query: { ...query } }),
     createStaff: (data: StaffCreate) =>

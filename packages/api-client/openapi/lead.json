@@ -342,6 +342,44 @@
         "title": "LeadUpdate",
         "type": "object"
       },
+      "MyRequestOut": {
+        "description": "A request as shown to its author in the app: no internal CRM data (notes, priority).",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LeadKind"
+          },
+          "municipality": {
+            "title": "Municipality",
+            "type": "string"
+          },
+          "property_type": {
+            "$ref": "#/components/schemas/PropertyType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LeadStatus"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "municipality",
+          "property_type",
+          "created_at"
+        ],
+        "title": "MyRequestOut",
+        "type": "object"
+      },
       "OwnerIntention": {
         "description": "How determined the owner is. Drives the lead priority.",
         "enum": [
@@ -470,6 +508,37 @@
           "size"
         ],
         "title": "Page[LeadOut]",
+        "type": "object"
+      },
+      "Page_MyRequestOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MyRequestOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size"
+        ],
+        "title": "Page[MyRequestOut]",
         "type": "object"
       },
       "PartCondition": {
@@ -1141,6 +1210,68 @@
         ]
       }
     },
+    "/api/v1/lead/me/requests": {
+      "get": {
+        "description": "The logged-in user's own requests, with the status updated by the agency.",
+        "operationId": "my_requests_api_v1_lead_me_requests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_MyRequestOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Requests",
+        "tags": [
+          "public"
+        ]
+      }
+    },
     "/api/v1/lead/owner-requests": {
       "post": {
         "operationId": "create_owner_request_api_v1_lead_owner_requests_post",
@@ -1176,6 +1307,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Owner Request",
         "tags": [
           "public"
@@ -1217,6 +1353,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Valuation",
         "tags": [
           "public"

@@ -40,6 +40,26 @@ export interface paths {
     patch: operations["update_lead_api_v1_lead_leads__lead_id__patch"];
     trace?: never;
   };
+  "/api/v1/lead/me/requests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * My Requests
+     * @description The logged-in user's own requests, with the status updated by the agency.
+     */
+    get: operations["my_requests_api_v1_lead_me_requests_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/lead/owner-requests": {
     parameters: {
       query?: never;
@@ -239,6 +259,27 @@ export interface components {
       status?: components["schemas"]["LeadStatus"] | null;
     };
     /**
+     * MyRequestOut
+     * @description A request as shown to its author in the app: no internal CRM data (notes, priority).
+     */
+    MyRequestOut: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      kind: components["schemas"]["LeadKind"];
+      /** Municipality */
+      municipality: string;
+      property_type: components["schemas"]["PropertyType"];
+      status: components["schemas"]["LeadStatus"];
+    };
+    /**
      * OwnerIntention
      * @description How determined the owner is. Drives the lead priority.
      * @enum {string}
@@ -274,6 +315,17 @@ export interface components {
     Page_LeadOut_: {
       /** Items */
       items: components["schemas"]["LeadOut"][];
+      /** Page */
+      page: number;
+      /** Size */
+      size: number;
+      /** Total */
+      total: number;
+    };
+    /** Page[MyRequestOut] */
+    Page_MyRequestOut_: {
+      /** Items */
+      items: components["schemas"]["MyRequestOut"][];
       /** Page */
       page: number;
       /** Size */
@@ -530,6 +582,38 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["LeadOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  my_requests_api_v1_lead_me_requests_get: {
+    parameters: {
+      query?: {
+        page?: number;
+        size?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_MyRequestOut_"];
         };
       };
       /** @description Validation Error */
