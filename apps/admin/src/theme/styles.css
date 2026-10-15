@@ -26,24 +26,27 @@ a {
   color: var(--color-brand-blue);
 }
 
+/* Titles use the serif of the brand; the rest of the interface stays sans-serif for legibility. */
 h1,
 h2,
 h3 {
   margin: 0;
+  font-family: var(--font-family-heading);
   font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
   color: var(--color-gray900);
 }
 
 h1 {
-  font-size: var(--font-size-xxl);
+  font-size: var(--font-size-display);
 }
 
 h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
 }
 
 h3 {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
 }
 
 :focus-visible {
@@ -575,6 +578,10 @@ textarea:focus {
 .login-brand {
   margin-bottom: var(--space-xl);
   text-align: center;
+}
+
+.login-brand h1 {
+  font-size: var(--font-size-xxl);
 }
 
 .login-logo {

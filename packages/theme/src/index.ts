@@ -47,6 +47,8 @@ export const radii = {
 export const typography = {
   fontFamily:
     "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  /** Titles use a classic serif close to the logo lettering (assets/fonts, SIL OFL 1.1). */
+  headingFontFamily: "'EB Garamond', Georgia, 'Times New Roman', serif",
   sizes: {
     xs: 12,
     sm: 14,
@@ -86,6 +88,14 @@ export function cssVariables(): Record<string, string> {
     vars[`--font-weight-${name}`] = `${value}`;
   for (const [name, value] of Object.entries(shadows)) vars[`--shadow-${name}`] = value;
   vars["--font-family"] = typography.fontFamily;
+  vars["--font-family-heading"] = typography.headingFontFamily;
   vars["--line-height"] = `${typography.lineHeight}`;
   return vars;
 }
+
+/** Font file shipped with the theme for the titles (variable weight, Latin subset). */
+export const headingFont = {
+  family: "EB Garamond",
+  weights: "400 800",
+  file: "assets/fonts/eb-garamond-latin-wght-normal.woff2",
+} as const;
