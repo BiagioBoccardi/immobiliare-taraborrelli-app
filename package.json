@@ -3,6 +3,7 @@
   "private": true,
   "workspaces": [
     "apps/admin",
+    "apps/mobile",
     "packages/api-client",
     "packages/theme"
   ],
@@ -28,5 +29,9 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.71.2"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  }
 }

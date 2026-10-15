@@ -28,6 +28,10 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/*.{js,mjs}"],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  {
     files: ["**/*.test.{ts,tsx}", "**/tests/**"],
     languageOptions: { globals: { ...globals.jest } },
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },

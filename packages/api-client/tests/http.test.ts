@@ -49,6 +49,12 @@ describe("buildQuery", () => {
     expect(query).toBe("?property_type=villa&property_type=house&page=2");
   });
 
+  it("encodes special characters", () => {
+    expect(buildQuery({ municipality: "Chieti Scalo", q: "a&b=c" })).toBe(
+      "?municipality=Chieti%20Scalo&q=a%26b%3Dc",
+    );
+  });
+
   it("returns an empty string without parameters", () => {
     expect(buildQuery({ a: null })).toBe("");
   });

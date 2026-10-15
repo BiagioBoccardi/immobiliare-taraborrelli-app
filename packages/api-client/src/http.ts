@@ -50,19 +50,21 @@ export interface RequestOptions {
   auth?: boolean;
 }
 
+/** Builds a query string by hand: React Native's URLSearchParams is incomplete. */
 export function buildQuery(query: Query | undefined): string {
   if (!query) return "";
-  const params = new URLSearchParams();
+  const parts: string[] = [];
+  const add = (key: string, value: string | number | boolean) =>
+    parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined || value === null || value === "") continue;
     if (Array.isArray(value)) {
-      for (const item of value) params.append(key, String(item));
+      for (const item of value) add(key, item);
     } else {
-      params.append(key, String(value));
+      add(key, value as string | number | boolean);
     }
   }
-  const text = params.toString();
-  return text ? `?${text}` : "";
+  return parts.length ? `?${parts.join("&")}` : "";
 }
 
 function isErrorBody(value: unknown): value is ApiErrorBody {
