@@ -22,6 +22,8 @@ DB_PORT="${DEV_DB_PORT:-55432}"
 S3_PORT="${DEV_S3_PORT:-9100}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@taraborrelli.test}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin-di-prova-1}"
+USER_EMAIL="${USER_EMAIL:-utente@taraborrelli.test}"
+USER_PASSWORD="${USER_PASSWORD:-Utente-di-prova-1}"
 
 info() { printf '\033[1;34m›\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
@@ -116,6 +118,17 @@ cli.getpass.getpass = lambda _prompt: os.environ['ADMIN_PASSWORD']
 sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amministratore Prova']))
 ") >>"$STATE/logs/auth.log" 2>&1 || fail "Creazione amministratore fallita: $STATE/logs/auth.log"
 
+  info "Utente dell'app di prova…"
+  user_token=$(curl -fs -X POST "http://localhost:8001/api/v1/auth/register" \
+    -H 'Content-Type: application/json' \
+    -d '{"full_name":"Giulia Utente","email":"'"$USER_EMAIL"'","password":"'"$USER_PASSWORD"'","source":"app","consent":{"privacy_accepted":true,"privacy_policy_version":"2026-01","marketing_accepted":false}}' \
+    | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p') \
+    || fail "Creazione utente di prova fallita"
+  # A request linked to the account, visible in the app's Profilo.
+  curl -fs -o /dev/null -X POST "http://localhost:8002/api/v1/lead/owner-requests" \
+    -H 'Content-Type: application/json' -H "Authorization: Bearer $user_token" \
+    -d '{"kind":"sell","full_name":"Giulia Utente","phone":"333 222 3333","municipality":"Chieti","property_type":"house","intention":"know_value","consent":{"privacy_accepted":true,"privacy_policy_version":"2026-01"}}'
+
   info "Richieste di esempio dai moduli pubblici…"
   curl -fs -o /dev/null -X POST "http://localhost:8002/api/v1/lead/valuations" \
     -H 'Content-Type: application/json' -d '{"full_name":"Mario Rossi","phone":"333 000 0000","municipality":"Chieti","property_type":"apartment","surface_sqm":95,"rooms":4,"condition":"good","intention":"decided","consent":{"privacy_accepted":true,"privacy_policy_version":"2026-01","marketing_accepted":true}}'
@@ -147,6 +160,8 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
       Password:      $ADMIN_PASSWORD
 
     App (anteprima nel browser):  http://localhost:8081
+      Email:         $USER_EMAIL
+      Password:      $USER_PASSWORD
       La prima apertura può richiedere un minuto mentre l'app viene preparata.
 
   Log:   scripts/dev-local.sh logs

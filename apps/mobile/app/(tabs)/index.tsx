@@ -19,6 +19,7 @@ import {
 import { t, type TranslationKey } from "../../src/i18n";
 import { useFeatured, useLatest } from "../../src/queries";
 import { useSearch } from "../../src/search";
+import { useSession } from "../../src/session";
 import { cardShadow, colors, radii, spacing, typography } from "../../src/theme";
 
 const ACTIONS: { label: TranslationKey; icon: IconName; go: () => void }[] = [
@@ -29,6 +30,8 @@ const ACTIONS: { label: TranslationKey; icon: IconName; go: () => void }[] = [
 
 export default function Home() {
   const { filters, update } = useSearch();
+  const { user } = useSession();
+  const firstName = user?.full_name.trim().split(/\s+/)[0];
   const featured = useFeatured(filters.contract);
   const latest = useLatest(filters.contract);
 
@@ -36,7 +39,9 @@ export default function Home() {
     <Screen>
       <View style={styles.header}>
         <View style={styles.greeting}>
-          <Heading size="xxl">{t("home.greeting")}</Heading>
+          <Heading size="xxl">
+            {firstName ? t("home.greetingName", { name: firstName }) : t("home.greeting")}
+          </Heading>
           <View style={styles.location}>
             <Ionicons name="location-outline" size={16} color={colors.brandBlue} />
             <Body muted>{t("home.location")}</Body>

@@ -5,3 +5,10 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 
 // Icon fonts are not available in tests: render icons as plain host elements.
 jest.mock("@expo/vector-icons", () => ({ Ionicons: "Ionicons" }));
+
+// The phone's keychain is not available in tests.
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn().mockResolvedValue(null),
+  setItemAsync: jest.fn().mockResolvedValue(undefined),
+  deleteItemAsync: jest.fn().mockResolvedValue(undefined),
+}));

@@ -10,11 +10,14 @@ import {
 } from "react";
 
 /**
- * Favorites are kept on the device, so they work without registering (CLAUDE.md, section 11).
- * They will be synchronized with the account once login exists.
+ * Favorites are kept on the device, per account. They will be synchronized with the server
+ * once the engagement service exists.
  */
 
-export const FAVORITES_KEY = "taraborrelli.favorites";
+/** Favorites are kept per account, so people sharing a phone do not see each other's. */
+export function favoritesKey(userId: string): string {
+  return `taraborrelli.favorites.${userId}`;
+}
 
 interface FavoritesValue {
   ids: string[];
@@ -26,24 +29,28 @@ interface FavoritesValue {
 
 const FavoritesContext = createContext<FavoritesValue | null>(null);
 
-export function FavoritesProvider({ children }: { children: ReactNode }) {
+export function FavoritesProvider({ userId, children }: { userId: string; children: ReactNode }) {
+  const storageKey = favoritesKey(userId);
   const [ids, setIds] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(FAVORITES_KEY)
+    AsyncStorage.getItem(storageKey)
       .then((stored) => {
         const parsed: unknown = stored ? JSON.parse(stored) : [];
         if (Array.isArray(parsed)) setIds(parsed.filter((id) => typeof id === "string"));
       })
       .catch(() => undefined)
       .finally(() => setReady(true));
-  }, []);
+  }, [storageKey]);
 
-  const save = useCallback((next: string[]) => {
-    setIds(next);
-    void AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(next)).catch(() => undefined);
-  }, []);
+  const save = useCallback(
+    (next: string[]) => {
+      setIds(next);
+      void AsyncStorage.setItem(storageKey, JSON.stringify(next)).catch(() => undefined);
+    },
+    [storageKey],
+  );
 
   const value = useMemo<FavoritesValue>(
     () => ({

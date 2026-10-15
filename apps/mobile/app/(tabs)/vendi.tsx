@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { OwnerIntention } from "@taraborrelli/api-client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   Linking,
@@ -26,6 +26,7 @@ import {
   type OwnerFormErrors,
   type OwnerPropertyType,
 } from "../../src/ownerRequest";
+import { useSession } from "../../src/session";
 import { colors, radii, spacing, typography } from "../../src/theme";
 
 const TYPES: OwnerPropertyType[] = ["apartment", "house", "villa", "attic", "commercial", "land"];
@@ -83,9 +84,16 @@ function Checkbox({
 }
 
 export default function Sell() {
-  const [form, setForm] = useState<OwnerForm>(EMPTY_OWNER_FORM);
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  // The account already knows the name: one field less to fill in.
+  const initialForm: OwnerForm = { ...EMPTY_OWNER_FORM, fullName: user?.full_name ?? "" };
+  const [form, setForm] = useState<OwnerForm>(initialForm);
   const [errors, setErrors] = useState<OwnerFormErrors>({});
-  const send = useMutation({ mutationFn: () => api.lead.createOwnerRequest(toOwnerRequest(form)) });
+  const send = useMutation({
+    mutationFn: () => api.lead.createOwnerRequest(toOwnerRequest(form)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me", "requests"] }),
+  });
   const set = (changes: Partial<OwnerForm>) => setForm((current) => ({ ...current, ...changes }));
 
   const submit = () => {
@@ -106,7 +114,7 @@ export default function Sell() {
           label={t("sell.another")}
           variant="secondary"
           onPress={() => {
-            setForm(EMPTY_OWNER_FORM);
+            setForm(initialForm);
             send.reset();
           }}
         />

@@ -23,3 +23,9 @@ export function tEnum(group: string, value: string | null | undefined): string {
 export function tCount(count: number, one: TranslationKey, many: TranslationKey): string {
   return count === 1 ? t(one) : t(many, { count });
 }
+
+/** Message for an API error code, with a generic fallback. */
+export function tError(code: string | undefined): string {
+  const key = `errors.${code ?? "generic"}`;
+  return key in it ? it[key as TranslationKey] : it["errors.generic"];
+}

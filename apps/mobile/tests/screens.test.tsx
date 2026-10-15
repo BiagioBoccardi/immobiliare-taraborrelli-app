@@ -8,8 +8,10 @@ import Favorites from "../app/(tabs)/preferiti";
 import Sell from "../app/(tabs)/vendi";
 import PropertyScreen from "../app/immobile/[id]";
 import { api } from "../src/api";
-import { FAVORITES_KEY } from "../src/favorites";
-import { makeCard, makeDetail, page, renderWithProviders } from "./helpers";
+import { favoritesKey } from "../src/favorites";
+import { makeCard, makeDetail, page, renderWithProviders, TEST_USER } from "./helpers";
+
+const FAVORITES_KEY = favoritesKey(TEST_USER.id);
 
 jest.mock("../src/api", () => ({
   api: {
@@ -40,6 +42,14 @@ beforeEach(async () => {
 });
 
 describe("Home", () => {
+  it("greets the user by first name", async () => {
+    mockedApi.property.search.mockResolvedValue(page([]));
+
+    await renderWithProviders(<Home />);
+
+    expect(screen.getByText("Ciao, Anna")).toBeTruthy();
+  });
+
   it("shows the three main actions and featured properties", async () => {
     mockedApi.property.search.mockResolvedValue(page([makeCard()]));
 
@@ -103,7 +113,7 @@ describe("Property detail", () => {
 });
 
 describe("Favorites", () => {
-  it("works without registration and lists saved properties", async () => {
+  it("lists the properties saved by the user", async () => {
     await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(["p1"]));
     mockedApi.property.getPublic.mockResolvedValue(makeDetail());
 
@@ -127,6 +137,12 @@ describe("Sell form", () => {
 
     expect(await screen.findByText("Serve il consenso per poterti ricontattare")).toBeTruthy();
     expect(mockedApi.lead.createOwnerRequest).not.toHaveBeenCalled();
+  });
+
+  it("fills in the name from the account", async () => {
+    await renderWithProviders(<Sell />);
+
+    expect(screen.getByLabelText("Nome e cognome").props.value).toBe("Anna Bianchi");
   });
 
   it("sends the owner request and thanks the owner", async () => {

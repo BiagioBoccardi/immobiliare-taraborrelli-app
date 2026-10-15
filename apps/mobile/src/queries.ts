@@ -1,7 +1,19 @@
-import { ApiError, type Contract, type PropertySearch } from "@taraborrelli/api-client";
-import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
+import {
+  ApiError,
+  type ConsentPurpose,
+  type Contract,
+  type PropertySearch,
+} from "@taraborrelli/api-client";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { api } from "./api";
+import { privacy } from "./config";
 
 const PAGE_SIZE = 20;
 
@@ -49,4 +61,28 @@ export function useFavoriteProperties(ids: string[]) {
 
 export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
+}
+
+/** Requests the user sent to the agency (valuations, "voglio vendere", "voglio affittare"). */
+export function useMyRequests() {
+  return useQuery({
+    queryKey: ["me", "requests"],
+    queryFn: () => api.lead.myRequests({ size: 20 }),
+  });
+}
+
+export function useMyConsents() {
+  return useQuery({
+    queryKey: ["me", "consents"],
+    queryFn: () => api.auth.consents(),
+  });
+}
+
+export function useChangeConsent() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ purpose, granted }: { purpose: ConsentPurpose; granted: boolean }) =>
+      api.auth.changeConsent({ purpose, granted, policy_version: privacy.version, source: "app" }),
+    onSuccess: (consents) => client.setQueryData(["me", "consents"], consents),
+  });
 }

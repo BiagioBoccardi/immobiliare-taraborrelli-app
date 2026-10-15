@@ -277,7 +277,7 @@ Queste regole valgono sempre, anche quando non sono ripetute nella richiesta.
 - Una richiesta di valutazione è un lead, non un incarico.
 - I moduli per i proprietari devono essere brevi e compilabili da smartphone in pochi secondi. Non aggiungere campi obbligatori senza chiederlo.
 - Le notifiche si inviano solo a chi ha dato il consenso, rispettando le categorie scelte dall'utente. Niente notifiche generiche di massa.
-- Preferiti e navigazione del catalogo funzionano senza registrazione (salvati sul dispositivo e sincronizzati al login). L'identificazione è richiesta solo per richieste di visita, valutazioni e area personale.
+- L'app mobile richiede un account per tutte le funzioni: dopo la schermata di benvenuto l'utente accede o si registra (decisione del titolare, ottobre 2026). Le API pubbliche del catalogo e dei moduli restano utilizzabili senza account, perché servono anche al sito web; quando la richiesta arriva da un utente autenticato viene collegata al suo account. Nota: la regola 5.1.1 dell'App Store di Apple vieta di chiedere la registrazione per funzioni che non dipendono da un account; prima della pubblicazione su iOS questa scelta va rivalutata.
 - Negli "Immobili venduti" si mostrano solo zona, tipologia e foto autorizzate. Nessun dato personale dei proprietari; testimonianze solo con consenso registrato.
 - I calcolatori mostrano sempre che il risultato è indicativo e non è un preventivo.
 - L'assistente virtuale risponde solo con dati reali del catalogo. Non inventa immobili, prezzi o disponibilità; se non trova nulla, propone di lasciare i contatti.
