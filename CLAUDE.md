@@ -344,6 +344,7 @@ Elementi esclusi o da adattare: le stelle di valutazione sugli immobili, le date
 Non dare per scontate queste scelte: chiedi prima di implementare qualcosa che ne dipende.
 
 - Hosting e strategia di deploy (CD)
+  - **Da fare quando si sceglie l'hosting:** collegare il modulo di ricontatto del sito https://immobiliare-taraborrelli.netlify.app/ al servizio `lead`, così le richieste compaiono nel pannello admin (pagina «Richieste proprietari»). Con il backend online il modulo invia direttamente all'API pubblica di `lead` (CORS per il dominio del sito, rate limiting, consenso privacy obbligatorio). Se il modulo è un semplice ricontatto, aggiungere a `lead` il tipo «Richiesta di ricontatto». Prima di iniziare, leggere il codice del modulo (repository del sito o HTML). Alternativa valutata e messa da parte: importare le richieste da Netlify Forms tramite la loro API.
 - Account sviluppatore e tempi di pubblicazione su Play Store; pubblicazione su App Store
 - Metodo e fonte dati per la stima automatica
 - Gestionale immobiliare attualmente usato dall'agenzia e possibilità di integrazione
