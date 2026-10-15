@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from py_common.errors import register_error_handlers
-from py_common.events import EventPublisher, RabbitMQEventPublisher
+from py_common.events import EventPublisher, RabbitMQConsumer, RabbitMQEventPublisher
 from py_common.health import health_router
 from py_common.logging import add_request_id_middleware, configure_logging
 from py_common.security import TokenVerifier
@@ -11,6 +11,7 @@ from py_common.security import TokenVerifier
 from app.api import public, staff
 from app.core.config import Settings, get_settings
 from app.core.database import create_engine, create_session_factory
+from app.events.consumers import USER_DELETED_ROUTING_KEY, UserDeletedHandler
 from app.events.publisher import LoggingEventPublisher
 
 API_PREFIX = "/api/v1/lead"
@@ -23,16 +24,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_engine(settings.database_url)
-        publisher: EventPublisher
+        session_factory = create_session_factory(engine)
+        publisher: EventPublisher = LoggingEventPublisher()
+        consumer: RabbitMQConsumer | None = None
         if settings.events_enabled:
             publisher = RabbitMQEventPublisher(settings.rabbitmq_url, settings.events_exchange)
-        else:
-            publisher = LoggingEventPublisher()
-        app.state.session_factory = create_session_factory(engine)
+            consumer = RabbitMQConsumer(
+                settings.rabbitmq_url,
+                settings.events_exchange,
+                settings.events_queue,
+                [USER_DELETED_ROUTING_KEY],
+                UserDeletedHandler(session_factory),
+            )
+            consumer.start_in_background()
+        app.state.session_factory = session_factory
         app.state.publisher = publisher
         try:
             yield
         finally:
+            if consumer is not None:
+                await consumer.stop()
             if isinstance(publisher, RabbitMQEventPublisher):
                 await publisher.close()
             await engine.dispose()

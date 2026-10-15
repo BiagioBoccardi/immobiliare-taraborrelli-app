@@ -21,6 +21,7 @@ from app.schemas.lead import (
     LeadFilters,
     LeadOut,
     LeadUpdate,
+    MyRequestOut,
     OwnerRequestCreate,
     ValuationCreate,
     ValuationDetails,
@@ -57,13 +58,16 @@ class LeadService:
         self._completion_window = completion_window
         self._clock = clock
 
-    async def create_valuation(self, data: ValuationCreate) -> CreatedValuation:
+    async def create_valuation(
+        self, data: ValuationCreate, user_id: uuid.UUID | None = None
+    ) -> CreatedValuation:
         now = self._clock()
         token = new_token()
         lead = Lead(
             id=uuid.uuid4(),
             kind=LeadKind.VALUATION,
             status=LeadStatus.NEW,
+            user_id=user_id,
             priority=priority_for(data.intention),
             intention=data.intention,
             full_name=data.full_name,
@@ -117,12 +121,15 @@ class LeadService:
         lead.updated_at = self._clock()
         await self._repo.commit()
 
-    async def create_owner_request(self, data: OwnerRequestCreate) -> Lead:
+    async def create_owner_request(
+        self, data: OwnerRequestCreate, user_id: uuid.UUID | None = None
+    ) -> Lead:
         now = self._clock()
         lead = Lead(
             id=uuid.uuid4(),
             kind=LeadKind(data.kind),
             status=LeadStatus.NEW,
+            user_id=user_id,
             priority=priority_for(data.intention),
             intention=data.intention,
             full_name=data.full_name,
@@ -162,6 +169,21 @@ class LeadService:
             page=params.page,
             size=params.size,
         )
+
+    async def list_my_requests(self, user_id: uuid.UUID, params: PageParams) -> Page[MyRequestOut]:
+        leads, total = await self._repo.list_for_user(user_id, params.offset, params.size)
+        return Page[MyRequestOut](
+            items=[MyRequestOut.model_validate(lead) for lead in leads],
+            total=total,
+            page=params.page,
+            size=params.size,
+        )
+
+    async def delete_user_requests(self, user_id: uuid.UUID) -> int:
+        """GDPR erasure after `auth.user_deleted`. Idempotent: a second call deletes nothing."""
+        deleted = await self._repo.delete_for_user(user_id)
+        await self._repo.commit()
+        return deleted
 
     async def get_lead(self, lead_id: uuid.UUID) -> Lead:
         lead = await self._repo.get(lead_id)

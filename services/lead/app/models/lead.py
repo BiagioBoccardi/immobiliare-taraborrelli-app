@@ -43,6 +43,9 @@ class Lead(Base):
     priority: Mapped[LeadPriority] = mapped_column(_enum(LeadPriority, "lead_priority"), index=True)
     intention: Mapped[OwnerIntention] = mapped_column(_enum(OwnerIntention, "owner_intention"))
 
+    # App account that sent the request, when the owner was logged in.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+
     full_name: Mapped[str] = mapped_column(String(120))
     phone: Mapped[str] = mapped_column(String(20), index=True)
     email: Mapped[str | None] = mapped_column(String(254))

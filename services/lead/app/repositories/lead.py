@@ -1,8 +1,9 @@
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Protocol
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import LeadPriority
@@ -25,6 +26,12 @@ class LeadRepository(Protocol):
     ) -> tuple[list[Lead], int]: ...
 
     async def delete(self, lead: Lead) -> None: ...
+
+    async def list_for_user(
+        self, user_id: uuid.UUID, offset: int, limit: int
+    ) -> tuple[Sequence[Lead], int]: ...
+
+    async def delete_for_user(self, user_id: uuid.UUID) -> int: ...
 
     async def commit(self) -> None: ...
 
@@ -66,6 +73,22 @@ class SqlLeadRepository:
     async def delete(self, lead: Lead) -> None:
         await self._session.delete(lead)
         await self._session.flush()
+
+    async def list_for_user(
+        self, user_id: uuid.UUID, offset: int, limit: int
+    ) -> tuple[Sequence[Lead], int]:
+        query = select(Lead).where(Lead.user_id == user_id)
+        total = await self._session.scalar(select(func.count()).select_from(query.subquery()))
+        rows = await self._session.scalars(
+            query.order_by(Lead.created_at.desc(), Lead.id).offset(offset).limit(limit)
+        )
+        return rows.all(), int(total or 0)
+
+    async def delete_for_user(self, user_id: uuid.UUID) -> int:
+        result = await self._session.execute(
+            delete(Lead).where(Lead.user_id == user_id).returning(Lead.id)
+        )
+        return len(result.all())
 
     async def commit(self) -> None:
         await self._session.commit()

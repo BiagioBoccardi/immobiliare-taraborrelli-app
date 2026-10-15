@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
@@ -33,6 +34,18 @@ class FakeLeadRepository:
 
     async def delete(self, lead: Lead) -> None:
         del self.leads[lead.id]
+
+    async def list_for_user(
+        self, user_id: uuid.UUID, offset: int, limit: int
+    ) -> tuple[Sequence[Lead], int]:
+        items = [lead for lead in self.leads.values() if lead.user_id == user_id]
+        return items[offset : offset + limit], len(items)
+
+    async def delete_for_user(self, user_id: uuid.UUID) -> int:
+        doomed = [lead_id for lead_id, lead in self.leads.items() if lead.user_id == user_id]
+        for lead_id in doomed:
+            del self.leads[lead_id]
+        return len(doomed)
 
     async def commit(self) -> None:
         self.commits += 1

@@ -186,3 +186,16 @@ class LeadFilters(BaseModel):
     status: LeadStatus | None = None
     priority: LeadPriority | None = None
     due_for_contact: bool = False
+
+
+class MyRequestOut(BaseModel):
+    """A request as shown to its author in the app: no internal CRM data (notes, priority)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    kind: LeadKind
+    status: LeadStatus
+    municipality: str
+    property_type: PropertyType
+    created_at: datetime

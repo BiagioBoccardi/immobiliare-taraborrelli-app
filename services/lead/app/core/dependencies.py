@@ -4,7 +4,11 @@ from typing import Annotated, cast
 
 from fastapi import Depends, Request
 from py_common.events import EventPublisher
-from py_common.security import TokenVerifier, build_auth_dependencies
+from py_common.security import (
+    TokenVerifier,
+    build_auth_dependencies,
+    build_optional_user_dependency,
+)
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
@@ -43,3 +47,4 @@ def get_lead_service(
 
 
 require_user, require_staff = build_auth_dependencies(get_token_verifier)
+optional_user = build_optional_user_dependency(get_token_verifier)

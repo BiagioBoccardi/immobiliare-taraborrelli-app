@@ -10,6 +10,7 @@ class Settings(BaseServiceSettings):
     valuation_completion_window_days: int = 7
     # When false, events are only logged (useful to run the service without RabbitMQ).
     events_enabled: bool = True
+    events_queue: str = "lead.user-deletions"
 
 
 @lru_cache

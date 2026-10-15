@@ -210,3 +210,44 @@ async def test_create_valuation_emits_consent_with_given_purposes(
     assert consent_event.payload.purposes == expected
     assert consent_event.payload.policy_version == "2026-01"
     assert consent_event.payload.given_at == NOW
+
+
+async def test_create_owner_request_with_user_links_account() -> None:
+    service, repo, _ = build_service()
+    user_id = uuid.uuid4()
+
+    lead = await service.create_owner_request(
+        OwnerRequestCreate.model_validate(owner_request_payload()), user_id
+    )
+
+    assert repo.leads[lead.id].user_id == user_id
+
+
+async def test_create_valuation_without_user_has_no_account() -> None:
+    service, repo, _ = build_service()
+
+    created = await service.create_valuation(ValuationCreate.model_validate(valuation_payload()))
+
+    assert repo.leads[created.lead.id].user_id is None
+
+
+async def test_list_my_requests_returns_only_own_requests() -> None:
+    mine, other = uuid.uuid4(), uuid.uuid4()
+    own = make_lead(user_id=mine)
+    service, _, _ = build_service(FakeLeadRepository([own, make_lead(user_id=other), make_lead()]))
+
+    page = await service.list_my_requests(mine, PageParams())
+
+    assert [item.id for item in page.items] == [own.id]
+    assert "staff_notes" not in page.items[0].model_dump()
+
+
+async def test_delete_user_requests_twice_deletes_once() -> None:
+    user_id = uuid.uuid4()
+    service, repo, _ = build_service(FakeLeadRepository([make_lead(user_id=user_id), make_lead()]))
+    await service.delete_user_requests(user_id)
+
+    deleted_again = await service.delete_user_requests(user_id)
+
+    assert deleted_again == 0
+    assert len(repo.leads) == 1

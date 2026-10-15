@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,3 +87,28 @@ async def test_delete_removes_row(db_session: AsyncSession) -> None:
     await repo.delete(lead)
 
     assert await repo.get(lead.id) is None
+
+
+async def test_list_for_user_returns_own_newest_first(db_session: AsyncSession) -> None:
+    repo = SqlLeadRepository(db_session)
+    user_id = uuid.uuid4()
+    old = await repo.add(make_lead(user_id=user_id, created_at=NOW - timedelta(days=1)))
+    new = await repo.add(make_lead(user_id=user_id, created_at=NOW))
+    await repo.add(make_lead(user_id=uuid.uuid4()))
+
+    items, total = await repo.list_for_user(user_id, offset=0, limit=10)
+
+    assert total == 2
+    assert [lead.id for lead in items] == [new.id, old.id]
+
+
+async def test_delete_for_user_keeps_other_leads(db_session: AsyncSession) -> None:
+    repo = SqlLeadRepository(db_session)
+    user_id = uuid.uuid4()
+    await repo.add(make_lead(user_id=user_id))
+    kept = await repo.add(make_lead())
+
+    deleted = await repo.delete_for_user(user_id)
+
+    assert deleted == 1
+    assert await repo.get(kept.id) is not None
