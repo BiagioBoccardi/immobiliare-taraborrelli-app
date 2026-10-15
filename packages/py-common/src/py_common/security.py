@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Annotated, Any
 
 import jwt
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
@@ -88,3 +88,27 @@ def build_auth_dependencies(
         return principal
 
     return require_user, require_staff
+
+
+def build_optional_user_dependency(
+    get_verifier: Callable[..., TokenVerifier],
+) -> Callable[..., Coroutine[Any, Any, Principal | None]]:
+    """Dependency for public endpoints that also accept a logged-in user.
+
+    No Authorization header: returns None. A header with an invalid or expired token is
+    still rejected with 401, so a client never silently loses its identity.
+    """
+
+    async def optional_user(
+        request: Request,
+        credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+        verifier: Annotated[TokenVerifier, Depends(get_verifier)],
+    ) -> Principal | None:
+        if credentials is None:
+            # HTTPBearer ignores other schemes: an Authorization header we cannot use is an error.
+            if request.headers.get("Authorization"):
+                raise UnauthorizedError()
+            return None
+        return verifier.verify(credentials.credentials)
+
+    return optional_user

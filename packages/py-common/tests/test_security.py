@@ -7,7 +7,13 @@ from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from py_common.errors import UnauthorizedError, register_error_handlers
-from py_common.security import Principal, Role, TokenVerifier, build_auth_dependencies
+from py_common.security import (
+    Principal,
+    Role,
+    TokenVerifier,
+    build_auth_dependencies,
+    build_optional_user_dependency,
+)
 
 
 def test_verify_valid_staff_token_returns_staff_principal(
@@ -108,3 +114,50 @@ async def test_staff_endpoint_with_admin_role_returns_200(
 
     assert status == 200
     assert body == {"sub": "user-1"}
+
+
+@pytest.fixture
+def optional_app(verifier: TokenVerifier) -> FastAPI:
+    app = FastAPI()
+    register_error_handlers(app)
+    optional_user = build_optional_user_dependency(lambda: verifier)
+
+    @app.get("/form")
+    async def form(
+        principal: Annotated[Principal | None, Depends(optional_user)],
+    ) -> dict[str, str]:
+        return {"sub": principal.subject if principal else "anonymous"}
+
+    return app
+
+
+async def _get_form(app: FastAPI, headers: dict[str, str] | None = None) -> tuple[int, object]:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/form", headers=headers or {})
+    return response.status_code, response.json()
+
+
+async def test_optional_user_without_token_is_anonymous(optional_app: FastAPI) -> None:
+    status, body = await _get_form(optional_app)
+
+    assert (status, body) == (200, {"sub": "anonymous"})
+
+
+async def test_optional_user_with_valid_token_is_identified(
+    optional_app: FastAPI, make_token: Callable[..., str]
+) -> None:
+    status, body = await _get_form(optional_app, {"Authorization": f"Bearer {make_token()}"})
+
+    assert (status, body) == (200, {"sub": "user-1"})
+
+
+async def test_optional_user_with_invalid_token_returns_401(optional_app: FastAPI) -> None:
+    status, _ = await _get_form(optional_app, {"Authorization": "Bearer not-a-token"})
+
+    assert status == 401
+
+
+async def test_optional_user_with_other_scheme_returns_401(optional_app: FastAPI) -> None:
+    status, _ = await _get_form(optional_app, {"Authorization": "Basic abc"})
+
+    assert status == 401
