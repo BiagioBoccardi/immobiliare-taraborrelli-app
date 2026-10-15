@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # Local trial environment for the admin panel, without docker compose.
 #
-#   scripts/dev-local.sh up     start everything and open http://localhost:5173
+#   scripts/dev-local.sh up     start everything: admin on :5173, mobile app (web) on :8081
 #   scripts/dev-local.sh down   stop everything (data is discarded)
 #   scripts/dev-local.sh logs   follow the services' logs
 #
 # What it starts: PostgreSQL in Docker (one database per service), the auth, lead and
-# property services with uv, an in-memory S3 for photos (moto, run with uvx) and the admin
-# panel with Vite. Events are disabled. Every start begins from empty data, with a test
-# administrator and two sample owner requests.
+# property services with uv, an in-memory S3 for photos (moto, run with uvx), the admin
+# panel with Vite and the mobile app in the browser (Expo web). Events are disabled. Every
+# start begins from empty data, with a test administrator, two sample owner requests and
+# five fictional sample properties.
 #
 # Requirements: Docker, uv, Node.js 20+ and openssl. On Windows use WSL2.
+# Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (S3), 55432 (PostgreSQL).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -125,12 +127,25 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
   start_bg admin "$ROOT" env VITE_LOCAL_SERVICES=1 npm run dev --workspace @taraborrelli/admin
   wait_for "http://localhost:5173" "Pannello"
 
+  info "Immobili di esempio…"
+  node "$ROOT/scripts/demo/seed.mjs" "http://localhost:5173" "$ADMIN_EMAIL" "$ADMIN_PASSWORD" \
+    >>"$STATE/logs/seed.log" 2>&1 || fail "Creazione immobili di esempio fallita: $STATE/logs/seed.log"
+
+  info "App mobile nel browser (porta 8081)…"
+  start_bg mobile "$ROOT/apps/mobile" env CI=1 EXPO_OFFLINE=1 \
+    EXPO_PUBLIC_API_BASE_URL="http://localhost:5173" npx expo start --web --port 8081
+  wait_for "http://localhost:8081" "App mobile"
+
   cat <<MSG
 
-  Pronto: http://localhost:5173
+  Pronto!
 
-    Email:     $ADMIN_EMAIL
-    Password:  $ADMIN_PASSWORD
+    Pannello admin:  http://localhost:5173
+      Email:         $ADMIN_EMAIL
+      Password:      $ADMIN_PASSWORD
+
+    App (anteprima nel browser):  http://localhost:8081
+      La prima apertura può richiedere un minuto mentre l'app viene preparata.
 
   Log:   scripts/dev-local.sh logs
   Stop:  scripts/dev-local.sh down   (i dati di prova vengono eliminati)

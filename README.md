@@ -17,6 +17,7 @@ interfaccia) sono in [`CLAUDE.md`](CLAUDE.md).
 | `infra/gateway` | Traefik con CORS e rate limiting sui moduli pubblici |
 | `packages/api-client` | Client TypeScript con tipi generati dall'OpenAPI dei servizi, rinnovo automatico della sessione |
 | `packages/theme` | Colori, spaziature e tipografia condivisi da admin, pagina web e app |
+| `apps/mobile` | App Expo: onboarding, Home con «Cerca casa», «Vendi casa», «Contattaci», catalogo con filtri, scheda immobile con contatto rapido, preferiti senza registrazione, richiesta «vendi o affitta» |
 | `apps/admin` | Pannello di amministrazione: riepilogo, richieste dei proprietari (CRM), immobili con foto e stati, account staff |
 | Altri servizi e app | Da sviluppare (vedi `CLAUDE.md`, sezione 10) |
 
@@ -26,14 +27,16 @@ Requisiti: Docker, [uv](https://docs.astral.sh/uv/), Node.js 20+ e openssl (su W
 
 ```bash
 scripts/dev-local.sh up     # avvia tutto in circa 20 secondi (la prima volta di più)
-# apri http://localhost:5173 — admin@taraborrelli.test / Admin-di-prova-1
+# pannello: http://localhost:5173 — admin@taraborrelli.test / Admin-di-prova-1
+# app (anteprima nel browser): http://localhost:8081
 scripts/dev-local.sh logs   # log dei servizi
 scripts/dev-local.sh down   # ferma tutto ed elimina i dati di prova
 ```
 
 Lo script avvia PostgreSQL in Docker, i servizi auth, lead e property, uno storage S3 in memoria
-per le foto e il pannello. Ogni avvio riparte da dati vuoti, con un amministratore di prova e
-due richieste di esempio. Le porte usate sono 5173, 8001-8003, 9100 e 55432.
+per le foto, il pannello e l'app mobile in anteprima nel browser. Ogni avvio riparte da dati
+vuoti, con un amministratore di prova, due richieste di esempio e cinque immobili di esempio
+(inventati, con foto segnaposto). Le porte usate sono 5173, 8081, 8001-8003, 9100 e 55432.
 
 ## Avvio rapido
 

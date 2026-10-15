@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "apps/admin/**"
+      - "apps/mobile/**"
       - "packages/api-client/**"
       - "packages/theme/**"
       - "package.json"
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "apps/admin/**"
+      - "apps/mobile/**"
       - "packages/api-client/**"
       - "packages/theme/**"
 
@@ -40,3 +42,10 @@ jobs:
         run: npm test
       - name: Build admin
         run: npm run build --workspace @taraborrelli/admin
+      - name: Bundle mobile app (web and Android)
+        working-directory: apps/mobile
+        env:
+          CI: "1"
+        run: |
+          npx expo export --platform web --output-dir dist/web
+          npx expo export --platform android --output-dir dist/android
