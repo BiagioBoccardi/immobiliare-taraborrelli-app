@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Immobiliare Taraborrelli",
+    "slug": "immobiliare-taraborrelli",
+    "version": "0.1.0",
+    "scheme": "taraborrelli",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "../../packages/theme/assets/icon-512.png",
+    "splash": {
+      "image": "../../packages/theme/assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "android": {
+      "package": "it.immobiliaretaraborrelli.app",
+      "adaptiveIcon": {
+        "foregroundImage": "../../packages/theme/assets/icon-512.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "it.immobiliaretaraborrelli.app",
+      "supportsTablet": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "../../packages/theme/assets/icon-64.png"
+    },
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

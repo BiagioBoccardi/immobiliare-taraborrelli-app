@@ -11,6 +11,6 @@ Il blu del marchio misurato sull'originale è `#0361A4` (`colors.brandBlue` in `
 
 ## Carattere dei titoli
 
-`fonts/eb-garamond-latin-wght-normal.woff2`: EB Garamond (peso variabile, caratteri latini), usato per
-i titoli perché vicino alle lettere del logo. Licenza SIL Open Font License 1.1 (`fonts/EB-Garamond-OFL.txt`).
+`fonts/eb-garamond-latin-wght-normal.woff2` (web) e `fonts/EBGaramond_600SemiBold.ttf` (app iOS e
+Android, che non leggono il woff2): EB Garamond, usato per i titoli perché vicino alle lettere del logo. Licenza SIL Open Font License 1.1 (`fonts/EB-Garamond-OFL.txt`).
 Il file è incluso nel progetto e non viene caricato da servizi esterni.
