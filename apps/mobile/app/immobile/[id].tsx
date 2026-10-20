@@ -3,18 +3,10 @@ import type { PropertyDetail } from "@taraborrelli/api-client";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import {
-  FlatList,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { FlatList, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAppWidth } from "../../src/components/AppFrame";
 import { FavoriteButton } from "../../src/components/PropertyCard";
 import {
   Body,
@@ -33,7 +25,7 @@ import { isNotFound, useProperty } from "../../src/queries";
 import { cardShadow, colors, radii, spacing, typography } from "../../src/theme";
 
 function Gallery({ property }: { property: PropertyDetail }) {
-  const { width } = useWindowDimensions();
+  const width = useAppWidth();
   const [index, setIndex] = useState(0);
   const photos = property.photos;
   return (

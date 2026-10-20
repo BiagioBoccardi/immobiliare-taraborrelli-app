@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { session } from "../src/api";
 import { headingFontFile } from "../src/assets";
+import { AppFrame } from "../src/components/AppFrame";
 import { FavoritesProvider } from "../src/favorites";
 import { SearchProvider } from "../src/search";
 import { SessionProvider, useSession } from "../src/session";
@@ -42,29 +43,31 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <SessionProvider store={session}>
-        <QueryClientProvider client={queryClient}>
-          <UserScope>
-            <SearchProvider>
-              <StatusBar style="dark" />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: colors.gray50 },
-                }}
-              >
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="benvenuto" options={{ animation: "fade" }} />
-                <Stack.Screen name="accedi" options={{ animation: "fade" }} />
-                <Stack.Screen name="registrati" options={{ animation: "fade" }} />
-                <Stack.Screen name="immobile/[id]" />
-                <Stack.Screen name="filtri" options={{ presentation: "modal" }} />
-                <Stack.Screen name="contatti" options={{ presentation: "modal" }} />
-              </Stack>
-            </SearchProvider>
-          </UserScope>
-        </QueryClientProvider>
-      </SessionProvider>
+      <AppFrame>
+        <SessionProvider store={session}>
+          <QueryClientProvider client={queryClient}>
+            <UserScope>
+              <SearchProvider>
+                <StatusBar style="dark" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.gray50 },
+                  }}
+                >
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="benvenuto" options={{ animation: "fade" }} />
+                  <Stack.Screen name="accedi" options={{ animation: "fade" }} />
+                  <Stack.Screen name="registrati" options={{ animation: "fade" }} />
+                  <Stack.Screen name="immobile/[id]" />
+                  <Stack.Screen name="filtri" options={{ presentation: "modal" }} />
+                  <Stack.Screen name="contatti" options={{ presentation: "modal" }} />
+                </Stack>
+              </SearchProvider>
+            </UserScope>
+          </QueryClientProvider>
+        </SessionProvider>
+      </AppFrame>
     </SafeAreaProvider>
   );
 }
