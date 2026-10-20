@@ -3,6 +3,9 @@
 #
 #   scripts/dev-local.sh up     start everything: admin on :5173, mobile app (web) on :8081
 #   scripts/dev-local.sh up --lan   same, reachable from a phone on the same Wi-Fi (Expo Go)
+#   scripts/dev-local.sh up --tunnel   same, reachable from a phone on any network through a
+#                                      Cloudflare tunnel; with "npx expo login" the app is
+#                                      listed in Expo Go (needs cloudflared)
 #   scripts/dev-local.sh down   stop everything (data is discarded)
 #   scripts/dev-local.sh logs   follow the services' logs
 #
@@ -12,8 +15,9 @@
 # start begins from empty data, with a test administrator, two sample owner requests and
 # five fictional sample properties.
 #
-# Requirements: Docker, uv, Node.js 20+ and openssl. On Windows use WSL2.
-# Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (S3), 55432 (PostgreSQL).
+# Requirements: Docker, uv, Node.js 20+ and openssl (cloudflared for --tunnel). On Windows use WSL2.
+# Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (S3), 8090 (tunnel proxy),
+# 55432 (PostgreSQL).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -26,9 +30,15 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin-di-prova-1}"
 USER_EMAIL="${USER_EMAIL:-utente@taraborrelli.test}"
 USER_PASSWORD="${USER_PASSWORD:-Utente-di-prova-1}"
 
-# Address other devices use to reach this computer: localhost, or the LAN address with --lan.
+# How other devices reach this computer: local (this computer only), lan or tunnel.
+MODE=local
 PUBLIC_HOST=localhost
 LAN=false
+PROXY_PORT="${DEV_PROXY_PORT:-8090}"
+# Addresses the app uses for the API and the photos; they change with --lan and --tunnel.
+API_BASE="http://localhost:5173"
+MEDIA_BASE="http://localhost:$S3_PORT/property-media"
+TUNNEL_URL="${TUNNEL_URL:-}"
 
 # LAN address of this computer (on WSL2 it needs networkingMode=mirrored). LAN_HOST overrides it.
 detect_lan_host() {
@@ -83,18 +93,49 @@ down() {
   info "Ambiente di prova fermato."
 }
 
+# Starts the single entry point and a Cloudflare quick tunnel to it; sets TUNNEL_URL.
+# A TUNNEL_URL given from outside is used as is (another tunnel already pointing at the proxy).
+start_tunnel() {
+  info "Collegamento pubblico per il telefono…"
+  start_bg proxy "$ROOT" node scripts/dev-proxy.mjs "$PROXY_PORT" "$S3_PORT"
+  if [ -n "$TUNNEL_URL" ]; then return; fi
+  command -v cloudflared >/dev/null 2>&1 \
+    || fail "Manca cloudflared: installalo (vedi istruzioni) e riprova."
+  start_bg tunnel "$ROOT" cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:$PROXY_PORT"
+  for _ in $(seq 1 60); do
+    # Quick tunnels get a random address like https://word-word-word.trycloudflare.com.
+    TUNNEL_URL=$(grep -oE 'https://[a-z0-9]+(-[a-z0-9]+)+\.trycloudflare\.com' "$STATE/logs/tunnel.log" 2>/dev/null | head -1 || true)
+    [ -n "$TUNNEL_URL" ] && return
+    grep -q "failed to request quick Tunnel" "$STATE/logs/tunnel.log" 2>/dev/null \
+      && fail "Cloudflare non ha aperto il collegamento (controlla la connessione a Internet): $STATE/logs/tunnel.log"
+    sleep 1
+  done
+  fail "Il collegamento pubblico non è partito: guarda $STATE/logs/tunnel.log"
+}
+
 up() {
   require
-  if [ "${1:-}" = "--lan" ]; then
+  if [ "${1:-}" = "--tunnel" ]; then
+    MODE=tunnel
+  elif [ "${1:-}" = "--lan" ]; then
+    MODE=lan
     LAN=true
     PUBLIC_HOST="$(detect_lan_host)"
     [ -n "$PUBLIC_HOST" ] || fail "Indirizzo di rete non trovato: avvia con LAN_HOST=<ip del PC> scripts/dev-local.sh up --lan"
     case "$PUBLIC_HOST" in
       172.*) info "Attenzione: $PUBLIC_HOST sembra l'indirizzo interno di WSL, il telefono non lo raggiunge. Attiva networkingMode=mirrored oppure indica LAN_HOST." ;;
     esac
+    API_BASE="http://$PUBLIC_HOST:5173"
+    MEDIA_BASE="http://$PUBLIC_HOST:$S3_PORT/property-media"
   fi
   [ -f "$STATE/pids" ] && down
   mkdir -p "$STATE/logs"
+  : >"$STATE/logs/tunnel.log"
+  if [ "$MODE" = tunnel ]; then
+    start_tunnel
+    API_BASE="$TUNNEL_URL"
+    MEDIA_BASE="$TUNNEL_URL/property-media"
+  fi
 
   info "PostgreSQL (porta $DB_PORT)…"
   docker run -d --rm --name "$DB_CONTAINER" -e POSTGRES_USER=dev -e POSTGRES_PASSWORD=dev \
@@ -129,7 +170,7 @@ up() {
       start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
         JWT_PUBLIC_KEY="$(cat "$STATE/jwt-public.pem")" \
         S3_ENDPOINT_URL="http://localhost:$S3_PORT" S3_ACCESS_KEY=dev S3_SECRET_KEY=dev \
-        S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="http://$PUBLIC_HOST:$S3_PORT/property-media" \
+        S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="$MEDIA_BASE" \
         uv run --quiet uvicorn app.main:app --port "$port"
     fi
     wait_for "http://localhost:$port/health" "$service"
@@ -181,9 +222,19 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
     >>"$STATE/logs/seed.log" 2>&1 || fail "Creazione immobili di esempio fallita: $STATE/logs/seed.log"
 
   info "App mobile nel browser (porta 8081)…"
-  start_bg mobile "$ROOT/apps/mobile" env CI=1 EXPO_OFFLINE=1 \
-    REACT_NATIVE_PACKAGER_HOSTNAME="$PUBLIC_HOST" \
-    EXPO_PUBLIC_API_BASE_URL="http://$PUBLIC_HOST:5173" npx expo start --web --port 8081
+  if [ "$MODE" = tunnel ]; then
+    # Not offline and not CI, so Expo lists the app in Expo Go for the logged-in account;
+    # the proxy URL makes Expo Go load everything through the tunnel.
+    (cd "$ROOT/apps/mobile" && timeout 30 npx expo whoami >/dev/null 2>&1) \
+      || info "Non hai fatto l'accesso a Expo: l'app non comparirà da sola in Expo Go (vedi istruzioni)."
+    start_bg mobile "$ROOT/apps/mobile" env EXPO_NO_TELEMETRY=1 \
+      EXPO_PACKAGER_PROXY_URL="$TUNNEL_URL" EXPO_PUBLIC_API_BASE_URL="$API_BASE" \
+      npx expo start --web --port 8081
+  else
+    start_bg mobile "$ROOT/apps/mobile" env CI=1 EXPO_OFFLINE=1 \
+      REACT_NATIVE_PACKAGER_HOSTNAME="$PUBLIC_HOST" \
+      EXPO_PUBLIC_API_BASE_URL="$API_BASE" npx expo start --web --port 8081
+  fi
   wait_for "http://localhost:8081" "App mobile" 180
 
   cat <<MSG
@@ -205,6 +256,16 @@ MSG
     Sul telefono (stessa rete Wi-Fi del PC):
       App nativa:    apri Expo Go, oppure scrivi in Safari  exp://$PUBLIC_HOST:8081
       Nel browser:   http://$PUBLIC_HOST:8081
+
+MSG
+  fi
+  if [ "$MODE" = tunnel ]; then
+    local expo_url="${TUNNEL_URL/https:/exps:}"
+    expo_url="${expo_url/http:/exp:}"
+    cat <<MSG
+    Sul telefono (qualsiasi rete):
+      Apri Expo Go: l'app compare in "Development servers" (stesso account Expo del PC).
+      Se non compare, scrivi in Safari:  $expo_url
 
 MSG
   fi
