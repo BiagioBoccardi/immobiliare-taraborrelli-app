@@ -2,6 +2,7 @@
 # Local trial environment for the admin panel, without docker compose.
 #
 #   scripts/dev-local.sh up     start everything: admin on :5173, mobile app (web) on :8081
+#   scripts/dev-local.sh up --lan   same, reachable from a phone on the same Wi-Fi (Expo Go)
 #   scripts/dev-local.sh down   stop everything (data is discarded)
 #   scripts/dev-local.sh logs   follow the services' logs
 #
@@ -24,6 +25,21 @@ ADMIN_EMAIL="${ADMIN_EMAIL:-admin@taraborrelli.test}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin-di-prova-1}"
 USER_EMAIL="${USER_EMAIL:-utente@taraborrelli.test}"
 USER_PASSWORD="${USER_PASSWORD:-Utente-di-prova-1}"
+
+# Address other devices use to reach this computer: localhost, or the LAN address with --lan.
+PUBLIC_HOST=localhost
+LAN=false
+
+# LAN address of this computer (on WSL2 it needs networkingMode=mirrored). LAN_HOST overrides it.
+detect_lan_host() {
+  if [ -n "${LAN_HOST:-}" ]; then echo "$LAN_HOST"; return; fi
+  if command -v ip >/dev/null 2>&1; then
+    ip route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -1
+  else
+    hostname -I 2>/dev/null | awk '{print $1}'
+  fi
+  return 0
+}
 
 info() { printf '\033[1;34m›\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
@@ -69,6 +85,14 @@ down() {
 
 up() {
   require
+  if [ "${1:-}" = "--lan" ]; then
+    LAN=true
+    PUBLIC_HOST="$(detect_lan_host)"
+    [ -n "$PUBLIC_HOST" ] || fail "Indirizzo di rete non trovato: avvia con LAN_HOST=<ip del PC> scripts/dev-local.sh up --lan"
+    case "$PUBLIC_HOST" in
+      172.*) info "Attenzione: $PUBLIC_HOST sembra l'indirizzo interno di WSL, il telefono non lo raggiunge. Attiva networkingMode=mirrored oppure indica LAN_HOST." ;;
+    esac
+  fi
   [ -f "$STATE/pids" ] && down
   mkdir -p "$STATE/logs"
 
@@ -84,7 +108,10 @@ up() {
   openssl pkey -in "$STATE/jwt-private.pem" -pubout -out "$STATE/jwt-public.pem"
 
   info "S3 in memoria per le foto (porta $S3_PORT)…"
-  start_bg s3 "$STATE" uvx --quiet --from "moto[server]" moto_server -p "$S3_PORT"
+  # With --lan the phone loads the photos directly from here.
+  local s3_bind=127.0.0.1
+  $LAN && s3_bind=0.0.0.0
+  start_bg s3 "$STATE" uvx --quiet --from "moto[server]" moto_server -H "$s3_bind" -p "$S3_PORT"
   wait_for "http://localhost:$S3_PORT" "S3"
 
   export EVENTS_ENABLED=false LOG_LEVEL=INFO
@@ -102,7 +129,7 @@ up() {
       start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
         JWT_PUBLIC_KEY="$(cat "$STATE/jwt-public.pem")" \
         S3_ENDPOINT_URL="http://localhost:$S3_PORT" S3_ACCESS_KEY=dev S3_SECRET_KEY=dev \
-        S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="http://localhost:$S3_PORT/property-media" \
+        S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="http://$PUBLIC_HOST:$S3_PORT/property-media" \
         uv run --quiet uvicorn app.main:app --port "$port"
     fi
     wait_for "http://localhost:$port/health" "$service"
@@ -139,7 +166,9 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
   # Always run: after a git pull new packages may be needed (a no-op takes a few seconds).
   (cd "$ROOT" && npm install --no-audit --no-fund >>"$STATE/logs/npm.log" 2>&1) \
     || fail "Installazione dei pacchetti npm fallita: $STATE/logs/npm.log"
-  start_bg admin "$ROOT" env VITE_LOCAL_SERVICES=1 npm run dev --workspace @taraborrelli/admin
+  # With --lan, Vite also answers the phone and lets the app call the API from another origin.
+  start_bg admin "$ROOT" env VITE_LOCAL_SERVICES=1 VITE_DEV_LAN="$LAN" \
+    npm run dev --workspace @taraborrelli/admin
   wait_for "http://localhost:5173" "Pannello"
 
   info "Immobili di esempio…"
@@ -148,7 +177,8 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
 
   info "App mobile nel browser (porta 8081)…"
   start_bg mobile "$ROOT/apps/mobile" env CI=1 EXPO_OFFLINE=1 \
-    EXPO_PUBLIC_API_BASE_URL="http://localhost:5173" npx expo start --web --port 8081
+    REACT_NATIVE_PACKAGER_HOSTNAME="$PUBLIC_HOST" \
+    EXPO_PUBLIC_API_BASE_URL="http://$PUBLIC_HOST:5173" npx expo start --web --port 8081
   wait_for "http://localhost:8081" "App mobile" 180
 
   cat <<MSG
@@ -164,6 +194,16 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
       Password:      $USER_PASSWORD
       La prima apertura può richiedere un minuto mentre l'app viene preparata.
 
+MSG
+  if $LAN; then
+    cat <<MSG
+    Sul telefono (stessa rete Wi-Fi del PC):
+      App nativa:    apri Expo Go, oppure scrivi in Safari  exp://$PUBLIC_HOST:8081
+      Nel browser:   http://$PUBLIC_HOST:8081
+
+MSG
+  fi
+  cat <<MSG
   Log:   scripts/dev-local.sh logs
   Stop:  scripts/dev-local.sh down   (i dati di prova vengono eliminati)
 
@@ -171,7 +211,7 @@ MSG
 }
 
 case "${1:-up}" in
-  up) up ;;
+  up) up "${2:-}" ;;
   down) down ;;
   logs) tail -f "$STATE"/logs/*.log ;;
   *) fail "Uso: scripts/dev-local.sh [up|down|logs]" ;;

@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      // scripts/dev-local.sh up --lan: reachable from a phone, and callable by the app
+      // served from another address (http://<pc>:8081).
+      ...(env.VITE_DEV_LAN === "true" ? { host: true, cors: true } : {}),
       proxy: env.VITE_LOCAL_SERVICES === "1" ? LOCAL_SERVICES : { "/api": gateway },
     },
   };
