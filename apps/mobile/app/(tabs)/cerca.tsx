@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { PropertyCard } from "../../src/components/PropertyCard";
-import { Screen, TAB_BAR_SPACE } from "../../src/components/Screen";
+import { Screen, useScreenContentStyle } from "../../src/components/Screen";
 import {
   Body,
   Button,
@@ -17,6 +17,7 @@ import {
   Segmented,
 } from "../../src/components/ui";
 import { t, tEnum } from "../../src/i18n";
+import { desktopControl, useGrid, useLayout } from "../../src/layout";
 import { useSearchResults } from "../../src/queries";
 import { activeFilterCount, toQuery, useSearch } from "../../src/search";
 import { cardShadow, colors, radii, spacing, typography } from "../../src/theme";
@@ -28,6 +29,9 @@ export default function Search() {
   const [text, setText] = useState(filters.municipality);
   const query = useMemo(() => toQuery(filters), [filters]);
   const results = useSearchResults(query);
+  const grid = useGrid();
+  const { isDesktop } = useLayout();
+  const contentStyle = useScreenContentStyle();
   const items = results.data?.pages.flatMap((page) => page.items) ?? [];
   const total = results.data?.pages[0]?.total ?? 0;
   const activeFilters = activeFilterCount(filters);
@@ -43,6 +47,7 @@ export default function Search() {
         ]}
         value={filters.contract}
         onChange={(contract) => update({ contract })}
+        style={isDesktop ? desktopControl : undefined}
       />
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
@@ -97,9 +102,17 @@ export default function Search() {
   return (
     <Screen scroll={false}>
       <FlatList
+        // FlatList cannot change the number of columns on the fly: remount instead.
+        key={grid.columns}
+        numColumns={grid.columns}
         data={items}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <PropertyCard property={item} />}
+        renderItem={({ item }) => (
+          <View style={grid.itemWidth ? { width: grid.itemWidth } : null}>
+            <PropertyCard property={item} />
+          </View>
+        )}
+        columnWrapperStyle={grid.columns > 1 ? styles.row : undefined}
         ListHeaderComponent={header}
         ListEmptyComponent={
           results.isPending ? (
@@ -128,7 +141,7 @@ export default function Search() {
         }}
         onEndReachedThreshold={0.5}
         ItemSeparatorComponent={() => <View style={{ height: spacing.lg }} />}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[contentStyle, styles.list]}
         keyboardShouldPersistTaps="handled"
       />
     </Screen>
@@ -136,7 +149,8 @@ export default function Search() {
 }
 
 const styles = StyleSheet.create({
-  list: { padding: spacing.xl, paddingBottom: TAB_BAR_SPACE },
+  list: { gap: 0 },
+  row: { gap: spacing.lg },
   header: { gap: spacing.lg, marginBottom: spacing.lg },
   searchRow: { flexDirection: "row", gap: spacing.md },
   searchBox: {

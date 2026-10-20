@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 
 import { TabBar } from "../../src/components/TabBar";
 import { Loading } from "../../src/components/ui";
+import { useLayout } from "../../src/layout";
 import { hasSeenOnboarding } from "../../src/onboarding";
 import { useSession } from "../../src/session";
 
 export default function TabsLayout() {
   const { status } = useSession();
+  const { isDesktop } = useLayout();
   const [onboarding, setOnboarding] = useState<"unknown" | "show" | "done">("unknown");
 
   useEffect(() => {
@@ -20,7 +22,11 @@ export default function TabsLayout() {
   if (status === "anonymous") return <Redirect href="/accedi" />;
 
   return (
-    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tabs
+      // On desktop the sidebar (AppShell) replaces the bottom bar.
+      tabBar={(props) => (isDesktop ? null : <TabBar {...props} />)}
+      screenOptions={{ headerShown: false }}
+    >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="cerca" />
       <Tabs.Screen name="preferiti" />

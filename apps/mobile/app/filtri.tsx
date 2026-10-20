@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Body, Button, Chip, Heading, Segmented } from "../src/components/ui";
+import { desktopPanel, useLayout } from "../src/layout";
 import { t, tEnum } from "../src/i18n";
 import { DEFAULT_FILTERS, useSearch, type SearchFilters } from "../src/search";
 import { colors, radii, spacing, typography } from "../src/theme";
@@ -41,13 +42,14 @@ function toggle<T>(list: T[], value: T): T[] {
 
 /** Filters are edited on a draft and applied all together with "Applica". */
 export default function Filters() {
+  const { isDesktop } = useLayout();
   const { filters, setFilters } = useSearch();
   const [draft, setDraft] = useState<SearchFilters>(filters);
   const set = (changes: Partial<SearchFilters>) =>
     setDraft((current) => ({ ...current, ...changes }));
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, isDesktop && desktopPanel]}>
       <View style={styles.top}>
         <Pressable
           accessibilityRole="button"

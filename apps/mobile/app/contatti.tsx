@@ -8,12 +8,14 @@ import { images } from "../src/assets";
 import { Body, Button, Heading } from "../src/components/ui";
 import { agency } from "../src/config";
 import { contact } from "../src/contact";
+import { desktopPanel, useLayout } from "../src/layout";
 import { t } from "../src/i18n";
 import { colors, spacing } from "../src/theme";
 
 export default function Contact() {
+  const { isDesktop } = useLayout();
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, isDesktop && desktopPanel]}>
       <View style={styles.top}>
         <Pressable
           accessibilityRole="button"

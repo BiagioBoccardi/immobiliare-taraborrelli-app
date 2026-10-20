@@ -7,7 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { session } from "../src/api";
 import { headingFontFile } from "../src/assets";
-import { AppFrame } from "../src/components/AppFrame";
+import { AppShell } from "../src/components/AppShell";
 import { FavoritesProvider } from "../src/favorites";
 import { SearchProvider } from "../src/search";
 import { SessionProvider, useSession } from "../src/session";
@@ -43,12 +43,12 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AppFrame>
-        <SessionProvider store={session}>
-          <QueryClientProvider client={queryClient}>
-            <UserScope>
-              <SearchProvider>
-                <StatusBar style="dark" />
+      <SessionProvider store={session}>
+        <QueryClientProvider client={queryClient}>
+          <UserScope>
+            <SearchProvider>
+              <StatusBar style="dark" />
+              <AppShell>
                 <Stack
                   screenOptions={{
                     headerShown: false,
@@ -63,11 +63,11 @@ export default function RootLayout() {
                   <Stack.Screen name="filtri" options={{ presentation: "modal" }} />
                   <Stack.Screen name="contatti" options={{ presentation: "modal" }} />
                 </Stack>
-              </SearchProvider>
-            </UserScope>
-          </QueryClientProvider>
-        </SessionProvider>
-      </AppFrame>
+              </AppShell>
+            </SearchProvider>
+          </UserScope>
+        </QueryClientProvider>
+      </SessionProvider>
     </SafeAreaProvider>
   );
 }

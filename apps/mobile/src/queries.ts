@@ -24,10 +24,10 @@ export function useFeatured(contract: Contract) {
   });
 }
 
-export function useLatest(contract: Contract) {
+export function useLatest(contract: Contract, size = 5) {
   return useQuery({
-    queryKey: ["latest", contract],
-    queryFn: () => api.property.search({ contract, sort: "newest", size: 5 }),
+    queryKey: ["latest", contract, size],
+    queryFn: () => api.property.search({ contract, sort: "newest", size }),
   });
 }
 

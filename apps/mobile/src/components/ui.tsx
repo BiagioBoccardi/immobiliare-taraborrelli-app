@@ -113,13 +113,15 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  style,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={styles.segmented} accessibilityRole="tablist">
+    <View style={[styles.segmented, style]} accessibilityRole="tablist">
       {options.map((option) => {
         const selected = option.value === value;
         return (

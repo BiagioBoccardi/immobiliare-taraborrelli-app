@@ -133,7 +133,7 @@ export default function Profile() {
   };
 
   return (
-    <Screen>
+    <Screen width="narrow">
       <Heading size="xxl">{t("profile.title")}</Heading>
 
       <Card style={styles.user}>

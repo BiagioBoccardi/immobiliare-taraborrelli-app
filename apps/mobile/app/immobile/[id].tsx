@@ -6,7 +6,6 @@ import { useState } from "react";
 import { FlatList, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAppWidth } from "../../src/components/AppFrame";
 import { FavoriteButton } from "../../src/components/PropertyCard";
 import {
   Body,
@@ -21,15 +20,27 @@ import { agency } from "../../src/config";
 import { contact } from "../../src/contact";
 import { formatDate, formatEuro, formatPrice, place } from "../../src/format";
 import { t, tCount, tEnum } from "../../src/i18n";
+import { CONTENT_MAX_WIDTH, DESKTOP_PADDING, useLayout } from "../../src/layout";
 import { isNotFound, useProperty } from "../../src/queries";
 import { cardShadow, colors, radii, spacing, typography } from "../../src/theme";
 
-function Gallery({ property }: { property: PropertyDetail }) {
-  const width = useAppWidth();
+/** Width of the photo column next to the price card on desktop. */
+const DESKTOP_CARD_WIDTH = 380;
+
+function Gallery({
+  property,
+  width,
+  rounded = false,
+}: {
+  property: PropertyDetail;
+  width: number;
+  rounded?: boolean;
+}) {
+  const height = rounded ? width * 0.62 : width * 0.85;
   const [index, setIndex] = useState(0);
   const photos = property.photos;
   return (
-    <View>
+    <View style={rounded ? styles.galleryRounded : null}>
       <FlatList
         horizontal
         pagingEnabled
@@ -42,7 +53,7 @@ function Gallery({ property }: { property: PropertyDetail }) {
         renderItem={({ item, index: i }) => (
           <Image
             source={{ uri: item.url }}
-            style={{ width, height: width * 0.85 }}
+            style={{ width, height }}
             contentFit="cover"
             transition={150}
             accessibilityLabel={
@@ -85,6 +96,7 @@ export default function PropertyScreen() {
   const { id = "" } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const property = useProperty(id);
+  const { isDesktop, areaWidth } = useLayout();
 
   if (property.isPending) return <Loading />;
   if (property.isError || !property.data) {
@@ -143,136 +155,205 @@ export default function PropertyScreen() {
     data.available_from ? [t("property.availableFrom"), formatDate(data.available_from)] : null,
   ].filter((row): row is [string, string] => row !== null);
 
+  const info = (
+    <>
+      <View style={styles.row}>
+        <Text style={styles.badge}>{tEnum("propertyType", data.property_type)}</Text>
+        <Text style={styles.badge}>{tEnum("contract", data.contract)}</Text>
+        {data.status === "reserved" ? (
+          <Text style={[styles.badge, styles.badgeWarning]}>{t("property.reserved")}</Text>
+        ) : null}
+      </View>
+      <Heading size="xxl">{data.title}</Heading>
+      <View style={styles.row}>
+        <Ionicons name="location-outline" size={16} color={colors.gray500} />
+        <Body muted>{where}</Body>
+      </View>
+      <Text style={styles.price}>{price}</Text>
+
+      <View style={styles.facts}>
+        {data.rooms ? (
+          <Fact icon="grid-outline" label={tCount(data.rooms, "property.room", "property.rooms")} />
+        ) : null}
+        {data.bedrooms ? (
+          <Fact
+            icon="bed-outline"
+            label={tCount(data.bedrooms, "property.bedroom", "property.bedrooms")}
+          />
+        ) : null}
+        {data.bathrooms ? (
+          <Fact
+            icon="water-outline"
+            label={tCount(data.bathrooms, "property.bathroom", "property.bathrooms")}
+          />
+        ) : null}
+        <Fact icon="resize-outline" label={t("common.sqm", { value: data.surface_sqm })} />
+      </View>
+    </>
+  );
+
+  const sections = (
+    <>
+      {data.description ? (
+        <View style={styles.section}>
+          <Heading size="lg">{t("property.description")}</Heading>
+          <Body>{data.description}</Body>
+        </View>
+      ) : null}
+
+      {data.features.length ? (
+        <View style={styles.section}>
+          <Heading size="lg">{t("property.features")}</Heading>
+          <View style={styles.featureList}>
+            {data.features.map((feature) => (
+              <View key={feature} style={styles.feature}>
+                <Ionicons name="checkmark-circle" size={18} color={colors.brandBlue} />
+                <Body>{tEnum("feature", feature)}</Body>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {details.length ? (
+        <View style={styles.section}>
+          <Heading size="lg">{t("property.details")}</Heading>
+          {details.map(([label, value]) => (
+            <DetailRow key={label} label={label} value={value} />
+          ))}
+        </View>
+      ) : null}
+
+      <Body muted>{reference}</Body>
+    </>
+  );
+
+  // Quick contact is always reachable from a property (CLAUDE.md, section 13).
+  const contactButtons = (
+    <>
+      <Button
+        label={t("property.call")}
+        icon="call"
+        onPress={() => void contact.call()}
+        style={styles.contactButton}
+      />
+      <Button
+        label={t("property.whatsapp")}
+        icon="logo-whatsapp"
+        variant="secondary"
+        onPress={() =>
+          void contact.whatsapp(
+            t("property.whatsappMessage", { reference: data.reference, title: data.title }),
+          )
+        }
+        style={styles.contactButton}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("property.email")}
+        onPress={() => void contact.email(`${reference} – ${data.title}`)}
+        style={styles.mailButton}
+      >
+        <Ionicons name="mail-outline" size={22} color={colors.brandBlue} />
+      </Pressable>
+    </>
+  );
+
+  const toolbar = (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("common.back")}
+        onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+        style={styles.roundButton}
+      >
+        <Ionicons name="chevron-back" size={22} color={colors.gray900} />
+      </Pressable>
+      <View style={styles.row}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("property.shareLabel")}
+          onPress={() => void share()}
+          style={styles.roundButton}
+        >
+          <Ionicons name="share-outline" size={20} color={colors.gray900} />
+        </Pressable>
+        <FavoriteButton id={data.id} size={22} floating={false} />
+      </View>
+    </>
+  );
+
+  if (isDesktop) {
+    const inner = Math.min(areaWidth, CONTENT_MAX_WIDTH) - 2 * DESKTOP_PADDING;
+    const photoWidth = inner - DESKTOP_CARD_WIDTH - spacing.xxl;
+    return (
+      <ScrollView style={styles.desktopScreen} contentContainerStyle={styles.desktopContent}>
+        <View style={styles.desktopToolbar}>{toolbar}</View>
+        <View style={styles.desktopColumns}>
+          <View style={[styles.desktopMain, { width: photoWidth }]}>
+            <Gallery property={data} width={photoWidth} rounded />
+            <View style={styles.desktopSections}>{sections}</View>
+          </View>
+          <View style={styles.desktopCard}>
+            {info}
+            <View style={styles.desktopContact}>{contactButtons}</View>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}>
-        <Gallery property={data} />
-        <View style={[styles.topButtons, { top: insets.top + spacing.sm }]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("common.back")}
-            onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
-            style={styles.roundButton}
-          >
-            <Ionicons name="chevron-back" size={22} color={colors.gray900} />
-          </Pressable>
-          <View style={styles.row}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("property.shareLabel")}
-              onPress={() => void share()}
-              style={styles.roundButton}
-            >
-              <Ionicons name="share-outline" size={20} color={colors.gray900} />
-            </Pressable>
-            <FavoriteButton id={data.id} size={22} floating={false} />
-          </View>
-        </View>
-
+        <Gallery property={data} width={areaWidth} />
+        <View style={[styles.topButtons, { top: insets.top + spacing.sm }]}>{toolbar}</View>
         <View style={styles.panel}>
-          <View style={styles.row}>
-            <Text style={styles.badge}>{tEnum("propertyType", data.property_type)}</Text>
-            <Text style={styles.badge}>{tEnum("contract", data.contract)}</Text>
-            {data.status === "reserved" ? (
-              <Text style={[styles.badge, styles.badgeWarning]}>{t("property.reserved")}</Text>
-            ) : null}
-          </View>
-          <Heading size="xxl">{data.title}</Heading>
-          <View style={styles.row}>
-            <Ionicons name="location-outline" size={16} color={colors.gray500} />
-            <Body muted>{where}</Body>
-          </View>
-          <Text style={styles.price}>{price}</Text>
-
-          <View style={styles.facts}>
-            {data.rooms ? (
-              <Fact
-                icon="grid-outline"
-                label={tCount(data.rooms, "property.room", "property.rooms")}
-              />
-            ) : null}
-            {data.bedrooms ? (
-              <Fact
-                icon="bed-outline"
-                label={tCount(data.bedrooms, "property.bedroom", "property.bedrooms")}
-              />
-            ) : null}
-            {data.bathrooms ? (
-              <Fact
-                icon="water-outline"
-                label={tCount(data.bathrooms, "property.bathroom", "property.bathrooms")}
-              />
-            ) : null}
-            <Fact icon="resize-outline" label={t("common.sqm", { value: data.surface_sqm })} />
-          </View>
-
-          {data.description ? (
-            <View style={styles.section}>
-              <Heading size="lg">{t("property.description")}</Heading>
-              <Body>{data.description}</Body>
-            </View>
-          ) : null}
-
-          {data.features.length ? (
-            <View style={styles.section}>
-              <Heading size="lg">{t("property.features")}</Heading>
-              <View style={styles.featureList}>
-                {data.features.map((feature) => (
-                  <View key={feature} style={styles.feature}>
-                    <Ionicons name="checkmark-circle" size={18} color={colors.brandBlue} />
-                    <Body>{tEnum("feature", feature)}</Body>
-                  </View>
-                ))}
-              </View>
-            </View>
-          ) : null}
-
-          {details.length ? (
-            <View style={styles.section}>
-              <Heading size="lg">{t("property.details")}</Heading>
-              {details.map(([label, value]) => (
-                <DetailRow key={label} label={label} value={value} />
-              ))}
-            </View>
-          ) : null}
-
-          <Body muted>{reference}</Body>
+          {info}
+          {sections}
         </View>
       </ScrollView>
-
-      {/* Quick contact is always reachable from a property (CLAUDE.md, section 13). */}
       <View style={[styles.contactBar, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-        <Button
-          label={t("property.call")}
-          icon="call"
-          onPress={() => void contact.call()}
-          style={styles.contactButton}
-        />
-        <Button
-          label={t("property.whatsapp")}
-          icon="logo-whatsapp"
-          variant="secondary"
-          onPress={() =>
-            void contact.whatsapp(
-              t("property.whatsappMessage", { reference: data.reference, title: data.title }),
-            )
-          }
-          style={styles.contactButton}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("property.email")}
-          onPress={() => void contact.email(`${reference} – ${data.title}`)}
-          style={styles.mailButton}
-        >
-          <Ionicons name="mail-outline" size={22} color={colors.brandBlue} />
-        </Pressable>
+        {contactButtons}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  desktopScreen: { flex: 1, backgroundColor: colors.gray50 },
+  desktopContent: {
+    width: "100%",
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+    padding: DESKTOP_PADDING,
+    gap: spacing.lg,
+  },
+  desktopToolbar: { flexDirection: "row", justifyContent: "space-between" },
+  desktopColumns: { flexDirection: "row", alignItems: "flex-start", gap: spacing.xxl },
+  desktopMain: { gap: spacing.xl },
+  desktopSections: {
+    gap: spacing.md,
+    padding: spacing.xl,
+    borderRadius: radii.lg,
+    backgroundColor: colors.white,
+    ...cardShadow,
+  },
+  desktopCard: {
+    width: DESKTOP_CARD_WIDTH,
+    gap: spacing.md,
+    padding: spacing.xl,
+    borderRadius: radii.lg,
+    backgroundColor: colors.white,
+    ...cardShadow,
+  },
+  desktopContact: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  galleryRounded: { borderRadius: radii.lg, overflow: "hidden" },
   screen: { flex: 1, backgroundColor: colors.white },
   missing: { flex: 1, backgroundColor: colors.gray50 },
   counter: {

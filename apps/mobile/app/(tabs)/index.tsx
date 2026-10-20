@@ -17,6 +17,7 @@ import {
   type IconName,
 } from "../../src/components/ui";
 import { t, type TranslationKey } from "../../src/i18n";
+import { desktopControl, useGrid, useLayout } from "../../src/layout";
 import { useFeatured, useLatest } from "../../src/queries";
 import { useSearch } from "../../src/search";
 import { useSession } from "../../src/session";
@@ -33,7 +34,10 @@ export default function Home() {
   const { user } = useSession();
   const firstName = user?.full_name.trim().split(/\s+/)[0];
   const featured = useFeatured(filters.contract);
-  const latest = useLatest(filters.contract);
+  const { isDesktop } = useLayout();
+  const grid = useGrid();
+  // Two full rows of three cards on desktop.
+  const latest = useLatest(filters.contract, isDesktop ? 6 : 5);
 
   return (
     <Screen>
@@ -47,7 +51,10 @@ export default function Home() {
             <Body muted>{t("home.location")}</Body>
           </View>
         </View>
-        <Image source={images.icon} style={styles.icon} accessibilityIgnoresInvertColors />
+        {/* On desktop the logo is already in the sidebar. */}
+        {isDesktop ? null : (
+          <Image source={images.icon} style={styles.icon} accessibilityIgnoresInvertColors />
+        )}
       </View>
 
       <Segmented
@@ -57,6 +64,7 @@ export default function Home() {
         ]}
         value={filters.contract}
         onChange={(contract) => update({ contract })}
+        style={isDesktop ? desktopControl : undefined}
       />
 
       <Pressable
@@ -113,9 +121,13 @@ export default function Home() {
         {latest.data && latest.data.items.length === 0 ? (
           <EmptyState icon="home-outline" title={t("home.empty")} />
         ) : null}
-        {latest.data?.items.map((property) => (
-          <PropertyCard key={property.id} property={property} />
-        ))}
+        <View style={grid.columns > 1 ? styles.grid : styles.list}>
+          {latest.data?.items.map((property) => (
+            <View key={property.id} style={grid.itemWidth ? { width: grid.itemWidth } : null}>
+              <PropertyCard property={property} />
+            </View>
+          ))}
+        </View>
       </View>
     </Screen>
   );
@@ -158,5 +170,7 @@ const styles = StyleSheet.create({
   actionLabel: { fontSize: typography.sizes.sm, fontWeight: "600", color: colors.gray900 },
   carouselList: { marginHorizontal: -spacing.xl },
   carousel: { paddingHorizontal: spacing.xl, paddingVertical: spacing.xs },
+  list: { gap: spacing.lg },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.lg },
   latest: { gap: spacing.lg },
 });

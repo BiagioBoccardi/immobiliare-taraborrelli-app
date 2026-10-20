@@ -104,7 +104,7 @@ export default function Sell() {
 
   if (send.isSuccess) {
     return (
-      <Screen contentStyle={styles.success}>
+      <Screen width="narrow" contentStyle={styles.success}>
         <Ionicons name="checkmark-circle" size={64} color={colors.success} />
         <Heading size="xxl" style={styles.center}>
           {t("sell.successTitle")}
@@ -123,7 +123,7 @@ export default function Sell() {
   }
 
   return (
-    <Screen>
+    <Screen width="narrow">
       <View style={styles.intro}>
         <Heading size="xxl">{t("sell.title")}</Heading>
         <Body>{t("sell.subtitle")}</Body>
