@@ -163,9 +163,14 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
     -H 'Content-Type: application/json' -d '{"kind":"rent","full_name":"Anna Bianchi","phone":"333 111 2222","municipality":"Chieti Scalo","property_type":"apartment","intention":"planning","message":"Bilocale vicino all università","consent":{"privacy_accepted":true,"privacy_policy_version":"2026-01"}}'
 
   info "Pannello di amministrazione…"
-  # Always run: after a git pull new packages may be needed (a no-op takes a few seconds).
-  (cd "$ROOT" && npm install --no-audit --no-fund >>"$STATE/logs/npm.log" 2>&1) \
-    || fail "Installazione dei pacchetti npm fallita: $STATE/logs/npm.log"
+  # Install exactly what package-lock.json lists, only when it changed (e.g. after a git pull).
+  # npm ci never rewrites the lockfile, so git pull is never blocked by local changes.
+  if [ ! -f "$ROOT/node_modules/.package-lock.json" ] \
+    || [ "$ROOT/package-lock.json" -nt "$ROOT/node_modules/.package-lock.json" ]; then
+    info "Installazione dei pacchetti npm (qualche minuto)…"
+    (cd "$ROOT" && npm ci --no-audit --no-fund >>"$STATE/logs/npm.log" 2>&1) \
+      || fail "Installazione dei pacchetti npm fallita: $STATE/logs/npm.log"
+  fi
   # With --lan, Vite also answers the phone and lets the app call the API from another origin.
   start_bg admin "$ROOT" env VITE_LOCAL_SERVICES=1 VITE_DEV_LAN="$LAN" \
     npm run dev --workspace @taraborrelli/admin
