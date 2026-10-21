@@ -14,6 +14,8 @@ from app.core.security import AccessTokenIssuer, PasswordHasher
 from app.repositories.unit_of_work import SqlUnitOfWork
 from app.services.auth import AuthService
 from app.services.consents import ConsentService
+from app.services.email import EmailSender
+from app.services.password_reset import PasswordResetService
 from app.services.users import UserAdminService
 
 
@@ -59,6 +61,21 @@ def get_auth_service(
     settings: Annotated[Settings, Depends(get_settings_dep)],
 ) -> AuthService:
     return AuthService(uow, hasher, issuer, publisher, timedelta(days=settings.refresh_token_days))
+
+
+def get_email_sender(request: Request) -> EmailSender:
+    return cast(EmailSender, request.app.state.email_sender)
+
+
+def get_password_reset_service(
+    uow: UoW,
+    hasher: Hasher,
+    sender: Annotated[EmailSender, Depends(get_email_sender)],
+    settings: Annotated[Settings, Depends(get_settings_dep)],
+) -> PasswordResetService:
+    return PasswordResetService(
+        uow, hasher, sender, code_lifetime=timedelta(minutes=settings.password_reset_minutes)
+    )
 
 
 def get_consent_service(uow: UoW) -> ConsentService:

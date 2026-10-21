@@ -41,6 +41,7 @@ async def test_migrations_downgrade_and_upgrade_cleanly(
     assert await _table_names(url) == [
         "alembic_version",
         "consent_records",
+        "password_resets",
         "refresh_tokens",
         "users",
     ]

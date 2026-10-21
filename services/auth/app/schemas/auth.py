@@ -1,9 +1,9 @@
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from py_common.security import Role
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from app.models.enums import ConsentPurpose, ConsentSource
 from app.schemas.common import Email, Password, PersonName, PolicyVersion
@@ -31,6 +31,20 @@ class LoginIn(BaseModel):
     email: Email
     # No length rules here: they are checked at registration, login only compares.
     password: str
+
+
+class ForgotPasswordIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: Email
+
+
+class ResetPasswordIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: Email
+    code: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\d{6}$")]
+    new_password: Password
 
 
 class RefreshIn(BaseModel):

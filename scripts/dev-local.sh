@@ -8,6 +8,7 @@
 #                                      listed in Expo Go (needs cloudflared)
 #   scripts/dev-local.sh down   stop everything (data is discarded)
 #   scripts/dev-local.sh logs   follow the services' logs
+#   scripts/dev-local.sh email  show the last email saved (e.g. a password reset code)
 #
 # What it starts: PostgreSQL in Docker (one database per service), the auth, lead and
 # property services with uv, an in-memory S3 for photos (moto, run with uvx), the admin
@@ -130,6 +131,7 @@ up() {
   fi
   [ -f "$STATE/pids" ] && down
   mkdir -p "$STATE/logs"
+  rm -rf "$STATE/outbox"  # every start begins from empty data, emails included
   : >"$STATE/logs/tunnel.log"
   if [ "$MODE" = tunnel ]; then
     start_tunnel
@@ -165,6 +167,7 @@ up() {
     if [ "$service" = auth ]; then
       start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
         JWT_PRIVATE_KEY="$(cat "$STATE/jwt-private.pem")" \
+        EMAIL_BACKEND=outbox EMAIL_OUTBOX_DIR="$STATE/outbox" \
         uv run --quiet uvicorn app.main:app --port "$port"
     else
       start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
@@ -271,6 +274,9 @@ MSG
 MSG
   fi
   cat <<MSG
+  Email di prova (es. codici "password dimenticata"): non vengono spedite ma salvate in
+    $STATE/outbox    (leggile con: scripts/dev-local.sh email)
+
   Log:   scripts/dev-local.sh logs
   Stop:  scripts/dev-local.sh down   (i dati di prova vengono eliminati)
 
@@ -281,5 +287,11 @@ case "${1:-up}" in
   up) up "${2:-}" ;;
   down) down ;;
   logs) tail -f "$STATE"/logs/*.log ;;
-  *) fail "Uso: scripts/dev-local.sh [up|down|logs]" ;;
+  email)
+    # Shows the most recent email saved by the auth service (local trial only).
+    latest=$(ls -t "$STATE"/outbox/*.eml 2>/dev/null | head -1 || true)
+    [ -n "$latest" ] || fail "Nessuna email salvata finora."
+    python3 -c 'import sys, email; m = email.message_from_binary_file(open(sys.argv[1], "rb")); print("A:", m["To"]); print("Oggetto:", m["Subject"]); print(); print(m.get_payload(decode=True).decode())' "$latest"
+    ;;
+  *) fail "Uso: scripts/dev-local.sh [up|down|logs|email]" ;;
 esac

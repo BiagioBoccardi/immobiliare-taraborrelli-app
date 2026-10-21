@@ -7,7 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import ConsentPurpose, ConsentSubject
+from app.models.password_reset import PasswordReset
 from app.repositories.consents import SqlConsentRepository
+from app.repositories.password_resets import SqlPasswordResetRepository
 from app.repositories.refresh_tokens import SqlRefreshTokenRepository
 from app.repositories.users import SqlUserRepository
 from tests.factories import make_consent, make_refresh_token, make_user
@@ -137,3 +139,29 @@ async def test_delete_for_subject_keeps_other_subjects(db_session: AsyncSession)
 
     assert await repo.history(ConsentSubject.USER, removed) == []
     assert len(await repo.history(ConsentSubject.USER, kept)) == 1
+
+
+async def test_password_resets_latest_and_close_all(db_session: AsyncSession) -> None:
+    user = make_user()
+    db_session.add(user)
+    await db_session.flush()
+    repo = SqlPasswordResetRepository(db_session)
+    now = datetime.now(UTC)
+    for minutes in (10, 0):
+        await repo.add(
+            PasswordReset(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                code_hash="x" * 64,
+                attempts=0,
+                expires_at=now + timedelta(minutes=15),
+                created_at=now - timedelta(minutes=minutes),
+            )
+        )
+
+    latest = await repo.latest_for_user(user.id)
+    await repo.close_all_for_user(user.id, now)
+
+    assert latest is not None
+    assert latest.created_at == now
+    assert latest.used_at == now

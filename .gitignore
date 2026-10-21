@@ -27,3 +27,4 @@ dist/
 
 # Local trial environment (scripts/dev-local.sh)
 .dev/
+services/auth/outbox/

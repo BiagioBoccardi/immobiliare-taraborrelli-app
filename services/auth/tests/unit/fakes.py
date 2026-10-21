@@ -5,8 +5,10 @@ from py_common.security import Role
 
 from app.models.consent import ConsentRecord
 from app.models.enums import ConsentSubject
+from app.models.password_reset import PasswordReset
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
+from app.services.email import Email
 
 
 class FakeUserRepository:
@@ -86,11 +88,41 @@ class FakeConsentRepository:
         ]
 
 
+class FakePasswordResetRepository:
+    def __init__(self) -> None:
+        self.items: list[PasswordReset] = []
+
+    async def add(self, reset: PasswordReset) -> PasswordReset:
+        self.items.append(reset)
+        return reset
+
+    async def latest_for_user(self, user_id: uuid.UUID) -> PasswordReset | None:
+        mine = [r for r in self.items if r.user_id == user_id]
+        return max(mine, key=lambda r: r.created_at) if mine else None
+
+    async def close_all_for_user(self, user_id: uuid.UUID, now: datetime) -> None:
+        for reset in self.items:
+            if reset.user_id == user_id and reset.used_at is None:
+                reset.used_at = now
+
+
+class FakeEmailSender:
+    def __init__(self, fail: bool = False) -> None:
+        self.sent: list[Email] = []
+        self.fail = fail
+
+    async def send(self, email: Email) -> None:
+        if self.fail:
+            raise ConnectionError("smtp down")
+        self.sent.append(email)
+
+
 class FakeUnitOfWork:
     def __init__(self) -> None:
         self.users = FakeUserRepository()
         self.refresh_tokens = FakeRefreshTokenRepository()
         self.consents = FakeConsentRepository()
+        self.password_resets = FakePasswordResetRepository()
         self.commits = 0
 
     async def commit(self) -> None:

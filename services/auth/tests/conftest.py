@@ -22,10 +22,11 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.core.config import Settings
-from app.core.dependencies import get_publisher, get_session
+from app.core.dependencies import get_email_sender, get_publisher, get_session
 from app.main import create_app
 from app.models.user import User
 from tests.factories import make_user
+from tests.unit.fakes import FakeEmailSender
 
 SERVICE_ROOT = Path(__file__).resolve().parents[1]
 CONTAINER_DIRS = ("integration", "api", "events")
@@ -131,7 +132,17 @@ def settings(private_key: str) -> Settings:
 
 
 @pytest.fixture
-def app(settings: Settings, db_session: AsyncSession, publisher: InMemoryEventPublisher) -> FastAPI:
+def email_sender() -> FakeEmailSender:
+    return FakeEmailSender()
+
+
+@pytest.fixture
+def app(
+    settings: Settings,
+    db_session: AsyncSession,
+    publisher: InMemoryEventPublisher,
+    email_sender: FakeEmailSender,
+) -> FastAPI:
     application = create_app(settings)
 
     async def _session() -> AsyncIterator[AsyncSession]:
@@ -139,6 +150,7 @@ def app(settings: Settings, db_session: AsyncSession, publisher: InMemoryEventPu
 
     application.dependency_overrides[get_session] = _session
     application.dependency_overrides[get_publisher] = lambda: publisher
+    application.dependency_overrides[get_email_sender] = lambda: email_sender
     return application
 
 

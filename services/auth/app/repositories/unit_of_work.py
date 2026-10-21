@@ -3,6 +3,7 @@ from typing import Protocol
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.consents import ConsentRepository, SqlConsentRepository
+from app.repositories.password_resets import PasswordResetRepository, SqlPasswordResetRepository
 from app.repositories.refresh_tokens import RefreshTokenRepository, SqlRefreshTokenRepository
 from app.repositories.users import SqlUserRepository, UserRepository
 
@@ -11,6 +12,7 @@ class UnitOfWork(Protocol):
     users: UserRepository
     refresh_tokens: RefreshTokenRepository
     consents: ConsentRepository
+    password_resets: PasswordResetRepository
 
     async def commit(self) -> None: ...
 
@@ -25,6 +27,7 @@ class SqlUnitOfWork:
         self.users: UserRepository = SqlUserRepository(session)
         self.refresh_tokens: RefreshTokenRepository = SqlRefreshTokenRepository(session)
         self.consents: ConsentRepository = SqlConsentRepository(session)
+        self.password_resets: PasswordResetRepository = SqlPasswordResetRepository(session)
 
     async def commit(self) -> None:
         await self._session.commit()

@@ -15,8 +15,24 @@ from app.core.database import create_engine, create_session_factory
 from app.core.security import AccessTokenIssuer, PasswordHasher, public_key_from_private
 from app.events.consumers import LEAD_CONSENT_ROUTING_KEY, LeadConsentHandler
 from app.events.publisher import LoggingEventPublisher
+from app.services.email import EmailSender, OutboxEmailSender, SmtpEmailSender
 
 API_PREFIX = "/api/v1/auth"
+
+
+def build_email_sender(settings: Settings) -> EmailSender:
+    if settings.email_backend == "smtp":
+        if not settings.smtp_host:
+            raise RuntimeError("SMTP_HOST is required when EMAIL_BACKEND=smtp")
+        return SmtpEmailSender(
+            settings.smtp_host,
+            settings.smtp_port,
+            settings.smtp_username,
+            settings.smtp_password,
+            settings.email_from,
+            use_ssl=settings.smtp_ssl,
+        )
+    return OutboxEmailSender(settings.email_outbox_dir, settings.email_from)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -64,6 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.password_hasher = PasswordHasher()
+    app.state.email_sender = build_email_sender(settings)
     app.state.token_issuer = AccessTokenIssuer(
         settings.jwt_private_key,
         settings.jwt_algorithm,
