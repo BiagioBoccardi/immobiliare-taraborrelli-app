@@ -376,7 +376,7 @@ async def test_preview_import_lists_missing_and_ignored_columns() -> None:
         spreadsheet_bytes([{"Comune": "Chieti", "Note interne": "x"}])
     )
 
-    assert preview.missing_columns == ["contract", "property_type", "price", "surface_sqm"]
+    assert preview.missing_columns == ["property_type", "price"]
     assert preview.ignored_columns == ["Note interne"]
 
 
@@ -407,3 +407,34 @@ async def test_update_keeping_own_management_code_succeeds() -> None:
 
     assert out.external_ref == "RS-1"
     assert out.price == 99_000
+
+
+async def test_publish_without_surface_raises_surface_required() -> None:
+    item = make_property(status=PropertyStatus.DRAFT, surface_sqm=None)
+    service, _, _, _ = build([item])
+
+    with pytest.raises(ConflictError) as exc_info:
+        await service.change_status(item.id, PropertyStatus.PUBLISHED)
+
+    assert exc_info.value.code == "surface_required"
+
+
+async def test_removing_surface_of_published_listing_raises_surface_required() -> None:
+    item = make_property(status=PropertyStatus.PUBLISHED)
+    service, _, _, _ = build([item])
+
+    with pytest.raises(ConflictError) as exc_info:
+        await service.update(item.id, PropertyUpdate(surface_sqm=None))
+
+    assert exc_info.value.code == "surface_required"
+
+
+async def test_run_import_without_surface_creates_draft_to_complete() -> None:
+    service, repo, _, _ = build()
+
+    result = await service.run_import(spreadsheet_bytes([import_row(Superficie=None)]))
+
+    (item,) = repo.items.values()
+    assert result.created == 1
+    assert item.surface_sqm is None
+    assert item.status is PropertyStatus.DRAFT

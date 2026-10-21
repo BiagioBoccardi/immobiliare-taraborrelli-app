@@ -42,7 +42,8 @@ class PropertyFields(BaseModel):
     description: Description = ""
     price: int = Field(ge=0, le=100_000_000)
     condominium_fees: int | None = Field(default=None, ge=0, le=100_000)
-    surface_sqm: int = Field(ge=1, le=100_000)
+    # Optional for drafts only: publishing requires it (see PropertyService.change_status).
+    surface_sqm: int | None = Field(default=None, ge=1, le=100_000)
     rooms: int | None = Field(default=None, ge=0, le=100)
     bedrooms: int | None = Field(default=None, ge=0, le=50)
     bathrooms: int | None = Field(default=None, ge=0, le=50)
@@ -207,7 +208,7 @@ class AdminPropertyOut(BaseModel):
     description: str
     price: int
     condominium_fees: int | None
-    surface_sqm: int
+    surface_sqm: int | None
     rooms: int | None
     bedrooms: int | None
     bathrooms: int | None

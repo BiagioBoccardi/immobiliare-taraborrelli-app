@@ -101,7 +101,8 @@ class Presenter:
             "price": item.price,
             "municipality": item.municipality,
             "zone": item.zone,
-            "surface_sqm": item.surface_sqm,
+            # Public listings always have it: publishing requires it.
+            "surface_sqm": item.surface_sqm or 0,
             "rooms": item.rooms,
             "bedrooms": item.bedrooms,
             "bathrooms": item.bathrooms,

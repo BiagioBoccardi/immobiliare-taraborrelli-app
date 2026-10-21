@@ -21,6 +21,7 @@ from app.services.importer import (
     parse_energy_class,
     parse_floor,
     parse_number,
+    parse_rooms,
     parse_sheet,
     parse_type,
     plan_rows,
@@ -329,3 +330,69 @@ def test_plan_room_for_sale_is_invalid() -> None:
     (row,) = plan([import_row(Tipologia="Posto letto")])
 
     assert codes(row.errors) == ["rental_fields_on_sale"]
+
+
+# Reasoft list export ------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("price", "expected"), [(480, Contract.RENT), (5_000, Contract.RENT), (135_000, Contract.SALE)]
+)
+def test_plan_without_contract_deduces_it_from_the_price(price: int, expected: Contract) -> None:
+    (row,) = plan([import_row(Contratto=None, Prezzo=price)])
+
+    assert row.create is not None
+    assert row.create.contract is expected
+    assert "contract_inferred" in codes(row.warnings)
+    assert next(w for w in row.warnings if w.code == "contract_inferred").value == expected.value
+
+
+def test_plan_without_contract_and_price_reports_only_the_price() -> None:
+    (row,) = plan([import_row(Contratto=None, Prezzo=None)])
+
+    assert codes(row.errors) == ["missing_value"]
+    assert row.errors[0].field == "price"
+
+
+def test_plan_without_surface_creates_draft_with_warning() -> None:
+    (row,) = plan([import_row(Superficie=None)])
+
+    assert row.action == "create"
+    assert row.create is not None
+    assert row.create.surface_sqm is None
+    assert codes(row.warnings) == ["surface_missing"]
+
+
+@pytest.mark.parametrize(
+    ("cell", "expected"),
+    [("Cinque locali", 5), ("Sei locali", 6), ("Quadrilocale", 4), ("Monolocale", 1), (3, 3)],
+)
+def test_parse_rooms_reads_words(cell: Cell, expected: int) -> None:
+    assert parse_rooms(cell) == expected
+
+
+@pytest.mark.parametrize(
+    ("cell", "expected"),
+    [("1° Piano", 1), ("Piano Terra", 0), ("Piano Rialzato", 0), ("Su più livelli", None)],
+)
+def test_parse_floor_reads_reasoft_values(cell: str, expected: int | None) -> None:
+    assert parse_floor(cell) == expected
+
+
+def test_parse_number_takes_the_single_amount_in_a_text() -> None:
+    assert parse_number("170.000 € trattabili") == 170_000
+
+
+def test_plan_camera_is_a_single_room_rental() -> None:
+    (row,) = plan([import_row(Contratto=None, Tipologia="Camera", Prezzo=290, Locali=None)])
+
+    assert row.create is not None
+    assert row.create.contract is Contract.RENT
+    assert row.create.accommodation is Accommodation.SINGLE_ROOM
+
+
+def test_plan_zone_in_capitals_is_tidied() -> None:
+    (row,) = plan([import_row(Zona="VILLA OLIVETI")])
+
+    assert row.create is not None
+    assert row.create.zone == "Villa Oliveti"

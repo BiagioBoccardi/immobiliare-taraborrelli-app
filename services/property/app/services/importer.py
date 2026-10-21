@@ -29,7 +29,12 @@ from app.services.spreadsheet import Cell, Sheet
 
 ImportAction = Literal["create", "update", "invalid"]
 
-REQUIRED_FIELDS = ("contract", "property_type", "price", "surface_sqm", "municipality")
+# Without these a new listing cannot be created. The contract, when missing, is deduced
+# from the price; the surface can be added in the panel before publishing.
+REQUIRED_FIELDS = ("property_type", "price", "municipality")
+# Exports without a contract column (e.g. the Reasoft list): up to this monthly amount the
+# price is a rent, above it a sale price. Rents in the Chieti area are far below.
+MAX_INFERRED_RENT = 5_000
 TITLE_MAX = 120
 DESCRIPTION_MAX = 10_000
 
@@ -185,6 +190,7 @@ TYPE_WORDS: tuple[tuple[str, PropertyType], ...] = (
     ("appartamento", PropertyType.APARTMENT),
     ("stanza", PropertyType.APARTMENT),
     ("posto letto", PropertyType.APARTMENT),
+    ("camera", PropertyType.APARTMENT),
     ("loft", PropertyType.APARTMENT),
     ("casa", PropertyType.HOUSE),
     ("rustico", PropertyType.HOUSE),
@@ -198,6 +204,7 @@ ROOMS_FROM_TYPE = {"monolocale": 1, "bilocale": 2, "trilocale": 3, "quadrilocale
 # Rooms for students and workers: the type says the kind of accommodation.
 ACCOMMODATION_FROM_TYPE = {
     "stanza": Accommodation.SINGLE_ROOM,
+    "camera": Accommodation.SINGLE_ROOM,
     "posto letto": Accommodation.SHARED_ROOM,
 }
 TYPE_LABELS: dict[PropertyType, str] = {
@@ -229,15 +236,19 @@ ENERGY_CLASS_NONE = ("esente", "in fase", "non classificabile", "non soggetto", 
 FLOOR_WORDS = {
     "terra": 0,
     "piano terra": 0,
+    "piano terreno": 0,
     "t": 0,
     "pt": 0,
     "rialzato": 0,
     "piano rialzato": 0,
+    "piano seminterrato": -1,
     "r": 0,
     "seminterrato": -1,
     "s": -1,
     "interrato": -1,
 }
+
+FLOOR_WITHOUT_NUMBER = ("livell", "attico", "ultimo", "intero", "varie", "piu piani")
 
 TRUE_WORDS = {"si", "s", "x", "yes", "y", "true", "vero", "1", "presente", "ok"}
 FALSE_WORDS = {"no", "n", "false", "falso", "0", "assente"}
@@ -323,8 +334,31 @@ def parse_number(cell: Cell) -> float:
         text = text.replace(".", "")  # "120.000" is thousands, not a decimal
     try:
         return float(text)
-    except ValueError as exc:
-        raise CellError("invalid_number") from exc
+    except ValueError:
+        pass
+    # Text around a single amount, e.g. "170.000 € trattabili": take the amount.
+    amounts = re.findall(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?", _text(cell))
+    if len(amounts) == 1:
+        return parse_number(amounts[0])
+    raise CellError("invalid_number")
+
+
+# "Cinque locali", "Quadrilocale": rooms written in words.
+NUMBER_WORDS = {
+    "uno": 1, "due": 2, "tre": 3, "quattro": 4, "cinque": 5,
+    "sei": 6, "sette": 7, "otto": 8, "nove": 9, "dieci": 10,
+}  # fmt: skip
+
+
+def parse_rooms(cell: Cell) -> int:
+    key = normalize(_text(cell))
+    for word, rooms in ROOMS_FROM_TYPE.items():
+        if word in key:
+            return rooms
+    first = key.split(" ")[0] if key else ""
+    if first in NUMBER_WORDS:
+        return NUMBER_WORDS[first]
+    return parse_int(cell)
 
 
 def parse_int(cell: Cell) -> int:
@@ -400,13 +434,16 @@ def parse_energy_class(cell: Cell) -> EnergyClass | None:
         raise CellError("energy_class_ignored") from exc
 
 
-def parse_floor(cell: Cell) -> int:
+def parse_floor(cell: Cell) -> int | None:
+    """None for floors that are not a number: "Su più livelli", "Attico", "Ultimo"."""
     key = normalize(_text(cell))
     if key in FLOOR_WORDS:
         return FLOOR_WORDS[key]
     match = re.search(r"-?\d+", key)
     if match:
         return int(match.group())
+    if any(word in key for word in FLOOR_WITHOUT_NUMBER):
+        return None
     raise CellError("invalid_number")
 
 
@@ -426,12 +463,11 @@ def _clean_place(cell: Cell) -> str:
     return text.title() if text.isupper() or text.islower() else text
 
 
-TEXT_FIELDS = {"external_ref", "title", "description", "zone", "address"}
+TEXT_FIELDS = {"external_ref", "title", "description", "address"}
 NUMBER_FIELDS: dict[str, Callable[[Cell], Any]] = {
     "price": parse_int,
     "condominium_fees": parse_int,
     "surface_sqm": parse_int,
-    "rooms": parse_int,
     "bedrooms": parse_int,
     "bathrooms": parse_int,
     "total_floors": parse_int,
@@ -467,7 +503,7 @@ def parse_row(
                     row.warnings.append(issue("value_truncated", index, name))
                     text = text[:limit].rstrip()
                 row.values[name] = text
-            elif name == "municipality":
+            elif name in {"municipality", "zone"}:
                 row.values[name] = _clean_place(cell)
             elif name in NUMBER_FIELDS:
                 row.values[name] = NUMBER_FIELDS[name](cell)
@@ -489,7 +525,11 @@ def parse_row(
                 if energy is not None:
                     row.values[name] = energy
             elif name == "floor":
-                row.values[name] = parse_floor(cell)
+                floor = parse_floor(cell)
+                if floor is not None:
+                    row.values[name] = floor
+            elif name == "rooms":
+                row.values[name] = parse_rooms(cell)
             elif name == "available_from":
                 row.values[name] = parse_date(cell)
             elif name == "is_featured":
@@ -567,10 +607,11 @@ def _plausibility(
         PropertyType.GARAGE,
         PropertyType.LAND,
     }:
-        per_sqm = fields.price / fields.surface_sqm
         if fields.price < MIN_PLAUSIBLE_SALE:
             warnings.append(ImportIssue(code="price_unusual_sale", field="price"))
-        elif not SALE_PRICE_PER_SQM[0] <= per_sqm <= SALE_PRICE_PER_SQM[1]:
+        elif fields.surface_sqm and not (
+            SALE_PRICE_PER_SQM[0] <= fields.price / fields.surface_sqm <= SALE_PRICE_PER_SQM[1]
+        ):
             warnings.append(ImportIssue(code="price_per_sqm_unusual", field="price"))
     return errors, warnings
 
@@ -614,6 +655,18 @@ def plan_rows(
                 name for name in REQUIRED_FIELDS if name not in values and name not in unreadable
             ]
             errors.extend(ImportIssue(code="missing_value", field=name) for name in missing)
+            if "contract" not in values and "contract" not in unreadable:
+                price = values.get("price")
+                if isinstance(price, int):
+                    contract = Contract.RENT if price <= MAX_INFERRED_RENT else Contract.SALE
+                    values["contract"] = contract
+                    warnings.append(
+                        ImportIssue(
+                            code="contract_inferred", field="contract", value=contract.value
+                        )
+                    )
+            if "surface_sqm" not in values and "surface_sqm" not in unreadable:
+                warnings.append(ImportIssue(code="surface_missing", field="surface_sqm"))
             if "rooms" not in values and rooms_from_type is not None:
                 values["rooms"] = rooms_from_type
                 warnings.append(ImportIssue(code="rooms_inferred", field="rooms"))

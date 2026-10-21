@@ -1,4 +1,4 @@
-"""Reads the first sheet of an Excel (.xlsx) or CSV file into a header and rows of cells."""
+"""Reads the first sheet of an Excel (.xlsx), CSV or HTML-table file into header and rows."""
 
 import csv
 import io
@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from html.parser import HTMLParser
 from typing import Any
 
 from openpyxl import Workbook, load_workbook
@@ -78,15 +79,16 @@ def _xlsx_rows(data: bytes, limit: int) -> list[tuple[Cell, ...]]:
         workbook.close()
 
 
+def _decode(data: bytes) -> str:
+    """UTF-8 when valid, otherwise the Windows encoding used by Italian Excel exports."""
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return data.decode("cp1252", errors="replace")
+
+
 def _csv_rows(data: bytes, limit: int) -> list[tuple[Cell, ...]]:
-    for encoding in ("utf-8-sig", "cp1252"):
-        try:
-            text = data.decode(encoding)
-            break
-        except UnicodeDecodeError:
-            continue
-    else:  # pragma: no cover - cp1252 decodes almost anything
-        raise AppError("The file is not a valid Excel or CSV file", code="invalid_file")
+    text = _decode(data)
     if "\x00" in text:
         raise AppError("The file is not a valid Excel or CSV file", code="invalid_file")
     try:
@@ -99,6 +101,70 @@ def _csv_rows(data: bytes, limit: int) -> list[tuple[Cell, ...]]:
     return _limited((tuple(row[:MAX_COLUMNS]) for row in reader), limit)
 
 
+# Elements without a closing tag: they never contain text.
+VOID_TAGS = {"br", "img", "input", "meta", "link", "hr", "col", "wbr", "source", "area", "base"}
+
+
+class _TableParser(HTMLParser):
+    """Rows of the first HTML table, with the visible text of each cell."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.rows: list[tuple[Cell, ...]] = []
+        self._row: list[str] | None = None
+        self._cell: list[str] | None = None
+        self._hidden: list[bool] = []  # one entry per open element
+        self._tables = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "table":
+            self._tables += 1
+        if self._tables != 1:
+            return
+        if tag not in VOID_TAGS:
+            style = (dict(attrs).get("style") or "").replace(" ", "").lower()
+            parent_hidden = bool(self._hidden and self._hidden[-1])
+            self._hidden.append(parent_hidden or "display:none" in style)
+        if tag == "tr":
+            self._row = []
+        elif tag in {"td", "th"} and self._row is not None:
+            self._cell = []
+        elif tag == "br" and self._cell is not None:
+            self._cell.append(" ")
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._tables == 1 and tag not in VOID_TAGS and self._hidden:
+            self._hidden.pop()
+        if tag in {"td", "th"} and self._cell is not None and self._row is not None:
+            self._row.append(" ".join("".join(self._cell).split()))
+            self._cell = None
+        elif tag == "tr" and self._row is not None:
+            self.rows.append(tuple(self._row[:MAX_COLUMNS]))
+            self._row = None
+        elif tag == "table":
+            self._tables += 1  # only the first table is read
+
+    def handle_data(self, data: str) -> None:
+        if self._cell is not None and not (self._hidden and self._hidden[-1]):
+            self._cell.append(data)
+
+
+def _is_html(data: bytes) -> bool:
+    """Web-based software often exports an HTML table saved with the .xls extension."""
+    start = data[:4096].lstrip(b"\xef\xbb\xbf \t\r\n").lower()
+    return start.startswith(b"<") and (b"<table" in start or b"<html" in start)
+
+
+def _html_rows(data: bytes, limit: int) -> list[tuple[Cell, ...]]:
+    text = _decode(data)
+    parser = _TableParser()
+    parser.feed(text)
+    parser.close()
+    if not parser.rows:
+        raise AppError("The file is not a valid Excel or CSV file", code="invalid_file")
+    return _limited(iter(parser.rows), limit)
+
+
 def read_spreadsheet(data: bytes, max_rows: int) -> Sheet:
     """First non-empty row is the header; fully empty rows are skipped."""
     if data.startswith(XLS_MAGIC):
@@ -107,7 +173,12 @@ def read_spreadsheet(data: bytes, max_rows: int) -> Sheet:
             code="xls_not_supported",
         )
     limit = max_rows + 1  # header included
-    raw = _xlsx_rows(data, limit) if data.startswith(XLSX_MAGIC) else _csv_rows(data, limit)
+    if data.startswith(XLSX_MAGIC):
+        raw = _xlsx_rows(data, limit)
+    elif _is_html(data):
+        raw = _html_rows(data, limit)
+    else:
+        raw = _csv_rows(data, limit)
 
     numbered = [
         (index + 1, row) for index, row in enumerate(raw) if not all(_is_empty(c) for c in row)

@@ -60,7 +60,9 @@ class Property(Base):
     price: Mapped[int] = mapped_column(Integer, index=True)  # euros; monthly rent for rentals
     condominium_fees: Mapped[int | None] = mapped_column(Integer)  # euros per month
 
-    surface_sqm: Mapped[int] = mapped_column(Integer, index=True)
+    # Can be missing only in drafts (e.g. imported from an export without it): it is
+    # required to publish.
+    surface_sqm: Mapped[int | None] = mapped_column(Integer, index=True)
     rooms: Mapped[int | None] = mapped_column(Integer)
     bedrooms: Mapped[int | None] = mapped_column(Integer)
     bathrooms: Mapped[int | None] = mapped_column(Integer)

@@ -87,3 +87,30 @@ def test_read_more_rows_than_allowed_raises_too_many_rows() -> None:
 
     assert exc_info.value.code == "too_many_rows"
     assert exc_info.value.details == {"max": 3}
+
+
+REASOFT_HTML = """<table rules="all" border="1">
+  <tr><th scope="col">Codice</th><th scope="col">
+        Prezzo
+     </th><th scope="col">Note</th></tr>
+  <tr><td><span>88</span></td>
+      <td><div class="contentCella"><span>170.000 &euro;</span><span></span></div></td>
+      <td><div class="noteInterne" style="display: none;"><span>nascosto</span><br></div></td></tr>
+</table>"""
+
+
+def test_read_html_table_saved_as_xls_returns_visible_text() -> None:
+    data = REASOFT_HTML.encode("cp1252")
+
+    sheet = read_spreadsheet(data, max_rows=10)
+
+    assert sheet.headers == ("Codice", "Prezzo", "Note")
+    assert sheet.rows[0].cells == ("88", "170.000 €", "")
+    assert sheet.rows[0].number == 2
+
+
+def test_read_html_without_table_raises_invalid_file() -> None:
+    with pytest.raises(AppError) as exc_info:
+        read_spreadsheet(b"<html><body><p>nessuna tabella</p></body></html>", max_rows=10)
+
+    assert exc_info.value.code == "invalid_file"

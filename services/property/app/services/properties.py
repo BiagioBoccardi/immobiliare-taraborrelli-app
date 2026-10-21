@@ -160,6 +160,8 @@ class PropertyService:
                 code="invalid_property",
                 details={"errors": [e["msg"] for e in exc.errors()]},
             ) from exc
+        if item.status in PUBLIC_STATUSES and validated.surface_sqm is None:
+            raise ConflictError("A published property needs its surface", code="surface_required")
         await self._ensure_external_ref_free(validated.external_ref, item.id)
         old_price = item.price
         for name, value in _column_values(validated).items():
@@ -204,6 +206,8 @@ class PropertyService:
             )
         if new_status in PUBLIC_STATUSES and not item.photos:
             raise ConflictError("Add at least one photo before publishing", code="photo_required")
+        if new_status in PUBLIC_STATUSES and item.surface_sqm is None:
+            raise ConflictError("Add the surface before publishing", code="surface_required")
         now = self._clock()
         item.status = new_status
         item.updated_at = now
@@ -222,7 +226,7 @@ class PropertyService:
                     municipality=item.municipality,
                     zone=item.zone,
                     price=item.price,
-                    surface_sqm=item.surface_sqm,
+                    surface_sqm=item.surface_sqm or 0,  # checked above
                     rooms=item.rooms,
                     features=tuple(item.features),
                 )
