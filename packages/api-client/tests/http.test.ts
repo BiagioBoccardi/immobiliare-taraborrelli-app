@@ -267,3 +267,39 @@ describe("owner requests", () => {
     expect(fetch.calls[0]?.init.headers).toMatchObject({ Authorization: "Bearer old-token" });
   });
 });
+
+describe("Excel import", () => {
+  it("sends the file for the preview as multipart form data", async () => {
+    const preview = { columns: [], ignored_columns: [], missing_columns: [], rows: [] };
+    const { calls, impl } = fakeFetch(jsonResponse(200, preview));
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: impl, auth: hooks() });
+
+    await api.property.previewImport(new Blob(["x"]));
+
+    expect(calls[0]?.url).toBe("http://api.test/api/v1/property/admin/properties/import/preview");
+    expect(calls[0]?.init.body).toBeInstanceOf(FormData);
+  });
+
+  it("downloads the template as a blob with the token", async () => {
+    const blob = new Blob(["xlsx"]);
+    const response = { status: 200, ok: true, blob: async () => blob } as Response;
+    const { calls, impl } = fakeFetch(response);
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: impl, auth: hooks() });
+
+    const result = await api.property.importTemplate();
+
+    expect(result).toBe(blob);
+    expect((calls[0]?.init.headers as Record<string, string>).Authorization).toBe(
+      "Bearer old-token",
+    );
+  });
+
+  it("turns a failed download into ApiError", async () => {
+    const { impl } = fakeFetch(
+      jsonResponse(403, { code: "forbidden", message: "No", details: {} }),
+    );
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: impl, auth: hooks() });
+
+    await expect(api.property.importTemplate()).rejects.toMatchObject({ code: "forbidden" });
+  });
+});

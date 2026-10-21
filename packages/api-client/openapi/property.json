@@ -174,6 +174,17 @@
               }
             ]
           },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
           "features": {
             "items": {
               "$ref": "#/components/schemas/Feature"
@@ -332,6 +343,7 @@
         "required": [
           "id",
           "reference",
+          "external_ref",
           "status",
           "contract",
           "property_type",
@@ -366,6 +378,34 @@
           "photos"
         ],
         "title": "AdminPropertyOut",
+        "type": "object"
+      },
+      "Body_preview_import_api_v1_property_admin_properties_import_preview_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_preview_import_api_v1_property_admin_properties_import_preview_post",
+        "type": "object"
+      },
+      "Body_run_import_api_v1_property_admin_properties_import_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_run_import_api_v1_property_admin_properties_import_post",
         "type": "object"
       },
       "Body_upload_photo_api_v1_property_admin_properties__property_id__photos_post": {
@@ -468,6 +508,259 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImportColumn": {
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "header": {
+            "title": "Header",
+            "type": "string"
+          }
+        },
+        "required": [
+          "header",
+          "field"
+        ],
+        "title": "ImportColumn",
+        "type": "object"
+      },
+      "ImportIssue": {
+        "description": "A problem in a row. `code` is translated by the admin panel.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "ImportIssue",
+        "type": "object"
+      },
+      "ImportPreview": {
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/ImportColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "ignored_columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ignored Columns",
+            "type": "array"
+          },
+          "missing_columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Columns",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ImportRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ImportTotals"
+          }
+        },
+        "required": [
+          "columns",
+          "ignored_columns",
+          "missing_columns",
+          "rows",
+          "totals"
+        ],
+        "title": "ImportPreview",
+        "type": "object"
+      },
+      "ImportResult": {
+        "properties": {
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "created",
+          "updated",
+          "skipped"
+        ],
+        "title": "ImportResult",
+        "type": "object"
+      },
+      "ImportRowOut": {
+        "properties": {
+          "action": {
+            "enum": [
+              "create",
+              "update",
+              "invalid"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "contract": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Contract"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "municipality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Municipality"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "row": {
+            "title": "Row",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "row",
+          "action",
+          "external_ref",
+          "title",
+          "municipality",
+          "contract",
+          "price",
+          "errors",
+          "warnings"
+        ],
+        "title": "ImportRowOut",
+        "type": "object"
+      },
+      "ImportTotals": {
+        "properties": {
+          "create": {
+            "title": "Create",
+            "type": "integer"
+          },
+          "invalid": {
+            "title": "Invalid",
+            "type": "integer"
+          },
+          "update": {
+            "title": "Update",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "create",
+          "update",
+          "invalid"
+        ],
+        "title": "ImportTotals",
         "type": "object"
       },
       "Page_AdminPropertyOut_": {
@@ -910,6 +1203,19 @@
                 "type": "null"
               }
             ]
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
           },
           "features": {
             "items": {
@@ -1480,6 +1786,19 @@
               }
             ]
           },
+          "external_ref": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
           "features": {
             "anyOf": [
               {
@@ -1990,6 +2309,119 @@
           }
         ],
         "summary": "Create Property",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/property/admin/properties/import": {
+      "post": {
+        "description": "Imports the valid rows of the same file checked with the preview.",
+        "operationId": "run_import_api_v1_property_admin_properties_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_run_import_api_v1_property_admin_properties_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run Import",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/property/admin/properties/import/preview": {
+      "post": {
+        "description": "Checks an Excel/CSV export without saving anything.",
+        "operationId": "preview_import_api_v1_property_admin_properties_import_preview_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_import_api_v1_property_admin_properties_import_preview_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Preview Import",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/property/admin/properties/import/template": {
+      "get": {
+        "operationId": "import_template_api_v1_property_admin_properties_import_template_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Template",
         "tags": [
           "admin"
         ]

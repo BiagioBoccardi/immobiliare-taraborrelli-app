@@ -19,6 +19,10 @@ export type Feature = Schemas["Feature"];
 export type TenantType = Schemas["TenantType"];
 export type Accommodation = Schemas["Accommodation"];
 export type SortOrder = Schemas["SortOrder"];
+export type ImportPreview = Schemas["ImportPreview"];
+export type ImportRow = Schemas["ImportRowOut"];
+export type ImportIssue = Schemas["ImportIssue"];
+export type ImportResult = Schemas["ImportResult"];
 
 export interface AdminPropertyFilters extends PageQuery {
   status?: PropertyStatus | undefined;
@@ -104,6 +108,19 @@ export function propertyApi(http: HttpClient) {
       }),
     deletePhoto: (id: string, photoId: string) =>
       http.request<AdminProperty>("DELETE", `${ADMIN}/${id}/photos/${photoId}`),
+
+    // Excel import from the management software: check first, then import the same file.
+    previewImport: (file: Blob) => {
+      const form = new FormData();
+      form.append("file", file);
+      return http.request<ImportPreview>("POST", `${ADMIN}/import/preview`, { form });
+    },
+    runImport: (file: Blob) => {
+      const form = new FormData();
+      form.append("file", file);
+      return http.request<ImportResult>("POST", `${ADMIN}/import`, { form });
+    },
+    importTemplate: () => http.requestBlob("GET", `${ADMIN}/import/template`),
   };
 }
 

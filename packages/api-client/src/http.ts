@@ -89,6 +89,21 @@ export class HttpClient {
   }
 
   async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+    return this.parse<T>(await this.sendWithRefresh(method, path, options));
+  }
+
+  /** For file downloads (e.g. an Excel template): the body as a Blob. */
+  async requestBlob(method: string, path: string, options: RequestOptions = {}): Promise<Blob> {
+    const response = await this.sendWithRefresh(method, path, options);
+    if (!response.ok) return this.parse<never>(response); // throws ApiError
+    return response.blob();
+  }
+
+  private async sendWithRefresh(
+    method: string,
+    path: string,
+    options: RequestOptions,
+  ): Promise<Response> {
     const useAuth = options.auth ?? true;
     let response = await this.send(method, path, options, useAuth);
     if (response.status === 401 && useAuth && this.auth) {
@@ -100,7 +115,7 @@ export class HttpClient {
         if (response.status === 401) this.auth.onSessionExpired();
       }
     }
-    return this.parse<T>(response);
+    return response;
   }
 
   /** Concurrent 401s share a single refresh, so a rotated refresh token is used only once. */

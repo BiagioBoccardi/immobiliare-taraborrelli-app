@@ -22,6 +22,63 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/property/admin/properties/import": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Run Import
+     * @description Imports the valid rows of the same file checked with the preview.
+     */
+    post: operations["run_import_api_v1_property_admin_properties_import_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/property/admin/properties/import/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Preview Import
+     * @description Checks an Excel/CSV export without saving anything.
+     */
+    post: operations["preview_import_api_v1_property_admin_properties_import_preview_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/property/admin/properties/import/template": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Import Template */
+    get: operations["import_template_api_v1_property_admin_properties_import_template_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/property/admin/properties/{property_id}": {
     parameters: {
       query?: never;
@@ -235,6 +292,8 @@ export interface components {
       /** Description */
       description: string;
       energy_class: components["schemas"]["EnergyClass"] | null;
+      /** External Ref */
+      external_ref: string | null;
       /** Features */
       features: components["schemas"]["Feature"][];
       /** Floor */
@@ -284,6 +343,16 @@ export interface components {
       /** Zone */
       zone: string | null;
     };
+    /** Body_preview_import_api_v1_property_admin_properties_import_preview_post */
+    Body_preview_import_api_v1_property_admin_properties_import_preview_post: {
+      /** File */
+      file: string;
+    };
+    /** Body_run_import_api_v1_property_admin_properties_import_post */
+    Body_run_import_api_v1_property_admin_properties_import_post: {
+      /** File */
+      file: string;
+    };
     /** Body_upload_photo_api_v1_property_admin_properties__property_id__photos_post */
     Body_upload_photo_api_v1_property_admin_properties__property_id__photos_post: {
       /** Caption */
@@ -329,6 +398,80 @@ export interface components {
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /** ImportColumn */
+    ImportColumn: {
+      /** Field */
+      field: string;
+      /** Header */
+      header: string;
+    };
+    /**
+     * ImportIssue
+     * @description A problem in a row. `code` is translated by the admin panel.
+     */
+    ImportIssue: {
+      /** Code */
+      code: string;
+      /** Column */
+      column?: string | null;
+      /** Field */
+      field?: string | null;
+      /** Value */
+      value?: string | null;
+    };
+    /** ImportPreview */
+    ImportPreview: {
+      /** Columns */
+      columns: components["schemas"]["ImportColumn"][];
+      /** Ignored Columns */
+      ignored_columns: string[];
+      /** Missing Columns */
+      missing_columns: string[];
+      /** Rows */
+      rows: components["schemas"]["ImportRowOut"][];
+      totals: components["schemas"]["ImportTotals"];
+    };
+    /** ImportResult */
+    ImportResult: {
+      /** Created */
+      created: number;
+      /** Skipped */
+      skipped: number;
+      /** Updated */
+      updated: number;
+    };
+    /** ImportRowOut */
+    ImportRowOut: {
+      /**
+       * Action
+       * @enum {string}
+       */
+      action: "create" | "update" | "invalid";
+      contract: components["schemas"]["Contract"] | null;
+      /** Errors */
+      errors: components["schemas"]["ImportIssue"][];
+      /** External Ref */
+      external_ref: string | null;
+      /** Municipality */
+      municipality: string | null;
+      /** Price */
+      price: number | null;
+      /** Row */
+      row: number;
+      /** Title */
+      title: string | null;
+      /** Warnings */
+      warnings: components["schemas"]["ImportIssue"][];
+    };
+    /** ImportTotals */
+    ImportTotals: {
+      /** Create */
+      create: number;
+      /** Invalid */
+      invalid: number;
+      /** Update */
+      update: number;
     };
     /** Page[AdminPropertyOut] */
     Page_AdminPropertyOut_: {
@@ -453,6 +596,8 @@ export interface components {
        */
       description?: string;
       energy_class?: components["schemas"]["EnergyClass"] | null;
+      /** External Ref */
+      external_ref?: string | null;
       /** Features */
       features?: components["schemas"]["Feature"][];
       /** Floor */
@@ -579,6 +724,8 @@ export interface components {
       /** Description */
       description?: string | null;
       energy_class?: components["schemas"]["EnergyClass"] | null;
+      /** External Ref */
+      external_ref?: string | null;
       /** Features */
       features?: components["schemas"]["Feature"][] | null;
       /** Floor */
@@ -734,6 +881,90 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
+    };
+  };
+  run_import_api_v1_property_admin_properties_import_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_run_import_api_v1_property_admin_properties_import_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  preview_import_api_v1_property_admin_properties_import_preview_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_preview_import_api_v1_property_admin_properties_import_preview_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportPreview"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  import_template_api_v1_property_admin_properties_import_template_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
