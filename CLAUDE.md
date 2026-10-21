@@ -347,7 +347,7 @@ Non dare per scontate queste scelte: chiedi prima di implementare qualcosa che n
   - **Da fare quando si sceglie l'hosting:** collegare il modulo di ricontatto del sito https://immobiliare-taraborrelli.netlify.app/ al servizio `lead`, così le richieste compaiono nel pannello admin (pagina «Richieste proprietari»). Con il backend online il modulo invia direttamente all'API pubblica di `lead` (CORS per il dominio del sito, rate limiting, consenso privacy obbligatorio). Se il modulo è un semplice ricontatto, aggiungere a `lead` il tipo «Richiesta di ricontatto». Prima di iniziare, leggere il codice del modulo (repository del sito o HTML). Alternativa valutata e messa da parte: importare le richieste da Netlify Forms tramite la loro API.
 - Account sviluppatore e tempi di pubblicazione su Play Store; pubblicazione su App Store
 - Metodo e fonte dati per la stima automatica
-- Gestionale immobiliare attualmente usato dall'agenzia e possibilità di integrazione
+- Integrazione con il gestionale immobiliare: l'agenzia usa **Reasoft** (ottobre 2026). Da verificare con l'assistenza Reasoft se offre un'esportazione degli annunci per il sito dell'agenzia (feed XML o API) e in quale formato. Se esiste, `property` importerà periodicamente gli annunci (creazione, aggiornamento, ritiro, foto); nel frattempo gli immobili si inseriscono dal pannello admin.
 - WhatsApp tramite semplice link o tramite API Business
 - Fornitore di mappe e di email transazionali
 - Codici colore esatti e file del logo
