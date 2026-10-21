@@ -23,7 +23,7 @@ interfaccia) sono in [`CLAUDE.md`](CLAUDE.md).
 
 ## Provare il pannello di amministrazione
 
-Requisiti: Docker, [uv](https://docs.astral.sh/uv/), Node.js 20+ e openssl (su Windows usare WSL2).
+Requisiti: Docker, [uv](https://docs.astral.sh/uv/), Node.js 20+, Python 3 e openssl (su Windows usare WSL2).
 
 ```bash
 scripts/dev-local.sh up     # avvia tutto in circa 20 secondi (la prima volta di più)
@@ -34,8 +34,9 @@ scripts/dev-local.sh down   # ferma tutto (i dati restano per il prossimo avvio)
 scripts/dev-local.sh reset  # ferma tutto ed elimina tutti i dati di prova
 ```
 
-Lo script avvia PostgreSQL e MinIO (foto) in Docker, i servizi auth, lead e property, il
-pannello e l'app mobile in anteprima nel browser. Database e foto stanno in volumi Docker:
+Lo script avvia PostgreSQL in Docker, i servizi auth, lead e property, un piccolo archivio
+compatibile S3 per le foto (`scripts/dev-s3.py`), il pannello e l'app mobile in anteprima nel
+browser. Il database sta in un volume Docker e le foto nella cartella `.dev/media`:
 immobili importati, foto caricate e utenti restano dopo `down`, un riavvio del PC o un
 `git pull`. Il primo avvio (o il primo dopo `reset`) crea un amministratore di prova, un utente
 dell'app, due richieste di esempio e cinque immobili di esempio (inventati, con foto

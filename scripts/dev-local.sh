@@ -12,14 +12,15 @@
 #   scripts/dev-local.sh email  show the last email saved (e.g. a password reset code)
 #
 # What it starts: PostgreSQL in Docker (one database per service), the auth, lead and
-# property services with uv, MinIO in Docker for photos, the admin panel with Vite and the
-# mobile app in the browser (Expo web). Events are disabled. Database and photos live in
-# Docker volumes, so imported properties and uploaded photos survive restarts and git pull.
+# property services with uv, a small S3-compatible server for photos (scripts/dev-s3.py),
+# the admin panel with Vite and the mobile app in the browser (Expo web). Events are
+# disabled. The database lives in a Docker volume and the photos in .dev/media, so imported
+# properties and uploaded photos survive restarts and git pull.
 # The first start (or the first after "reset") creates a test administrator, a test user,
 # two sample owner requests and five fictional sample properties.
 #
-# Requirements: Docker, uv, Node.js 20+ and openssl (cloudflared for --tunnel). On Windows use WSL2.
-# Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (MinIO), 8090 (tunnel proxy),
+# Requirements: Docker, uv, Node.js 20+, Python 3 and openssl (cloudflared for --tunnel). On Windows use WSL2.
+# Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (photos), 8090 (tunnel proxy),
 # 55432 (PostgreSQL).
 set -euo pipefail
 
@@ -43,10 +44,6 @@ if [ -f "$ROOT/.dev-local.env" ]; then
 fi
 DB_CONTAINER="taraborrelli-dev-db"
 DB_VOLUME="taraborrelli-dev-pgdata"
-S3_CONTAINER="taraborrelli-dev-s3"
-S3_VOLUME="taraborrelli-dev-s3data"
-S3_USER="taraborrelli"
-S3_PASSWORD="taraborrelli-minio"
 DB_PORT="${DEV_DB_PORT:-55432}"
 S3_PORT="${DEV_S3_PORT:-9100}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@taraborrelli.test}"
@@ -79,7 +76,7 @@ info() { printf '\033[1;34m›\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 
 require() {
-  for tool in docker uv node npm openssl curl; do
+  for tool in docker uv node npm openssl curl python3; do
     command -v "$tool" >/dev/null 2>&1 || fail "Manca '$tool': installalo e riprova."
   done
   docker info >/dev/null 2>&1 || fail "Docker non è in esecuzione."
@@ -113,14 +110,14 @@ down() {
     while read -r pid; do kill_tree "$pid"; done <"$STATE/pids"
     rm -f "$STATE/pids"
   fi
-  docker rm -f "$DB_CONTAINER" "$S3_CONTAINER" >/dev/null 2>&1 || true
+  docker rm -f "$DB_CONTAINER" >/dev/null 2>&1 || true
   info "Ambiente di prova fermato (i dati restano per il prossimo avvio)."
 }
 
 reset() {
   down
-  docker volume rm "$DB_VOLUME" "$S3_VOLUME" >/dev/null 2>&1 || true
-  rm -f "$STATE/jwt-private.pem" "$STATE/jwt-public.pem"
+  docker volume rm "$DB_VOLUME" >/dev/null 2>&1 || true
+  rm -rf "$STATE/media" "$STATE/jwt-private.pem" "$STATE/jwt-public.pem"
   info "Dati di prova eliminati: il prossimo avvio riparte da zero."
 }
 
@@ -201,7 +198,7 @@ up() {
   fi
 
   info "PostgreSQL (porta $DB_PORT)…"
-  docker rm -f "$DB_CONTAINER" "$S3_CONTAINER" >/dev/null 2>&1 || true
+  docker rm -f "$DB_CONTAINER" >/dev/null 2>&1 || true
   docker run -d --rm --name "$DB_CONTAINER" -e POSTGRES_USER=dev -e POSTGRES_PASSWORD=dev \
     -e POSTGRES_DB=auth -v "$DB_VOLUME:/var/lib/postgresql/data" \
     -p "127.0.0.1:$DB_PORT:5432" postgres:16-alpine >/dev/null
@@ -220,14 +217,12 @@ up() {
     openssl pkey -in "$STATE/jwt-private.pem" -pubout -out "$STATE/jwt-public.pem"
   fi
 
-  info "MinIO per le foto (porta $S3_PORT)…"
+  info "Archivio foto (porta $S3_PORT, cartella .dev/media)…"
   # With --lan the phone loads the photos directly from here.
   local s3_bind=127.0.0.1
   $LAN && s3_bind=0.0.0.0
-  docker run -d --rm --name "$S3_CONTAINER" -e MINIO_ROOT_USER="$S3_USER" \
-    -e MINIO_ROOT_PASSWORD="$S3_PASSWORD" -v "$S3_VOLUME:/data" -p "$s3_bind:$S3_PORT:9000" \
-    minio/minio:RELEASE.2024-10-13T13-34-11Z server /data >/dev/null
-  wait_for "http://localhost:$S3_PORT/minio/health/live" "MinIO"
+  start_bg s3 "$ROOT" python3 scripts/dev-s3.py "$STATE/media" "$S3_PORT" "$s3_bind"
+  wait_for "http://localhost:$S3_PORT" "Archivio foto"
 
   export EVENTS_ENABLED=false LOG_LEVEL=INFO
   local email_backend=outbox  # emails saved in .dev/outbox
@@ -246,7 +241,7 @@ up() {
     else
       start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
         JWT_PUBLIC_KEY="$(cat "$STATE/jwt-public.pem")" \
-        S3_ENDPOINT_URL="http://localhost:$S3_PORT" S3_ACCESS_KEY="$S3_USER" S3_SECRET_KEY="$S3_PASSWORD" \
+        S3_ENDPOINT_URL="http://localhost:$S3_PORT" S3_ACCESS_KEY=dev S3_SECRET_KEY=dev \
         S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="$MEDIA_BASE" \
         uv run --quiet uvicorn app.main:app --port "$port"
     fi
