@@ -8,7 +8,13 @@ from py_common.pagination import PageParams
 
 from app.models.enums import PropertyStatus
 from app.models.property import Property
-from app.schemas.property import PhotoOrder, PhotoUpdate, PropertyCreate, PropertyUpdate
+from app.schemas.property import (
+    AdminFilters,
+    PhotoOrder,
+    PhotoUpdate,
+    PropertyCreate,
+    PropertyUpdate,
+)
 from app.services.importer import parse_sheet, plan_rows
 from app.services.properties import PropertyService
 from app.services.spreadsheet import read_spreadsheet
@@ -162,14 +168,25 @@ async def test_get_public_of_draft_raises_not_found() -> None:
         await service.get_public(item.id)
 
 
-async def test_delete_published_property_raises_conflict() -> None:
+async def test_delete_published_property_removes_it_and_emits_unpublished() -> None:
     item = make_property()
-    service, _, _, _ = build([item])
+    service, repo, _, publisher = build([item])
 
-    with pytest.raises(ConflictError) as exc_info:
-        await service.delete(item.id)
+    await service.delete(item.id)
 
-    assert exc_info.value.code == "property_not_deletable"
+    assert item.id not in repo.items
+    (event,) = publisher.events
+    assert event.event_type == "property.unpublished"
+    assert event.payload.status == "archived"
+
+
+async def test_delete_draft_emits_nothing() -> None:
+    item = make_property(status=PropertyStatus.DRAFT)
+    service, _, _, publisher = build([item])
+
+    await service.delete(item.id)
+
+    assert publisher.events == []
 
 
 async def test_delete_draft_removes_stored_photos() -> None:
@@ -438,3 +455,62 @@ async def test_run_import_without_surface_creates_draft_to_complete() -> None:
     assert result.created == 1
     assert item.surface_sqm is None
     assert item.status is PropertyStatus.DRAFT
+
+
+# Bulk actions ---------------------------------------------------------------------------
+
+
+async def test_bulk_publish_publishes_ready_drafts_and_explains_the_others() -> None:
+    ready = make_property(status=PropertyStatus.DRAFT, published_at=None)
+    no_photo = make_property(status=PropertyStatus.DRAFT, photos=0)
+    no_surface = make_property(status=PropertyStatus.DRAFT, surface_sqm=None)
+    public = make_property(status=PropertyStatus.PUBLISHED)
+    sold = make_property(status=PropertyStatus.SOLD)
+    service, repo, _, publisher = build([ready, no_photo, no_surface, public, sold])
+
+    result = await service.bulk_publish(AdminFilters())
+
+    assert result.done == 1
+    assert ready.status is PropertyStatus.PUBLISHED
+    assert ready.published_at == NOW
+    assert {s.id: s.reason for s in result.skipped} == {
+        no_photo.id: "photo_required",
+        no_surface.id: "surface_required",
+        public.id: "already_published",
+        sold.id: "invalid_status_transition",
+    }
+    assert [e.event_type for e in publisher.events] == ["property.published"]
+    assert repo.commits == 1
+
+
+async def test_bulk_delete_removes_all_with_photos_and_unpublishes_public_ones() -> None:
+    draft = make_property(status=PropertyStatus.DRAFT, photos=1)
+    public = make_property(status=PropertyStatus.PUBLISHED, photos=1)
+    storage = InMemoryStorage()
+    for item in (draft, public):
+        storage.objects[item.photos[0].storage_key] = (JPEG_BYTES, "image/jpeg")
+    service, repo, _, publisher = build([draft, public], storage)
+
+    result = await service.bulk_delete(AdminFilters())
+
+    assert result.done == 2
+    assert repo.items == {}
+    assert storage.objects == {}
+    (event,) = publisher.events
+    assert event.payload.property_id == public.id
+
+
+async def test_bulk_action_on_too_many_properties_raises() -> None:
+    service, repo, _, _ = build()
+    original = repo.list_admin
+
+    async def huge(filters: AdminFilters, offset: int, limit: int) -> tuple[list[Property], int]:
+        items, _ = await original(filters, offset, limit)
+        return items, 10_000
+
+    repo.list_admin = huge  # type: ignore[method-assign]
+
+    with pytest.raises(AppError) as exc_info:
+        await service.bulk_delete(AdminFilters())
+
+    assert exc_info.value.code == "too_many_properties"

@@ -21,6 +21,7 @@ from app.models.enums import (
 )
 from app.models.property import Photo, Property
 from app.repositories.properties import PropertyRepository
+from app.schemas.bulk import BulkResult, BulkSkipped
 from app.schemas.imports import (
     ImportColumn,
     ImportPreview,
@@ -72,6 +73,24 @@ def _column_values(fields: PropertyFields) -> dict[str, Any]:
     values["features"] = [feature.value for feature in fields.features]
     values["tenant_types"] = [tenant.value for tenant in fields.tenant_types]
     return values
+
+
+# Bulk actions work on at most this many properties at a time.
+BULK_LIMIT = 5000
+
+
+def _published_event(item: Property) -> PropertyPublishedV1:
+    return PropertyPublishedV1(
+        property_id=item.id,
+        contract=item.contract.value,
+        property_type=item.property_type.value,
+        municipality=item.municipality,
+        zone=item.zone,
+        price=item.price,
+        surface_sqm=item.surface_sqm or 0,  # publishing requires it
+        rooms=item.rooms,
+        features=tuple(item.features),
+    )
 
 
 class PropertyService:
@@ -218,35 +237,75 @@ class PropertyService:
         await self._repo.commit()
 
         if old_status not in PUBLIC_STATUSES and new_status in PUBLIC_STATUSES:
-            await self._emit(
-                PropertyPublishedV1(
-                    property_id=item.id,
-                    contract=item.contract.value,
-                    property_type=item.property_type.value,
-                    municipality=item.municipality,
-                    zone=item.zone,
-                    price=item.price,
-                    surface_sqm=item.surface_sqm or 0,  # checked above
-                    rooms=item.rooms,
-                    features=tuple(item.features),
-                )
-            )
+            await self._emit(_published_event(item))
         elif old_status in PUBLIC_STATUSES and new_status not in PUBLIC_STATUSES:
             status = cast(Literal["draft", "sold", "rented", "archived"], new_status.value)
             await self._emit(PropertyUnpublishedV1(property_id=item.id, status=status))
         return self._present.admin(item)
 
     async def delete(self, property_id: uuid.UUID) -> None:
-        item = await self._get(property_id)
-        if item.status not in {PropertyStatus.DRAFT, PropertyStatus.ARCHIVED}:
-            raise ConflictError(
-                "Only draft or archived properties can be deleted", code="property_not_deletable"
-            )
-        keys = [photo.storage_key for photo in item.photos]
-        await self._repo.delete(item)
+        """Deletes a property in any status (the panel asks for confirmation)."""
+        await self._delete_items([await self._get(property_id)])
+
+    async def _delete_items(self, items: list[Property]) -> None:
+        was_public = [item.id for item in items if item.status in PUBLIC_STATUSES]
+        keys = [photo.storage_key for item in items for photo in item.photos]
+        for item in items:
+            await self._repo.delete(item)
         await self._repo.commit()
+        # Listings visible in the app leave the catalog: saved searches and favorites follow.
+        for property_id in was_public:
+            await self._emit(PropertyUnpublishedV1(property_id=property_id, status="archived"))
         for key in keys:
             await self._delete_object(key)
+
+    # Bulk actions on the properties matching the list filters -----------------------------
+
+    async def _matching(self, filters: AdminFilters) -> list[Property]:
+        items, total = await self._repo.list_admin(filters, 0, BULK_LIMIT)
+        if total > BULK_LIMIT:
+            raise AppError(
+                f"Too many properties: at most {BULK_LIMIT} at a time",
+                code="too_many_properties",
+                details={"max": BULK_LIMIT},
+            )
+        return items
+
+    async def bulk_publish(self, filters: AdminFilters) -> BulkResult:
+        """Publishes the drafts that are ready (photo and surface); explains the others."""
+        now = self._clock()
+        published: list[Property] = []
+        skipped: list[BulkSkipped] = []
+        for item in await self._matching(filters):
+            reason: str | None = None
+            if item.status in PUBLIC_STATUSES:
+                reason = "already_published"
+            elif item.status is not PropertyStatus.DRAFT:
+                reason = "invalid_status_transition"
+            elif not item.photos:
+                reason = "photo_required"
+            elif item.surface_sqm is None:
+                reason = "surface_required"
+            if reason is not None:
+                skipped.append(
+                    BulkSkipped(
+                        id=item.id, reference=item.reference, title=item.title, reason=reason
+                    )
+                )
+                continue
+            item.status = PropertyStatus.PUBLISHED
+            item.published_at = now
+            item.updated_at = now
+            published.append(item)
+        await self._repo.commit()
+        for item in published:
+            await self._emit(_published_event(item))
+        return BulkResult(done=len(published), skipped=skipped)
+
+    async def bulk_delete(self, filters: AdminFilters) -> BulkResult:
+        items = await self._matching(filters)
+        await self._delete_items(items)
+        return BulkResult(done=len(items), skipped=[])
 
     # Photos -------------------------------------------------------------------------------
 

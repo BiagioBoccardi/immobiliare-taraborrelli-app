@@ -284,11 +284,11 @@ async def test_delete_draft_returns_204(
     assert response.status_code == 204
 
 
-async def test_delete_published_returns_409(
+async def test_delete_published_returns_204(
     client: AsyncClient, store: Store, staff_headers: dict[str, str]
 ) -> None:
     item = await store()
 
     response = await client.delete(f"{BASE}/{item.id}", headers=staff_headers)
 
-    assert response.status_code == 409
+    assert response.status_code == 204

@@ -10,6 +10,7 @@ from py_common.pagination import Page, PageParams, page_params
 from app.core.config import Settings
 from app.core.dependencies import get_property_service, get_settings_dep, require_staff
 from app.models.enums import Contract, PropertyStatus
+from app.schemas.bulk import BulkResult
 from app.schemas.imports import ImportPreview, ImportResult
 from app.schemas.property import (
     AdminFilters,
@@ -92,6 +93,21 @@ async def import_template(service: Service) -> Response:
             "Content-Disposition": 'attachment; filename="modello-importazione-immobili.xlsx"'
         },
     )
+
+
+# Bulk actions on the properties matching the list filters -------------------------------
+
+
+@router.post("/bulk/publish", response_model=BulkResult)
+async def bulk_publish(filters: AdminFilters, service: Service) -> BulkResult:
+    """Publishes the matching drafts that have photos and surface; reports the others."""
+    return await service.bulk_publish(filters)
+
+
+@router.post("/bulk/delete", response_model=BulkResult)
+async def bulk_delete(filters: AdminFilters, service: Service) -> BulkResult:
+    """Deletes every matching property, with its photos."""
+    return await service.bulk_delete(filters)
 
 
 @router.get("/{property_id}", response_model=AdminPropertyOut)
