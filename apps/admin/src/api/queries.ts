@@ -62,6 +62,39 @@ export function useDeleteLead() {
   });
 }
 
+/** Publish from the list, without opening the property. */
+export function usePublishProperty() {
+  const api = useApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.property.changeStatus(id, "published"),
+    onSuccess: (property) => {
+      client.setQueryData(keys.property(property.id), property);
+      void client.invalidateQueries({ queryKey: ["properties"] });
+    },
+  });
+}
+
+type ListFilters = Omit<AdminPropertyFilters, "page" | "size">;
+
+export function useBulkPublish() {
+  const api = useApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (filters: ListFilters) => api.property.bulkPublish(filters),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["properties"] }),
+  });
+}
+
+export function useBulkDelete() {
+  const api = useApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (filters: ListFilters) => api.property.bulkDelete(filters),
+    onSuccess: () => void client.invalidateQueries({ queryKey: ["properties"] }),
+  });
+}
+
 // Password reset (public) ----------------------------------------------------------------
 
 export function useForgotPassword() {

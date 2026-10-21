@@ -1,4 +1,4 @@
-import type { AdminProperty, PropertyStatus } from "@taraborrelli/api-client";
+import type { AdminProperty } from "@taraborrelli/api-client";
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -16,8 +16,6 @@ import { ConfirmDialog, ErrorAlert, Loading, PageHeader, SuccessAlert } from "..
 import { t, tEnum } from "../i18n";
 import { formatDate } from "../utils/format";
 import { EMPTY_FORM, STATUS_TRANSITIONS, formFromProperty, payloadFromForm } from "./propertyForm";
-
-const DELETABLE: PropertyStatus[] = ["draft", "archived"];
 
 export function NewPropertyPage() {
   const create = useCreateProperty();
@@ -105,15 +103,13 @@ export function PropertyEditPage() {
             <Link to="/properties" className="button button-secondary">
               {t("common.back")}
             </Link>
-            {DELETABLE.includes(data.status) ? (
-              <button
-                type="button"
-                className="button button-danger"
-                onClick={() => setConfirming(true)}
-              >
-                {t("common.delete")}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="button button-danger"
+              onClick={() => setConfirming(true)}
+            >
+              {t("common.delete")}
+            </button>
           </>
         }
       />

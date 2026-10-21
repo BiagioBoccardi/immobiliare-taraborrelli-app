@@ -103,6 +103,7 @@ export function ConfirmDialog({
   body,
   confirmLabel,
   busy,
+  tone = "danger",
   onConfirm,
   onCancel,
 }: {
@@ -110,6 +111,8 @@ export function ConfirmDialog({
   body: string;
   confirmLabel: string;
   busy?: boolean;
+  /** "primary" for confirmations that do not destroy anything (e.g. publish). */
+  tone?: "danger" | "primary";
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -141,7 +144,7 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            className="button button-danger"
+            className={tone === "danger" ? "button button-danger" : "button button-primary"}
             disabled={busy}
             onClick={onConfirm}
           >

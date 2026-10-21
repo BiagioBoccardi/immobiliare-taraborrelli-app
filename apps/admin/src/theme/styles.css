@@ -749,3 +749,12 @@ textarea:focus {
   opacity: 0.5;
   cursor: default;
 }
+
+/* Actions on each row of a list */
+
+.row-actions {
+  display: flex;
+  gap: var(--space-xs);
+  justify-content: flex-end;
+  white-space: nowrap;
+}

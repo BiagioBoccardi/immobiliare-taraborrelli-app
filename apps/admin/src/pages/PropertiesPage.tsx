@@ -1,15 +1,44 @@
-import type { Contract, PropertyStatus } from "@taraborrelli/api-client";
+import type { AdminProperty, BulkResult, Contract, PropertyStatus } from "@taraborrelli/api-client";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-import { useProperties } from "../api/queries";
+import {
+  useBulkDelete,
+  useBulkPublish,
+  useDeleteProperty,
+  useProperties,
+  usePublishProperty,
+} from "../api/queries";
 import { PropertyStatusBadge } from "../components/badges";
-import { Empty, ErrorAlert, Field, Loading, PageHeader, Pagination } from "../components/ui";
-import { t, tEnum } from "../i18n";
+import {
+  ConfirmDialog,
+  Empty,
+  ErrorAlert,
+  Field,
+  Loading,
+  PageHeader,
+  Pagination,
+  SuccessAlert,
+} from "../components/ui";
+import { hasTranslation, t, tEnum } from "../i18n";
 import { formatDate, formatEuro } from "../utils/format";
 import { CONTRACTS, PROPERTY_STATUSES } from "./propertyForm";
 
 const PAGE_SIZE = 20;
+
+type Pending =
+  { kind: "publishAll" } | { kind: "deleteAll" } | { kind: "deleteOne"; property: AdminProperty };
+
+/** "Non pubblicati: 3 (2 senza foto, 1 senza superficie)". */
+function skippedSummary(result: BulkResult): string {
+  const counts = new Map<string, number>();
+  for (const item of result.skipped) counts.set(item.reason, (counts.get(item.reason) ?? 0) + 1);
+  const parts = [...counts].map(([reason, count]) => {
+    const key = `properties.skip.${reason}`;
+    return `${count} ${hasTranslation(key) ? t(key) : reason}`;
+  });
+  return `${t("properties.bulkSkipped", { count: result.skipped.length })} (${parts.join(", ")}).`;
+}
 
 export function PropertiesPage() {
   const [params, setParams] = useSearchParams();
@@ -22,6 +51,59 @@ export function PropertiesPage() {
   };
   const [query, setQuery] = useState(filters.q ?? "");
   const properties = useProperties({ ...filters, page, size: PAGE_SIZE });
+  const bulkPublish = useBulkPublish();
+  const bulkDelete = useBulkDelete();
+  const publishOne = usePublishProperty();
+  const deleteOne = useDeleteProperty();
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [notice, setNotice] = useState<string[] | null>(null);
+  const total = properties.data?.total ?? 0;
+  const actionError = bulkPublish.error ?? bulkDelete.error ?? publishOne.error ?? deleteOne.error;
+
+  const resetActions = () => {
+    setNotice(null);
+    bulkPublish.reset();
+    bulkDelete.reset();
+    publishOne.reset();
+    deleteOne.reset();
+  };
+
+  const publish = (property: AdminProperty) => {
+    resetActions();
+    publishOne.mutate(property.id, {
+      onSuccess: () => setNotice([t("properties.publishedOne", { reference: property.reference })]),
+    });
+  };
+
+  const confirm = () => {
+    if (!pending) return;
+    resetActions();
+    const close = { onSettled: () => setPending(null) };
+    if (pending.kind === "publishAll") {
+      bulkPublish.mutate(filters, {
+        ...close,
+        onSuccess: (result) =>
+          setNotice([
+            t("properties.bulkPublished", { count: result.done }),
+            ...(result.skipped.length ? [skippedSummary(result)] : []),
+          ]),
+      });
+    } else if (pending.kind === "deleteAll") {
+      bulkDelete.mutate(filters, {
+        ...close,
+        onSuccess: (result) => {
+          setNotice([t("properties.bulkDeleted", { count: result.done })]);
+          update({ page: "" });
+        },
+      });
+    } else {
+      const { property } = pending;
+      deleteOne.mutate(property.id, {
+        ...close,
+        onSuccess: () => setNotice([t("properties.deletedOne", { reference: property.reference })]),
+      });
+    }
+  };
 
   const update = (changes: Record<string, string>) => {
     const next = new URLSearchParams(params);
@@ -44,6 +126,22 @@ export function PropertiesPage() {
         title={t("properties.title")}
         actions={
           <>
+            <button
+              type="button"
+              className="button"
+              disabled={total === 0}
+              onClick={() => setPending({ kind: "publishAll" })}
+            >
+              {t("properties.publishAll")}
+            </button>
+            <button
+              type="button"
+              className="button button-danger"
+              disabled={total === 0}
+              onClick={() => setPending({ kind: "deleteAll" })}
+            >
+              {t("properties.deleteAll")}
+            </button>
             <Link to="/properties/import" className="button">
               {t("properties.import")}
             </Link>
@@ -96,6 +194,14 @@ export function PropertiesPage() {
         </button>
       </form>
 
+      {notice ? (
+        <SuccessAlert>
+          {notice.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </SuccessAlert>
+      ) : null}
+      <ErrorAlert error={actionError} />
       {properties.isPending ? <Loading /> : null}
       <ErrorAlert error={properties.error} />
       {properties.data ? (
@@ -117,6 +223,7 @@ export function PropertiesPage() {
                     <th>{t("properties.price")}</th>
                     <th>{t("leads.status")}</th>
                     <th>{t("properties.updated")}</th>
+                    <th>{t("properties.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -141,11 +248,42 @@ export function PropertiesPage() {
                         </td>
                         <td>{tEnum("contract", property.contract)}</td>
                         <td>{property.municipality}</td>
-                        <td>{formatEuro(property.price)}</td>
+                        <td className="nowrap">{formatEuro(property.price)}</td>
                         <td>
                           <PropertyStatusBadge status={property.status} />
                         </td>
                         <td>{formatDate(property.updated_at)}</td>
+                        <td>
+                          {/* Buttons act on the row without opening the property. */}
+                          <div className="row-actions" onClick={(e) => e.stopPropagation()}>
+                            {property.status === "draft" ? (
+                              <button
+                                type="button"
+                                className="button button-small button-primary"
+                                disabled={publishOne.isPending}
+                                aria-label={`${t("properties.publish")} ${property.reference}`}
+                                onClick={() => publish(property)}
+                              >
+                                {t("properties.publish")}
+                              </button>
+                            ) : null}
+                            <Link
+                              to={`/properties/${property.id}`}
+                              className="button button-small"
+                              aria-label={`${t("properties.edit")} ${property.reference}`}
+                            >
+                              {t("properties.edit")}
+                            </Link>
+                            <button
+                              type="button"
+                              className="button button-small button-danger"
+                              aria-label={`${t("properties.delete")} ${property.reference}`}
+                              onClick={() => setPending({ kind: "deleteOne", property })}
+                            >
+                              {t("properties.delete")}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -160,6 +298,32 @@ export function PropertiesPage() {
             />
           </>
         )
+      ) : null}
+
+      {pending ? (
+        <ConfirmDialog
+          title={
+            pending.kind === "publishAll"
+              ? t("properties.publishAllTitle", { count: total })
+              : pending.kind === "deleteAll"
+                ? t("properties.deleteAllTitle", { count: total })
+                : t("properties.deleteTitle")
+          }
+          body={
+            pending.kind === "publishAll"
+              ? t("properties.publishAllBody")
+              : pending.kind === "deleteAll"
+                ? t("properties.deleteAllBody")
+                : t("properties.deleteBody")
+          }
+          confirmLabel={
+            pending.kind === "publishAll" ? t("properties.publishAll") : t("common.delete")
+          }
+          tone={pending.kind === "publishAll" ? "primary" : "danger"}
+          busy={bulkPublish.isPending || bulkDelete.isPending || deleteOne.isPending}
+          onCancel={() => setPending(null)}
+          onConfirm={confirm}
+        />
       ) : null}
     </>
   );

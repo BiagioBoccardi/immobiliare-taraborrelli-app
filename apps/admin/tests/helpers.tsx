@@ -136,6 +136,8 @@ export function fakeApi(): FakeApi {
       "updatePhoto",
       "reorderPhotos",
       "deletePhoto",
+      "bulkPublish",
+      "bulkDelete",
       "previewImport",
       "runImport",
       "importTemplate",

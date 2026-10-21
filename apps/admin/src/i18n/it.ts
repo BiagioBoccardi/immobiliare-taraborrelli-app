@@ -83,6 +83,7 @@ export const it = {
   "errors.too_many_requests": "Troppi tentativi. Riprova tra qualche minuto.",
   "errors.invalid_reset_code":
     "Codice non valido o scaduto. Controlla l'email o chiedine uno nuovo.",
+  "errors.too_many_properties": "Troppi immobili insieme: restringi i filtri e riprova.",
   "errors.generic": "Si è verificato un errore. Riprova.",
   "errors.external_ref_taken": "Un altro immobile ha già questo codice del gestionale.",
   "errors.xls_not_supported":
@@ -181,7 +182,29 @@ export const it = {
   "properties.publishedAt": "Pubblicato il {date}",
   "properties.changeTo": "Sposta in",
   "properties.deleteTitle": "Eliminare questo immobile?",
-  "properties.deleteBody": "L'immobile e tutte le sue foto verranno eliminati definitivamente.",
+  "properties.deleteBody":
+    "L'immobile e tutte le sue foto verranno eliminati definitivamente e spariranno dall'app.",
+  "properties.actions": "Azioni",
+  "properties.publish": "Pubblica",
+  "properties.edit": "Modifica",
+  "properties.delete": "Elimina",
+  "properties.publishAll": "Pubblica tutti",
+  "properties.deleteAll": "Elimina tutti",
+  "properties.publishAllTitle": "Pubblicare gli immobili mostrati ({count})?",
+  "properties.publishAllBody":
+    "Vengono pubblicati gli immobili in bozza che hanno almeno una foto e la superficie, su tutte le pagine dei filtri attuali. Gli altri restano come sono e ti diciamo perché.",
+  "properties.deleteAllTitle": "Eliminare gli immobili mostrati ({count})?",
+  "properties.deleteAllBody":
+    "Tutti gli immobili dei filtri attuali, su tutte le pagine, verranno eliminati definitivamente con le loro foto e spariranno dall'app. L'operazione non si può annullare.",
+  "properties.bulkPublished": "Pubblicati {count} immobili.",
+  "properties.bulkDeleted": "Eliminati {count} immobili.",
+  "properties.bulkSkipped": "Non pubblicati: {count}",
+  "properties.publishedOne": "Immobile {reference} pubblicato.",
+  "properties.deletedOne": "Immobile {reference} eliminato.",
+  "properties.skip.photo_required": "senza foto",
+  "properties.skip.surface_required": "senza superficie",
+  "properties.skip.already_published": "già pubblicati",
+  "properties.skip.invalid_status_transition": "venduti, affittati o archiviati",
   "properties.viewPublic": "Vedi come lo vedono i clienti",
 
   "import.title": "Importa immobili da Excel",
