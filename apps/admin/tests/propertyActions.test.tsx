@@ -116,3 +116,17 @@ describe("actions on all the properties shown", () => {
     expect(api.property.bulkDelete).not.toHaveBeenCalled();
   });
 });
+
+describe("management software code", () => {
+  it("shows the Reasoft code as reference and names the actions after it", async () => {
+    const api = fakeApi();
+    const imported = makeProperty({ id: "p3", reference: "TR00003", external_ref: "75" });
+    api.property.list.mockResolvedValue(page([imported, draft]));
+    renderApp(api, await signedInStore(api), "/properties");
+
+    expect(await screen.findByText("75")).toBeVisible();
+    expect(screen.queryByText("TR00003")).not.toBeInTheDocument();
+    expect(screen.getByText("TR00001")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Modifica 75" })).toBeVisible();
+  });
+});

@@ -29,6 +29,11 @@ const PAGE_SIZE = 20;
 type Pending =
   { kind: "publishAll" } | { kind: "deleteAll" } | { kind: "deleteOne"; property: AdminProperty };
 
+/** The agency knows its properties by the management software (Reasoft) code. */
+function shownRef(property: AdminProperty): string {
+  return property.external_ref ?? property.reference;
+}
+
 /** "Non pubblicati: 3 (2 senza foto, 1 senza superficie)". */
 function skippedSummary(result: BulkResult): string {
   const counts = new Map<string, number>();
@@ -71,7 +76,7 @@ export function PropertiesPage() {
   const publish = (property: AdminProperty) => {
     resetActions();
     publishOne.mutate(property.id, {
-      onSuccess: () => setNotice([t("properties.publishedOne", { reference: property.reference })]),
+      onSuccess: () => setNotice([t("properties.publishedOne", { reference: shownRef(property) })]),
     });
   };
 
@@ -100,7 +105,7 @@ export function PropertiesPage() {
       const { property } = pending;
       deleteOne.mutate(property.id, {
         ...close,
-        onSuccess: () => setNotice([t("properties.deletedOne", { reference: property.reference })]),
+        onSuccess: () => setNotice([t("properties.deletedOne", { reference: shownRef(property) })]),
       });
     }
   };
@@ -245,7 +250,13 @@ export function PropertiesPage() {
                             <div className="thumb" />
                           )}
                         </td>
-                        <td>{property.reference}</td>
+                        <td>
+                          {property.external_ref ?? (
+                            <span className="muted" title={t("properties.noExternalRef")}>
+                              {property.reference}
+                            </span>
+                          )}
+                        </td>
                         <td>
                           <Link to={`/properties/${property.id}`}>{property.title}</Link>
                         </td>
@@ -264,7 +275,7 @@ export function PropertiesPage() {
                                 type="button"
                                 className="button button-small button-primary"
                                 disabled={publishOne.isPending}
-                                aria-label={`${t("properties.publish")} ${property.reference}`}
+                                aria-label={`${t("properties.publish")} ${shownRef(property)}`}
                                 onClick={() => publish(property)}
                               >
                                 {t("properties.publish")}
@@ -273,14 +284,14 @@ export function PropertiesPage() {
                             <Link
                               to={`/properties/${property.id}`}
                               className="button button-small"
-                              aria-label={`${t("properties.edit")} ${property.reference}`}
+                              aria-label={`${t("properties.edit")} ${shownRef(property)}`}
                             >
                               {t("properties.edit")}
                             </Link>
                             <button
                               type="button"
                               className="button button-small button-danger"
-                              aria-label={`${t("properties.delete")} ${property.reference}`}
+                              aria-label={`${t("properties.delete")} ${shownRef(property)}`}
                               onClick={() => setPending({ kind: "deleteOne", property })}
                             >
                               {t("properties.delete")}

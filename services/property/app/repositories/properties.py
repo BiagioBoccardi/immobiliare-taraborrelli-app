@@ -128,7 +128,8 @@ class SqlPropertyRepository:
         if filters.contract is not None:
             query = query.where(Property.contract == filters.contract)
         if filters.q:
-            term = f"%{filters.q.lower()}%"
+            code = filters.q.strip().lower()
+            term = f"%{code}%"
             reference = func.concat("tr", func.lpad(cast(Property.number, String), 5, "0"))
             query = query.where(
                 or_(
@@ -136,6 +137,8 @@ class SqlPropertyRepository:
                     func.lower(Property.municipality).like(term),
                     func.lower(Property.address).like(term),
                     reference.like(term),
+                    # Management codes are short numbers ("75"): only the exact one matches.
+                    func.lower(Property.external_ref) == code,
                 )
             )
         ordering = (Property.updated_at.desc(), Property.id)

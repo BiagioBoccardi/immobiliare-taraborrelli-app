@@ -160,6 +160,19 @@ async def test_list_admin_finds_by_reference_and_address(
     assert [i.id for i in by_address] == [item.id]
 
 
+async def test_list_admin_finds_by_exact_management_code(
+    db_session: AsyncSession, store: Store
+) -> None:
+    item = await store(external_ref="75")
+    await store(external_ref="175")
+    repo = SqlPropertyRepository(db_session)
+
+    items, total = await repo.list_admin(AdminFilters(q=" 75 "), 0, 10)
+
+    assert total == 1
+    assert items[0].id == item.id
+
+
 async def test_list_admin_filters_by_status(db_session: AsyncSession, store: Store) -> None:
     draft = await store(status=PropertyStatus.DRAFT)
     await store()

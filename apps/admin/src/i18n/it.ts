@@ -139,8 +139,9 @@ export const it = {
   "properties.externalRef": "Codice nel gestionale (Reasoft)",
   "properties.externalRefHint":
     "Facoltativo. Con l'importazione da Excel l'immobile viene aggiornato invece che duplicato.",
-  "properties.searchPlaceholder": "Riferimento, titolo, comune o indirizzo",
+  "properties.searchPlaceholder": "Codice Reasoft, titolo, comune o indirizzo",
   "properties.reference": "Rif.",
+  "properties.noExternalRef": "Senza codice Reasoft: riferimento interno dell'app",
   "properties.updated": "Aggiornato",
   "properties.photosCount": "{count} foto",
   "properties.sectionListing": "Annuncio",
