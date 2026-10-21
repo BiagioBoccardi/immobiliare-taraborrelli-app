@@ -91,6 +91,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/auth/password/forgot": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Forgot Password
+     * @description Emails a code to reset the password. Same answer whether or not the email exists.
+     */
+    post: operations["forgot_password_api_v1_auth_password_forgot_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/password/reset": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reset Password */
+    post: operations["reset_password_api_v1_auth_password_reset_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/auth/public-key": {
     parameters: {
       query?: never;
@@ -268,6 +305,11 @@ export interface components {
        */
       recorded_at: string;
     };
+    /** ForgotPasswordIn */
+    ForgotPasswordIn: {
+      /** Email */
+      email: string;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -326,6 +368,15 @@ export interface components {
       privacy_accepted: true;
       /** Privacy Policy Version */
       privacy_policy_version: string;
+    };
+    /** ResetPasswordIn */
+    ResetPasswordIn: {
+      /** Code */
+      code: string;
+      /** Email */
+      email: string;
+      /** New Password */
+      new_password: string;
     };
     /**
      * Role
@@ -602,6 +653,70 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["UserExport"];
+        };
+      };
+    };
+  };
+  forgot_password_api_v1_auth_password_forgot_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ForgotPasswordIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reset_password_api_v1_auth_password_reset_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ResetPasswordIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

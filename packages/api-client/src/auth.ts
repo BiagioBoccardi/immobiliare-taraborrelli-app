@@ -33,6 +33,17 @@ export function authApi(http: HttpClient) {
         json: { refresh_token: refreshToken },
         auth: false,
       }),
+    // "Password dimenticata": a code is emailed, then it sets the new password.
+    forgotPassword: (email: string) =>
+      http.request<undefined>("POST", `${BASE}/password/forgot`, {
+        json: { email },
+        auth: false,
+      }),
+    resetPassword: (email: string, code: string, newPassword: string) =>
+      http.request<undefined>("POST", `${BASE}/password/reset`, {
+        json: { email, code, new_password: newPassword },
+        auth: false,
+      }),
     register: (data: RegisterIn) =>
       http.request<TokenPair>("POST", `${BASE}/register`, { json: data, auth: false }),
     me: () => http.request<User>("GET", `${BASE}/me`),

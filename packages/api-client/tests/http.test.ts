@@ -303,3 +303,31 @@ describe("Excel import", () => {
     await expect(api.property.importTemplate()).rejects.toMatchObject({ code: "forbidden" });
   });
 });
+
+describe("password reset", () => {
+  it("asks for a code without sending the access token", async () => {
+    const { calls, impl } = fakeFetch(jsonResponse(202));
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: impl, auth: hooks() });
+
+    await api.auth.forgotPassword("anna@example.test");
+
+    expect(calls[0]?.url).toBe("http://api.test/api/v1/auth/password/forgot");
+    expect(calls[0]?.init.body).toBe(JSON.stringify({ email: "anna@example.test" }));
+    expect((calls[0]?.init.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
+  it("sends code and new password", async () => {
+    const { calls, impl } = fakeFetch(jsonResponse(204));
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: impl });
+
+    await api.auth.resetPassword("anna@example.test", "123456", "Nuova-password-1");
+
+    expect(calls[0]?.init.body).toBe(
+      JSON.stringify({
+        email: "anna@example.test",
+        code: "123456",
+        new_password: "Nuova-password-1",
+      }),
+    );
+  });
+});
