@@ -4,11 +4,13 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile, status
+from py_common.errors import AppError
 from py_common.pagination import Page, PageParams, page_params
 
 from app.core.config import Settings
 from app.core.dependencies import get_property_service, get_settings_dep, require_staff
 from app.models.enums import Contract, PropertyStatus
+from app.schemas.imports import ImportPreview, ImportResult
 from app.schemas.property import (
     AdminFilters,
     AdminPropertyOut,
@@ -42,6 +44,54 @@ async def list_properties(
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=AdminPropertyOut)
 async def create_property(data: PropertyCreate, service: Service) -> AdminPropertyOut:
     return await service.create(data)
+
+
+# Excel import (declared before "/{property_id}" so "import" is not read as an id) --------
+
+XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+async def _read_import_file(file: UploadFile, settings: Settings) -> bytes:
+    # Read one byte more than allowed, so oversized files are rejected without loading them.
+    data = await file.read(settings.max_import_bytes + 1)
+    if len(data) > settings.max_import_bytes:
+        raise AppError(
+            "The file is too large",
+            code="file_too_large",
+            details={"max_bytes": settings.max_import_bytes},
+        )
+    return data
+
+
+@router.post("/import/preview", response_model=ImportPreview)
+async def preview_import(
+    service: Service,
+    settings: Annotated[Settings, Depends(get_settings_dep)],
+    file: Annotated[UploadFile, File()],
+) -> ImportPreview:
+    """Checks an Excel/CSV export without saving anything."""
+    return await service.preview_import(await _read_import_file(file, settings))
+
+
+@router.post("/import", response_model=ImportResult)
+async def run_import(
+    service: Service,
+    settings: Annotated[Settings, Depends(get_settings_dep)],
+    file: Annotated[UploadFile, File()],
+) -> ImportResult:
+    """Imports the valid rows of the same file checked with the preview."""
+    return await service.run_import(await _read_import_file(file, settings))
+
+
+@router.get("/import/template", response_class=Response)
+async def import_template(service: Service) -> Response:
+    return Response(
+        content=service.import_template(),
+        media_type=XLSX_TYPE,
+        headers={
+            "Content-Disposition": 'attachment; filename="modello-importazione-immobili.xlsx"'
+        },
+    )
 
 
 @router.get("/{property_id}", response_model=AdminPropertyOut)

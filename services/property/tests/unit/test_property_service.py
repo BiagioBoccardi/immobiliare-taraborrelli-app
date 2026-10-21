@@ -9,12 +9,16 @@ from py_common.pagination import PageParams
 from app.models.enums import PropertyStatus
 from app.models.property import Property
 from app.schemas.property import PhotoOrder, PhotoUpdate, PropertyCreate, PropertyUpdate
+from app.services.importer import parse_sheet, plan_rows
 from app.services.properties import PropertyService
+from app.services.spreadsheet import read_spreadsheet
 from tests.factories import (
     JPEG_BYTES,
     PNG_BYTES,
+    import_row,
     make_property,
     property_payload,
+    spreadsheet_bytes,
 )
 from tests.unit.fakes import FakePropertyRepository, InMemoryStorage
 
@@ -302,3 +306,104 @@ async def test_list_sold_returns_only_sold() -> None:
     page = await service.list_sold(PageParams())
 
     assert page.total == 1
+
+
+# Excel import ------------------------------------------------------------------------------
+
+
+async def test_run_import_creates_drafts_and_updates_by_management_code() -> None:
+    existing = make_property(external_ref="RS-1", price=150_000)
+    service, repo, _, _ = build([existing])
+    data = spreadsheet_bytes(
+        [
+            import_row(Riferimento="RS-1", Prezzo="145.000"),
+            import_row(Riferimento="RS-2"),
+            import_row(Riferimento="RS-3", Prezzo="non so"),
+        ]
+    )
+
+    result = await service.run_import(data)
+
+    assert (result.created, result.updated, result.skipped) == (1, 1, 1)
+    assert existing.price == 145_000
+    assert existing.status is PropertyStatus.PUBLISHED
+    created = next(i for i in repo.items.values() if i.external_ref == "RS-2")
+    assert created.status is PropertyStatus.DRAFT
+    assert created.features == ["elevator"]
+    assert repo.commits == 1
+
+
+async def test_run_import_price_change_of_published_listing_emits_event() -> None:
+    existing = make_property(external_ref="RS-1", price=150_000)
+    service, _, _, publisher = build([existing])
+
+    await service.run_import(spreadsheet_bytes([{"Riferimento": "RS-1", "Prezzo": 140_000}]))
+
+    (event,) = publisher.events
+    assert event.event_type == "property.price_changed"
+    assert event.payload.new_price == 140_000
+
+
+async def test_run_import_failed_commit_emits_nothing() -> None:
+    existing = make_property(external_ref="RS-1", price=150_000)
+    service, repo, _, publisher = build([existing])
+    repo.fail_on_commit = True
+
+    with pytest.raises(RuntimeError):
+        await service.run_import(spreadsheet_bytes([{"Riferimento": "RS-1", "Prezzo": 1}]))
+
+    assert publisher.events == []
+
+
+async def test_preview_import_reports_rows_without_saving() -> None:
+    service, repo, _, _ = build()
+    data = spreadsheet_bytes([import_row(Riferimento="RS-1"), import_row(Superficie="tanta")])
+
+    preview = await service.preview_import(data)
+
+    assert (preview.totals.create, preview.totals.update, preview.totals.invalid) == (1, 0, 1)
+    assert preview.rows[1].errors[0].code == "invalid_number"
+    assert preview.missing_columns == []
+    assert {c.field for c in preview.columns} >= {"external_ref", "price", "features.elevator"}
+    assert repo.items == {}
+    assert repo.commits == 0
+
+
+async def test_preview_import_lists_missing_and_ignored_columns() -> None:
+    service, _, _, _ = build()
+
+    preview = await service.preview_import(
+        spreadsheet_bytes([{"Comune": "Chieti", "Note interne": "x"}])
+    )
+
+    assert preview.missing_columns == ["contract", "property_type", "price", "surface_sqm"]
+    assert preview.ignored_columns == ["Note interne"]
+
+
+def test_import_template_is_an_excel_file_that_imports_cleanly() -> None:
+    data = PropertyService.import_template()
+
+    sheet = read_spreadsheet(data, max_rows=10)
+    _, rows = parse_sheet(sheet)
+    planned = plan_rows(rows, {}, NOW.date())
+
+    assert [row.action for row in planned] == ["create", "create"]
+
+
+async def test_create_with_management_code_of_another_property_raises_conflict() -> None:
+    service, _, _, _ = build([make_property(external_ref="RS-1")])
+
+    with pytest.raises(ConflictError) as exc_info:
+        await service.create(PropertyCreate.model_validate(property_payload(external_ref="RS-1")))
+
+    assert exc_info.value.code == "external_ref_taken"
+
+
+async def test_update_keeping_own_management_code_succeeds() -> None:
+    item = make_property(external_ref="RS-1")
+    service, _, _, _ = build([item])
+
+    out = await service.update(item.id, PropertyUpdate(external_ref="RS-1", price=99_000))
+
+    assert out.external_ref == "RS-1"
+    assert out.price == 99_000

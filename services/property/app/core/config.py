@@ -23,6 +23,10 @@ class Settings(BaseServiceSettings):
     max_photo_bytes: int = 10 * 1024 * 1024
     max_photos_per_property: int = 40
 
+    # Excel import of listings from the management software.
+    max_import_bytes: int = 5 * 1024 * 1024
+    max_import_rows: int = 2000
+
 
 @lru_cache
 def get_settings() -> Settings:

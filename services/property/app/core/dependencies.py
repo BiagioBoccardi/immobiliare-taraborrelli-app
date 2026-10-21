@@ -46,6 +46,7 @@ def get_property_service(
         publisher,
         max_photo_bytes=settings.max_photo_bytes,
         max_photos=settings.max_photos_per_property,
+        max_import_rows=settings.max_import_rows,
     )
 
 

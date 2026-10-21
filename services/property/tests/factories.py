@@ -8,6 +8,7 @@ from typing import Any
 
 from app.models.enums import Contract, PropertyStatus, PropertyType
 from app.models.property import Photo, Property
+from app.services.spreadsheet import Cell, write_spreadsheet
 
 JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 64
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
@@ -104,3 +105,29 @@ def make_property(photos: int = 1, **overrides: Any) -> Property:
     item = Property(**values)
     item.photos = [make_photo(position=i) for i in range(photos)]
     return item
+
+
+def import_row(**overrides: Cell) -> dict[str, Cell]:
+    """One listing as exported by the management software (Italian headers and values)."""
+    row: dict[str, Cell] = {
+        "Riferimento": f"RS-{next(_numbers):03d}",
+        "Contratto": "Vendita",
+        "Tipologia": "Appartamento",
+        "Titolo": "Trilocale luminoso con balcone",
+        "Prezzo": "139.000 €",
+        "Superficie": "95 mq",
+        "Locali": 3,
+        "Camere": 2,
+        "Bagni": 1,
+        "Comune": "Chieti",
+        "Zona": "Centro",
+        "Ascensore": "Sì",
+    }
+    row.update(overrides)
+    return row
+
+
+def spreadsheet_bytes(rows: list[dict[str, Cell]]) -> bytes:
+    """An .xlsx file with the given rows; the headers are the keys of the first row."""
+    headers = list(rows[0]) if rows else list(import_row())
+    return write_spreadsheet(headers, [[row.get(h) for h in headers] for row in rows])

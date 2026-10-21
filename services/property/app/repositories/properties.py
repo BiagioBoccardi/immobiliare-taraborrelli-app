@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Collection
 from typing import Any, Protocol
 
 from sqlalchemy import Select, String, cast, func, or_, select
@@ -68,6 +69,8 @@ class PropertyRepository(Protocol):
 
     async def get(self, property_id: uuid.UUID) -> Property | None: ...
 
+    async def find_by_external_refs(self, refs: Collection[str]) -> dict[str, Property]: ...
+
     async def search(
         self, filters: SearchFilters, offset: int, limit: int
     ) -> tuple[list[Property], int]: ...
@@ -95,6 +98,14 @@ class SqlPropertyRepository:
 
     async def get(self, property_id: uuid.UUID) -> Property | None:
         return await self._session.get(Property, property_id)
+
+    async def find_by_external_refs(self, refs: Collection[str]) -> dict[str, Property]:
+        if not refs:
+            return {}
+        rows = await self._session.scalars(
+            select(Property).where(Property.external_ref.in_(list(refs)))
+        )
+        return {item.external_ref: item for item in rows if item.external_ref is not None}
 
     async def _page(
         self, query: Select[Property], ordering: tuple[Any, ...], offset: int, limit: int

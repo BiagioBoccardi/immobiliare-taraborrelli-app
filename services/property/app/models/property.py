@@ -43,6 +43,9 @@ class Property(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Sequential number for the human-readable reference shown to clients ("Rif. TR00042").
     number: Mapped[int] = mapped_column(Integer, Identity(), unique=True)
+    # Code of the listing in the agency's management software (Reasoft), used by the Excel
+    # import to update a listing instead of creating it twice. Visible to staff only.
+    external_ref: Mapped[str | None] = mapped_column(String(50), unique=True)
     status: Mapped[PropertyStatus] = mapped_column(
         pg_enum(PropertyStatus, "property_status"), default=PropertyStatus.DRAFT
     )

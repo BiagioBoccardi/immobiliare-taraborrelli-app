@@ -21,6 +21,8 @@ Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, ma
 Description = Annotated[str, StringConstraints(strip_whitespace=True, max_length=10_000)]
 Place = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=80)]
 Address = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
+# Code of the listing in the agency's management software (e.g. Reasoft).
+ExternalRef = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
 Caption = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
 Latitude = Annotated[Decimal, Field(ge=-90, le=90, max_digits=9, decimal_places=6)]
 Longitude = Annotated[Decimal, Field(ge=-180, le=180, max_digits=9, decimal_places=6)]
@@ -35,6 +37,7 @@ class PropertyFields(BaseModel):
 
     contract: Contract
     property_type: PropertyType
+    external_ref: ExternalRef | None = None
     title: Title
     description: Description = ""
     price: int = Field(ge=0, le=100_000_000)
@@ -87,6 +90,7 @@ class PropertyUpdate(BaseModel):
 
     contract: Contract | None = None
     property_type: PropertyType | None = None
+    external_ref: ExternalRef | None = None
     title: Title | None = None
     description: Description | None = None
     price: int | None = Field(default=None, ge=0, le=100_000_000)
@@ -195,6 +199,7 @@ class AdminPropertyOut(BaseModel):
 
     id: uuid.UUID
     reference: str
+    external_ref: str | None
     status: PropertyStatus
     contract: Contract
     property_type: PropertyType

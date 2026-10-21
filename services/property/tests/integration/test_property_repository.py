@@ -202,3 +202,23 @@ async def test_deleting_property_deletes_its_photos(db_session: AsyncSession, st
     from app.models.property import Photo
 
     assert await db_session.scalar(select(func.count()).select_from(Photo)) == 0
+
+
+async def test_find_by_external_refs_returns_matching_listings(
+    db_session: AsyncSession, store: Any
+) -> None:
+    first = await store(external_ref="RS-1")
+    await store(external_ref="RS-2")
+    await store(external_ref=None)
+    repo = SqlPropertyRepository(db_session)
+
+    found = await repo.find_by_external_refs(["RS-1", "RS-404"])
+
+    assert list(found) == ["RS-1"]
+    assert found["RS-1"].id == first.id
+
+
+async def test_find_by_external_refs_with_no_refs_returns_empty(db_session: AsyncSession) -> None:
+    repo = SqlPropertyRepository(db_session)
+
+    assert await repo.find_by_external_refs([]) == {}

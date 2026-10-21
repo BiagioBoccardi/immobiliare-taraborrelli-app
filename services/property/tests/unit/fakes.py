@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Collection
 
 from app.models.enums import PropertyStatus
 from app.models.property import Property
@@ -39,6 +40,13 @@ class FakePropertyRepository:
 
     async def get(self, property_id: uuid.UUID) -> Property | None:
         return self.items.get(property_id)
+
+    async def find_by_external_refs(self, refs: Collection[str]) -> dict[str, Property]:
+        return {
+            item.external_ref: item
+            for item in self.items.values()
+            if item.external_ref is not None and item.external_ref in refs
+        }
 
     async def search(
         self, filters: SearchFilters, offset: int, limit: int
