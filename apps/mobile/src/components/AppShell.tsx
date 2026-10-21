@@ -4,15 +4,15 @@ import { Platform, StyleSheet, View } from "react-native";
 
 import { PHONE_MAX_WIDTH, useLayout } from "../layout";
 import { useSession } from "../session";
-import { colors, radii, spacing } from "../theme";
+import { colors } from "../theme";
 import { Sidebar } from "./Sidebar";
 
 /** Screens shown on their own, without navigation: welcome, login and registration. */
 const STANDALONE = ["/benvenuto", "/accedi", "/registrati"];
 
 /**
- * Browser layout. Wide windows get the sidebar and the full width; narrow windows and the
- * standalone screens get the phone layout in a centered column. Phones are unchanged.
+ * Browser layout. Wide windows get the full width, with the sidebar once logged in; narrow
+ * windows get the phone layout in a centered column. Phones are unchanged.
  *
  * The tree keeps the same shape in every case, so resizing the window or logging in never
  * remounts the navigator (which would lose the current screen).
@@ -25,14 +25,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const standalone = status !== "authenticated" || STANDALONE.includes(pathname);
   const withSidebar = isDesktop && !standalone;
-  // On desktop, welcome and login are a card centered on the brand color.
-  const card = isDesktop && standalone;
   return (
-    <View style={[styles.backdrop, card && styles.brandBackdrop]}>
+    <View style={styles.backdrop}>
       {withSidebar ? <Sidebar /> : null}
-      <View style={withSidebar ? styles.area : [styles.phone, card && styles.card]}>
-        {children}
-      </View>
+      {/* On desktop the welcome and login screens fill the window (in brand blue). */}
+      <View style={isDesktop ? styles.area : styles.phone}>{children}</View>
     </View>
   );
 }
@@ -44,8 +41,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.gray100,
   },
-  brandBackdrop: { backgroundColor: colors.brandBlueDark },
-  card: { marginVertical: spacing.xxl, borderRadius: radii.lg * 1.5 },
   area: { flex: 1, backgroundColor: colors.gray50, overflow: "hidden" },
   phone: {
     flex: 1,

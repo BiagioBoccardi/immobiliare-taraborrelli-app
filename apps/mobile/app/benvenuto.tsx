@@ -6,12 +6,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { images } from "../src/assets";
 import { Button } from "../src/components/ui";
+import { useLayout } from "../src/layout";
 import { t } from "../src/i18n";
 import { markOnboardingSeen } from "../src/onboarding";
 import { colors, fonts, spacing, typography } from "../src/theme";
 
 /** First launch: full-screen brand welcome with a single "Inizia" button. */
 export default function Welcome() {
+  const { isDesktop } = useLayout();
   const start = async () => {
     await markOnboardingSeen();
     router.replace("/");
@@ -20,10 +22,10 @@ export default function Welcome() {
   return (
     <View style={styles.screen}>
       <StatusBar style="light" />
-      <SafeAreaView style={styles.content}>
+      <SafeAreaView style={[styles.content, isDesktop && styles.contentDesktop]}>
         <Image
           source={images.logoWhite}
-          style={styles.logo}
+          style={[styles.logo, isDesktop && styles.logoDesktop]}
           contentFit="contain"
           accessibilityLabel={t("onboarding.title")}
         />
@@ -45,6 +47,15 @@ const styles = StyleSheet.create({
     padding: spacing.xxl,
     gap: spacing.xxl,
   },
+  // On desktop: the whole window in blue, with a centered column of readable width.
+  contentDesktop: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
+    justifyContent: "center",
+    gap: spacing.xxxl,
+  },
+  logoDesktop: { width: 320, height: (320 * 480) / 868, marginTop: 0 },
   logo: { width: "80%", aspectRatio: 868 / 480, alignSelf: "center", marginTop: spacing.xxxl },
   texts: { gap: spacing.lg },
   title: {

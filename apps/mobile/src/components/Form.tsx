@@ -7,11 +7,18 @@ export function Field({
   label,
   error,
   hint,
+  onDark = false,
   ...input
-}: { label: string; error?: string | undefined; hint?: string } & TextInputProps) {
+}: {
+  label: string;
+  error?: string | undefined;
+  hint?: string;
+  /** On the brand blue background (login on desktop). */
+  onDark?: boolean;
+} & TextInputProps) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, onDark && styles.textOnDark]}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={colors.gray500}
@@ -19,9 +26,9 @@ export function Field({
         {...input}
       />
       {error ? (
-        <Text style={styles.error}>{error}</Text>
+        <Text style={[styles.error, onDark && styles.errorOnDark]}>{error}</Text>
       ) : hint ? (
-        <Text style={styles.hint}>{hint}</Text>
+        <Text style={[styles.hint, onDark && styles.hintOnDark]}>{hint}</Text>
       ) : null}
     </View>
   );
@@ -32,12 +39,15 @@ export function Checkbox({
   label,
   onToggle,
   error,
+  onDark = false,
 }: {
   checked: boolean;
   label: string;
   onToggle: () => void;
   error?: string | undefined;
+  onDark?: boolean;
 }) {
+  const iconColor = onDark ? colors.white : error ? colors.danger : colors.brandBlue;
   return (
     <View>
       <Pressable
@@ -46,14 +56,10 @@ export function Checkbox({
         onPress={onToggle}
         style={styles.checkbox}
       >
-        <Ionicons
-          name={checked ? "checkbox" : "square-outline"}
-          size={24}
-          color={error ? colors.danger : colors.brandBlue}
-        />
-        <Text style={styles.checkboxLabel}>{label}</Text>
+        <Ionicons name={checked ? "checkbox" : "square-outline"} size={24} color={iconColor} />
+        <Text style={[styles.checkboxLabel, onDark && styles.textOnDark]}>{label}</Text>
       </Pressable>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={[styles.error, onDark && styles.errorOnDark]}>{error}</Text> : null}
     </View>
   );
 }
@@ -86,6 +92,9 @@ const styles = StyleSheet.create({
   hint: { fontSize: typography.sizes.xs, color: colors.gray500 },
   checkbox: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
   checkboxLabel: { flex: 1, fontSize: typography.sizes.sm, color: colors.gray700, lineHeight: 20 },
+  textOnDark: { color: colors.white },
+  hintOnDark: { color: colors.brandLightBlueSoft },
+  errorOnDark: { color: colors.dangerSoft, fontWeight: "600" },
   formError: {
     padding: spacing.md,
     borderRadius: radii.md,
