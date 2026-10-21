@@ -264,8 +264,9 @@ MSG
     expo_url="${expo_url/http:/exp:}"
     cat <<MSG
     Sul telefono (qualsiasi rete):
-      Apri Expo Go: l'app compare in "Development servers" (stesso account Expo del PC).
-      Se non compare, scrivi in Safari:  $expo_url
+      Nel browser (Safari o Chrome):  $TUNNEL_URL
+      App nativa: apri Expo Go, l'app compare in "Development servers" (stesso account
+      Expo del PC); se non compare, scrivi in Safari:  $expo_url
 
 MSG
   fi
