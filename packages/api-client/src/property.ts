@@ -23,6 +23,7 @@ export type ImportPreview = Schemas["ImportPreview"];
 export type ImportRow = Schemas["ImportRowOut"];
 export type ImportIssue = Schemas["ImportIssue"];
 export type ImportResult = Schemas["ImportResult"];
+export type BulkResult = Schemas["BulkResult"];
 
 export interface AdminPropertyFilters extends PageQuery {
   status?: PropertyStatus | undefined;
@@ -90,6 +91,11 @@ export function propertyApi(http: HttpClient) {
         json: { status },
       }),
     remove: (id: string) => http.request<undefined>("DELETE", `${ADMIN}/${id}`),
+    // Bulk actions on every property matching the list filters (all pages).
+    bulkPublish: (filters: Omit<AdminPropertyFilters, "page" | "size">) =>
+      http.request<BulkResult>("POST", `${ADMIN}/bulk/publish`, { json: filters }),
+    bulkDelete: (filters: Omit<AdminPropertyFilters, "page" | "size">) =>
+      http.request<BulkResult>("POST", `${ADMIN}/bulk/delete`, { json: filters }),
     uploadPhoto: (id: string, file: Blob, caption?: string) => {
       const form = new FormData();
       form.append("file", file);

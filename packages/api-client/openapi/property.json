@@ -10,6 +10,44 @@
         "title": "Accommodation",
         "type": "string"
       },
+      "AdminFilters": {
+        "properties": {
+          "contract": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Contract"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "q": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropertyStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "AdminFilters",
+        "type": "object"
+      },
       "AdminPhotoOut": {
         "properties": {
           "caption": {
@@ -439,6 +477,56 @@
           "file"
         ],
         "title": "Body_upload_photo_api_v1_property_admin_properties__property_id__photos_post",
+        "type": "object"
+      },
+      "BulkResult": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/BulkSkipped"
+            },
+            "title": "Skipped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "done",
+          "skipped"
+        ],
+        "title": "BulkResult",
+        "type": "object"
+      },
+      "BulkSkipped": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reference",
+          "title",
+          "reason"
+        ],
+        "title": "BulkSkipped",
         "type": "object"
       },
       "Contract": {
@@ -2322,6 +2410,100 @@
           }
         ],
         "summary": "Create Property",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/property/admin/properties/bulk/delete": {
+      "post": {
+        "description": "Deletes every matching property, with its photos.",
+        "operationId": "bulk_delete_api_v1_property_admin_properties_bulk_delete_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminFilters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bulk Delete",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/property/admin/properties/bulk/publish": {
+      "post": {
+        "description": "Publishes the matching drafts that have photos and surface; reports the others.",
+        "operationId": "bulk_publish_api_v1_property_admin_properties_bulk_publish_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminFilters"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Bulk Publish",
         "tags": [
           "admin"
         ]

@@ -331,3 +331,16 @@ describe("password reset", () => {
     );
   });
 });
+
+describe("bulk property actions", () => {
+  it("sends the list filters to the bulk endpoint", async () => {
+    const { calls, impl } = fakeFetch(jsonResponse(200, { done: 2, skipped: [] }));
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: impl, auth: hooks() });
+
+    const result = await api.property.bulkPublish({ status: "draft", contract: undefined });
+
+    expect(result.done).toBe(2);
+    expect(calls[0]?.url).toBe("http://api.test/api/v1/property/admin/properties/bulk/publish");
+    expect(calls[0]?.init.body).toBe(JSON.stringify({ status: "draft" }));
+  });
+});

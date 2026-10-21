@@ -22,6 +22,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/property/admin/properties/bulk/delete": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Bulk Delete
+     * @description Deletes every matching property, with its photos.
+     */
+    post: operations["bulk_delete_api_v1_property_admin_properties_bulk_delete_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/property/admin/properties/bulk/publish": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Bulk Publish
+     * @description Publishes the matching drafts that have photos and surface; reports the others.
+     */
+    post: operations["bulk_publish_api_v1_property_admin_properties_bulk_publish_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/property/admin/properties/import": {
     parameters: {
       query?: never;
@@ -244,6 +284,13 @@ export interface components {
      * @enum {string}
      */
     Accommodation: "entire_property" | "single_room" | "shared_room";
+    /** AdminFilters */
+    AdminFilters: {
+      contract?: components["schemas"]["Contract"] | null;
+      /** Q */
+      q?: string | null;
+      status?: components["schemas"]["PropertyStatus"] | null;
+    };
     /** AdminPhotoOut */
     AdminPhotoOut: {
       /** Caption */
@@ -359,6 +406,27 @@ export interface components {
       caption?: string | null;
       /** File */
       file: string;
+    };
+    /** BulkResult */
+    BulkResult: {
+      /** Done */
+      done: number;
+      /** Skipped */
+      skipped: components["schemas"]["BulkSkipped"][];
+    };
+    /** BulkSkipped */
+    BulkSkipped: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Reason */
+      reason: string;
+      /** Reference */
+      reference: string;
+      /** Title */
+      title: string;
     };
     /**
      * Contract
@@ -871,6 +939,72 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AdminPropertyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  bulk_delete_api_v1_property_admin_properties_bulk_delete_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminFilters"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BulkResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  bulk_publish_api_v1_property_admin_properties_bulk_publish_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AdminFilters"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BulkResult"];
         };
       };
       /** @description Validation Error */
