@@ -66,6 +66,13 @@ export default function Login() {
         onSubmitEditing={() => void submit()}
         onDark={onDark}
       />
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => router.push("/password-dimenticata")}
+        style={styles.forgot}
+      >
+        <Text style={[styles.forgotText, onDark && styles.onDark]}>{t("auth.forgot")}</Text>
+      </Pressable>
       <Button
         label={busy ? t("auth.loggingIn") : t("auth.login")}
         onPress={() => void submit()}
@@ -88,6 +95,8 @@ export default function Login() {
 const styles = StyleSheet.create({
   logo: { width: 180, aspectRatio: 868 / 480, alignSelf: "center", marginVertical: spacing.xl },
   switch: { alignItems: "center", padding: spacing.md },
+  forgot: { alignSelf: "flex-end", paddingVertical: spacing.xs },
+  forgotText: { color: colors.brandBlue, fontSize: typography.sizes.sm, fontWeight: "600" },
   link: { color: colors.brandBlue, fontWeight: "600", fontSize: typography.sizes.md },
   onDark: { color: colors.white },
   logoLarge: { width: 300 },

@@ -8,7 +8,7 @@ import { colors } from "../theme";
 import { Sidebar } from "./Sidebar";
 
 /** Screens shown on their own, without navigation: welcome, login and registration. */
-const STANDALONE = ["/benvenuto", "/accedi", "/registrati"];
+const STANDALONE = ["/benvenuto", "/accedi", "/registrati", "/password-dimenticata"];
 
 /**
  * Browser layout. Wide windows get the full width, with the sidebar once logged in; narrow

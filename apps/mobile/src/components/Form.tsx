@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 
+import { t } from "../i18n";
 import { colors, radii, spacing, typography } from "../theme";
 
 export function Field({
@@ -8,6 +10,7 @@ export function Field({
   error,
   hint,
   onDark = false,
+  secureTextEntry,
   ...input
 }: {
   label: string;
@@ -16,15 +19,41 @@ export function Field({
   /** On the brand blue background (login on desktop). */
   onDark?: boolean;
 } & TextInputProps) {
+  // Password fields get an eye button to show what was typed.
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = Boolean(secureTextEntry);
   return (
     <View style={styles.field}>
       <Text style={[styles.label, onDark && styles.textOnDark]}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={colors.gray500}
-        style={[styles.input, onDark && styles.inputLarge, error ? styles.inputError : null]}
-        {...input}
-      />
+      <View style={styles.inputRow}>
+        <TextInput
+          accessibilityLabel={label}
+          placeholderTextColor={colors.gray500}
+          secureTextEntry={isPassword && !revealed}
+          style={[
+            styles.input,
+            onDark && styles.inputLarge,
+            isPassword && styles.inputWithButton,
+            error ? styles.inputError : null,
+          ]}
+          {...input}
+        />
+        {isPassword ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={revealed ? t("auth.hidePassword") : t("auth.showPassword")}
+            onPress={() => setRevealed((value) => !value)}
+            hitSlop={8}
+            style={styles.eye}
+          >
+            <Ionicons
+              name={revealed ? "eye-off-outline" : "eye-outline"}
+              size={22}
+              color={colors.gray500}
+            />
+          </Pressable>
+        ) : null}
+      </View>
       {error ? (
         <Text style={[styles.error, onDark && styles.errorOnDark]}>{error}</Text>
       ) : hint ? (
@@ -75,6 +104,9 @@ export function FormError({ message }: { message: string | null }) {
 
 const styles = StyleSheet.create({
   field: { gap: spacing.xs },
+  inputRow: { justifyContent: "center" },
+  inputWithButton: { paddingRight: spacing.xxxl },
+  eye: { position: "absolute", right: spacing.md, padding: spacing.xs },
   label: { fontSize: typography.sizes.sm, fontWeight: "600", color: colors.gray900 },
   input: {
     minHeight: 48,

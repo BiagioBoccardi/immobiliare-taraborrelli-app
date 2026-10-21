@@ -59,6 +59,7 @@ export default function RootLayout() {
                   <Stack.Screen name="benvenuto" options={{ animation: "fade" }} />
                   <Stack.Screen name="accedi" options={{ animation: "fade" }} />
                   <Stack.Screen name="registrati" options={{ animation: "fade" }} />
+                  <Stack.Screen name="password-dimenticata" options={{ animation: "fade" }} />
                   <Stack.Screen name="immobile/[id]" />
                   <Stack.Screen name="filtri" options={{ presentation: "modal" }} />
                   <Stack.Screen name="contatti" options={{ presentation: "modal" }} />

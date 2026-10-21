@@ -9,6 +9,7 @@ import { Share } from "react-native";
 import TabsLayout from "../app/(tabs)/_layout";
 import Profile from "../app/(tabs)/profilo";
 import Login from "../app/accedi";
+import ForgotPassword from "../app/password-dimenticata";
 import Register from "../app/registrati";
 import { api } from "../src/api";
 import { ONBOARDING_KEY } from "../src/onboarding";
@@ -17,7 +18,13 @@ import { makeSession, page, renderWithProviders, TEST_USER } from "./helpers";
 jest.mock("../src/api", () => ({
   api: {
     lead: { myRequests: jest.fn() },
-    auth: { consents: jest.fn(), changeConsent: jest.fn(), exportMe: jest.fn() },
+    auth: {
+      consents: jest.fn(),
+      changeConsent: jest.fn(),
+      exportMe: jest.fn(),
+      forgotPassword: jest.fn(),
+      resetPassword: jest.fn(),
+    },
   },
 }));
 
@@ -39,7 +46,13 @@ jest.mock("expo-router", () => {
 
 const mockedApi = api as unknown as {
   lead: { myRequests: jest.Mock };
-  auth: { consents: jest.Mock; changeConsent: jest.Mock; exportMe: jest.Mock };
+  auth: {
+    consents: jest.Mock;
+    changeConsent: jest.Mock;
+    exportMe: jest.Mock;
+    forgotPassword: jest.Mock;
+    resetPassword: jest.Mock;
+  };
 };
 
 const invalidCredentials = new ApiError(401, {
@@ -278,5 +291,81 @@ describe("Profile", () => {
 
     await waitFor(() => expect(auth.deleteMe).toHaveBeenCalled());
     expect(session.getState().status).toBe("anonymous");
+  });
+});
+
+describe("Password", () => {
+  it("can be shown and hidden while typing", async () => {
+    const { session } = await makeSession(null);
+    await renderWithProviders(<Login />, { session });
+    const field = screen.getByLabelText("Password");
+    expect(field.props.secureTextEntry).toBe(true);
+
+    await fireEvent.press(screen.getByRole("button", { name: "Mostra password" }));
+
+    expect(screen.getByLabelText("Password").props.secureTextEntry).toBe(false);
+    expect(screen.getByRole("button", { name: "Nascondi password" })).toBeTruthy();
+  });
+
+  it("forgotten: the login screen links to the recovery", async () => {
+    const { session } = await makeSession(null);
+    await renderWithProviders(<Login />, { session });
+
+    await fireEvent.press(screen.getByText("Password dimenticata?"));
+
+    expect(router.push).toHaveBeenCalledWith("/password-dimenticata");
+  });
+
+  it("forgotten: sends the code, then saves the new password", async () => {
+    mockedApi.auth.forgotPassword.mockResolvedValue(undefined);
+    mockedApi.auth.resetPassword.mockResolvedValue(undefined);
+    await renderWithProviders(<ForgotPassword />);
+
+    await fireEvent.changeText(screen.getByLabelText("Email"), " anna@example.test ");
+    await fireEvent.press(screen.getByRole("button", { name: "Invia il codice" }));
+    await fireEvent.changeText(await screen.findByLabelText("Codice di 6 cifre"), "123456");
+    await fireEvent.changeText(screen.getByLabelText("Nuova password"), "Nuova-password-1");
+    await fireEvent.press(screen.getByRole("button", { name: "Salva la nuova password" }));
+
+    expect(await screen.findByText("Password aggiornata")).toBeTruthy();
+    expect(mockedApi.auth.forgotPassword).toHaveBeenCalledWith("anna@example.test");
+    expect(mockedApi.auth.resetPassword).toHaveBeenCalledWith(
+      "anna@example.test",
+      "123456",
+      "Nuova-password-1",
+    );
+  });
+
+  it("forgotten: explains a wrong or expired code", async () => {
+    mockedApi.auth.forgotPassword.mockResolvedValue(undefined);
+    mockedApi.auth.resetPassword.mockRejectedValue(
+      new ApiError(400, { code: "invalid_reset_code", message: "", details: {} }),
+    );
+    await renderWithProviders(<ForgotPassword />);
+    await fireEvent.changeText(screen.getByLabelText("Email"), "anna@example.test");
+    await fireEvent.press(screen.getByRole("button", { name: "Invia il codice" }));
+    await fireEvent.changeText(await screen.findByLabelText("Codice di 6 cifre"), "000000");
+    await fireEvent.changeText(screen.getByLabelText("Nuova password"), "Nuova-password-1");
+
+    await fireEvent.press(screen.getByRole("button", { name: "Salva la nuova password" }));
+
+    expect(
+      await screen.findByText(
+        "Codice non valido o scaduto. Controlla l'email o chiedine uno nuovo.",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("forgotten: does not call the API with a malformed code", async () => {
+    mockedApi.auth.forgotPassword.mockResolvedValue(undefined);
+    await renderWithProviders(<ForgotPassword />);
+    await fireEvent.changeText(screen.getByLabelText("Email"), "anna@example.test");
+    await fireEvent.press(screen.getByRole("button", { name: "Invia il codice" }));
+    await fireEvent.changeText(await screen.findByLabelText("Codice di 6 cifre"), "12");
+
+    await fireEvent.press(screen.getByRole("button", { name: "Salva la nuova password" }));
+
+    expect(await screen.findByText("Il codice ha 6 cifre")).toBeTruthy();
+    expect(mockedApi.auth.resetPassword).not.toHaveBeenCalled();
   });
 });
