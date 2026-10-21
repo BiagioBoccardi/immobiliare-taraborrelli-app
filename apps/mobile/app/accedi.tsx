@@ -37,11 +37,11 @@ export default function Login() {
     <AuthLayout>
       <Image
         source={onDark ? images.logoWhite : images.logo}
-        style={styles.logo}
+        style={[styles.logo, onDark && styles.logoLarge]}
         contentFit="contain"
         accessibilityLabel="Logo"
       />
-      <Heading size="xxl" style={onDark && styles.onDark}>
+      <Heading size={onDark ? "display" : "xxl"} style={onDark && styles.onDark}>
         {t("auth.loginTitle")}
       </Heading>
       <Body style={onDark && styles.onDarkSoft}>{t("auth.loginSubtitle")}</Body>
@@ -72,6 +72,7 @@ export default function Login() {
         busy={busy}
         disabled={!email || !password}
         variant={onDark ? "light" : "primary"}
+        size={onDark ? "lg" : "md"}
       />
       <Pressable
         accessibilityRole="link"
@@ -89,5 +90,6 @@ const styles = StyleSheet.create({
   switch: { alignItems: "center", padding: spacing.md },
   link: { color: colors.brandBlue, fontWeight: "600", fontSize: typography.sizes.md },
   onDark: { color: colors.white },
-  onDarkSoft: { color: colors.brandLightBlueSoft },
+  logoLarge: { width: 300 },
+  onDarkSoft: { color: colors.brandLightBlueSoft, fontSize: typography.sizes.lg },
 });

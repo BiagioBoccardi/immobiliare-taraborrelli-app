@@ -54,6 +54,7 @@ export function Button({
   variant = "primary",
   disabled = false,
   busy = false,
+  size = "md",
   style,
 }: {
   label: string;
@@ -62,6 +63,7 @@ export function Button({
   variant?: "primary" | "secondary" | "light";
   disabled?: boolean;
   busy?: boolean;
+  size?: "md" | "lg";
   style?: StyleProp<ViewStyle>;
 }) {
   const textColor = variant === "primary" ? colors.white : colors.brandBlue;
@@ -76,6 +78,7 @@ export function Button({
         variant === "primary" && styles.buttonPrimary,
         variant === "secondary" && styles.buttonSecondary,
         variant === "light" && styles.buttonLight,
+        size === "lg" && styles.buttonLarge,
         (disabled || busy) && styles.disabled,
         pressed && styles.pressed,
         style,
@@ -83,7 +86,11 @@ export function Button({
     >
       {busy ? <ActivityIndicator color={textColor} /> : null}
       {!busy && icon ? <Ionicons name={icon} size={18} color={textColor} /> : null}
-      <Text style={[styles.buttonText, { color: textColor }]}>{label}</Text>
+      <Text
+        style={[styles.buttonText, size === "lg" && styles.buttonTextLarge, { color: textColor }]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -239,6 +246,8 @@ const styles = StyleSheet.create({
   },
   buttonLight: { backgroundColor: colors.white },
   buttonText: { fontSize: typography.sizes.md, fontWeight: "600" },
+  buttonLarge: { minHeight: 56 },
+  buttonTextLarge: { fontSize: typography.sizes.lg },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.85 },
   chip: {

@@ -46,7 +46,7 @@ export default function Register() {
 
   return (
     <AuthLayout>
-      <Heading size="xxl" style={onDark && styles.onDark}>
+      <Heading size={onDark ? "display" : "xxl"} style={onDark && styles.onDark}>
         {t("auth.registerTitle")}
       </Heading>
       <Body style={onDark && styles.onDarkSoft}>{t("auth.registerSubtitle")}</Body>
@@ -105,6 +105,7 @@ export default function Register() {
         onPress={() => void submit()}
         busy={busy}
         variant={onDark ? "light" : "primary"}
+        size={onDark ? "lg" : "md"}
       />
       <Pressable
         accessibilityRole="link"
@@ -121,5 +122,5 @@ const styles = StyleSheet.create({
   switch: { alignItems: "center", padding: spacing.md },
   link: { color: colors.brandBlue, fontWeight: "600", fontSize: typography.sizes.md },
   onDark: { color: colors.white },
-  onDarkSoft: { color: colors.brandLightBlueSoft },
+  onDarkSoft: { color: colors.brandLightBlueSoft, fontSize: typography.sizes.lg },
 });

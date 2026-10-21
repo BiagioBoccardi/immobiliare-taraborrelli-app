@@ -22,7 +22,7 @@ export function Field({
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={colors.gray500}
-        style={[styles.input, error ? styles.inputError : null]}
+        style={[styles.input, onDark && styles.inputLarge, error ? styles.inputError : null]}
         {...input}
       />
       {error ? (
@@ -92,7 +92,8 @@ const styles = StyleSheet.create({
   hint: { fontSize: typography.sizes.xs, color: colors.gray500 },
   checkbox: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
   checkboxLabel: { flex: 1, fontSize: typography.sizes.sm, color: colors.gray700, lineHeight: 20 },
-  textOnDark: { color: colors.white },
+  textOnDark: { color: colors.white, fontSize: typography.sizes.md },
+  inputLarge: { minHeight: 56, fontSize: typography.sizes.lg },
   hintOnDark: { color: colors.brandLightBlueSoft },
   errorOnDark: { color: colors.dangerSoft, fontWeight: "600" },
   formError: {
