@@ -326,7 +326,7 @@ export interface components {
       show_exact_location: boolean;
       status: components["schemas"]["PropertyStatus"];
       /** Surface Sqm */
-      surface_sqm: number;
+      surface_sqm: number | null;
       /** Tenant Types */
       tenant_types: components["schemas"]["TenantType"][];
       /** Title */
@@ -624,7 +624,7 @@ export interface components {
        */
       show_exact_location?: boolean;
       /** Surface Sqm */
-      surface_sqm: number;
+      surface_sqm?: number | null;
       /** Tenant Types */
       tenant_types?: components["schemas"]["TenantType"][];
       /** Title */

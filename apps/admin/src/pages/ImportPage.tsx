@@ -56,7 +56,9 @@ export function issueText(issue: ImportIssue): string {
   const key = `import.issue.${issue.code}`;
   const params = {
     field: issue.column ?? fieldLabel(issue.field),
-    value: issue.value ?? "",
+    // The deduced contract comes as "sale"/"rent": show it in Italian.
+    value:
+      issue.code === "contract_inferred" ? tEnum("contract", issue.value) : (issue.value ?? ""),
   };
   return hasTranslation(key) ? t(key, params) : t("import.issue.generic", params);
 }

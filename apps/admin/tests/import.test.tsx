@@ -176,3 +176,11 @@ describe("issueText", () => {
     );
   });
 });
+
+describe("issueText for Reasoft exports", () => {
+  it("shows the deduced contract in Italian", () => {
+    expect(
+      issueText({ code: "contract_inferred", column: null, field: "contract", value: "rent" }),
+    ).toBe("Contratto non presente nel file: dal prezzo risulta «Affitto». Verifica.");
+  });
+});

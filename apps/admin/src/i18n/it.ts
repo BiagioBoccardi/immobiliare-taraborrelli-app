@@ -49,6 +49,7 @@ export const it = {
   "errors.validation_error": "Alcuni dati non sono validi. Controlla i campi evidenziati.",
   "errors.invalid_property": "I dati dell'immobile non sono coerenti.",
   "errors.photo_required": "Serve almeno una foto per pubblicare l'immobile.",
+  "errors.surface_required": "Inserisci la superficie prima di pubblicare l'immobile.",
   "errors.invalid_status_transition": "Questo cambio di stato non è consentito.",
   "errors.property_not_deletable": "Si possono eliminare solo immobili in bozza o archiviati.",
   "errors.invalid_photo": "Formato non supportato. Usa foto JPEG, PNG o WebP.",
@@ -225,6 +226,10 @@ export const it = {
   "import.issue.price_unusual_rent": "Canone molto alto per un affitto: verifica il contratto.",
   "import.issue.price_unusual_sale": "Prezzo molto basso per una vendita: verifica il contratto.",
   "import.issue.price_per_sqm_unusual": "Prezzo al m² insolito: verifica prezzo e superficie.",
+  "import.issue.contract_inferred":
+    "Contratto non presente nel file: dal prezzo risulta «{value}». Verifica.",
+  "import.issue.surface_missing":
+    "Superficie non presente nel file: inseriscila prima di pubblicare.",
   "import.issue.generic": "Dato da verificare: «{field}».",
 
   "photos.upload": "Aggiungi foto",

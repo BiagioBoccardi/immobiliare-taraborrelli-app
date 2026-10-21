@@ -287,8 +287,15 @@
             "$ref": "#/components/schemas/PropertyStatus"
           },
           "surface_sqm": {
-            "title": "Surface Sqm",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surface Sqm"
           },
           "tenant_types": {
             "items": {
@@ -1309,10 +1316,17 @@
             "type": "boolean"
           },
           "surface_sqm": {
-            "maximum": 100000.0,
-            "minimum": 1.0,
-            "title": "Surface Sqm",
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surface Sqm"
           },
           "tenant_types": {
             "items": {
@@ -1373,7 +1387,6 @@
           "property_type",
           "title",
           "price",
-          "surface_sqm",
           "municipality"
         ],
         "title": "PropertyCreate",
