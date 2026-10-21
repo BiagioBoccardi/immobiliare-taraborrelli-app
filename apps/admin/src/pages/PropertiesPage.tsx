@@ -145,6 +145,9 @@ export function PropertiesPage() {
             <Link to="/properties/import" className="button">
               {t("properties.import")}
             </Link>
+            <Link to="/properties/photos" className="button">
+              {t("properties.bulkPhotos")}
+            </Link>
             <Link to="/properties/new" className="button button-primary">
               {t("properties.new")}
             </Link>

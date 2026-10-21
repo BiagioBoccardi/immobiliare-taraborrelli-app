@@ -62,6 +62,23 @@ export function useDeleteLead() {
   });
 }
 
+/** Every property (all pages), e.g. to match bulk photos with the management code. */
+export function useAllProperties() {
+  const api = useApi();
+  return useQuery({
+    queryKey: ["properties", "all"],
+    queryFn: async () => {
+      const size = 100;
+      const first = await api.property.list({ page: 1, size });
+      const items = [...first.items];
+      for (let page = 2; (page - 1) * size < first.total; page++) {
+        items.push(...(await api.property.list({ page, size })).items);
+      }
+      return items;
+    },
+  });
+}
+
 /** Publish from the list, without opening the property. */
 export function usePublishProperty() {
   const api = useApi();

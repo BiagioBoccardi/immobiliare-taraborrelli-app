@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
+import { BulkPhotosPage } from "./pages/BulkPhotosPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ImportPage } from "./pages/ImportPage";
@@ -31,6 +32,7 @@ export function App() {
         <Route path="properties" element={<PropertiesPage />} />
         <Route path="properties/new" element={<NewPropertyPage />} />
         <Route path="properties/import" element={<ImportPage />} />
+        <Route path="properties/photos" element={<BulkPhotosPage />} />
         <Route path="properties/:id" element={<PropertyEditPage />} />
         <Route
           path="users"

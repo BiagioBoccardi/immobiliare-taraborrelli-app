@@ -135,6 +135,7 @@ export const it = {
   "properties.title": "Immobili",
   "properties.new": "Nuovo immobile",
   "properties.import": "Importa da Excel",
+  "properties.bulkPhotos": "Carica foto",
   "properties.externalRef": "Codice nel gestionale (Reasoft)",
   "properties.externalRefHint":
     "Facoltativo. Con l'importazione da Excel l'immobile viene aggiornato invece che duplicato.",
@@ -278,6 +279,37 @@ export const it = {
   "import.issue.surface_missing":
     "Superficie non presente nel file: inseriscila prima di pubblicare.",
   "import.issue.generic": "Dato da verificare: «{field}».",
+
+  "bulkPhotos.title": "Carica foto in blocco",
+  "bulkPhotos.subtitle":
+    "Le foto vengono abbinate agli immobili tramite il codice del gestionale (Reasoft).",
+  "bulkPhotos.howTo":
+    "Scegli la cartella con le foto di tutti gli immobili. Il codice Reasoft può stare nel nome della sottocartella o all'inizio del nome di ogni foto:",
+  "bulkPhotos.byFolder": "una sottocartella per immobile, chiamata con il codice",
+  "bulkPhotos.byName": "il codice all'inizio del nome del file",
+  "bulkPhotos.order":
+    "Le foto vengono caricate in ordine di nome: la prima diventa la copertina. Formati JPEG, PNG o WebP; quelle molto pesanti vengono ridotte automaticamente.",
+  "bulkPhotos.folder": "Cartella con le foto",
+  "bulkPhotos.files": "Oppure scegli le singole foto",
+  "bulkPhotos.skipWithPhotos": "Salta gli immobili che hanno già delle foto",
+  "bulkPhotos.summaryPhotos": "{count} foto per {properties} immobili",
+  "bulkPhotos.summaryUnmatched": "{count} file non abbinati",
+  "bulkPhotos.found": "Foto trovate",
+  "bulkPhotos.outcome": "Esito",
+  "bulkPhotos.hasPhotos": "Ha già {count} foto: saltato",
+  "bulkPhotos.willUpload": "Verranno caricate {count} foto",
+  "bulkPhotos.overLimit": "({count} oltre il massimo di 40, escluse)",
+  "bulkPhotos.unmatchedTitle": "File non abbinati ({count})",
+  "bulkPhotos.reason.no_property": "nessun immobile con questo codice",
+  "bulkPhotos.reason.unsupported_type":
+    "formato non supportato (per esempio HEIC dell'iPhone): salvala in JPEG",
+  "bulkPhotos.upload": "Carica {count} foto",
+  "bulkPhotos.nothing": "Nessuna foto da caricare.",
+  "bulkPhotos.progress": "Caricate {done} di {total} foto…",
+  "bulkPhotos.done": "Caricamento completato: {count} foto caricate.",
+  "bulkPhotos.goToDrafts": "Vai agli immobili in bozza",
+  "bulkPhotos.failures": "{count} foto non caricate:",
+  "bulkPhotos.tooLarge": "supera i 10 MB anche dopo la riduzione",
 
   "photos.upload": "Aggiungi foto",
   "photos.uploading": "Caricamento di {count} foto…",
