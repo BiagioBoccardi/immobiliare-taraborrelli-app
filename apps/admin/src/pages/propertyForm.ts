@@ -63,6 +63,7 @@ export const STATUS_TRANSITIONS: Record<PropertyStatus, PropertyStatus[]> = {
 export interface PropertyFormState {
   contract: Contract;
   property_type: PropertyType;
+  external_ref: string;
   title: string;
   description: string;
   price: string;
@@ -92,6 +93,7 @@ export interface PropertyFormState {
 export const EMPTY_FORM: PropertyFormState = {
   contract: "sale",
   property_type: "apartment",
+  external_ref: "",
   title: "",
   description: "",
   price: "",
@@ -125,6 +127,7 @@ export function formFromProperty(property: AdminProperty): PropertyFormState {
   return {
     contract: property.contract,
     property_type: property.property_type,
+    external_ref: text(property.external_ref),
     title: property.title,
     description: property.description,
     price: text(property.price),
@@ -165,6 +168,7 @@ export function payloadFromForm(form: PropertyFormState): PropertyCreate {
   return {
     contract: form.contract,
     property_type: form.property_type,
+    external_ref: optionalText(form.external_ref),
     title: form.title.trim(),
     description: form.description.trim(),
     price: integer(form.price) ?? 0,

@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
 import { DashboardPage } from "./pages/DashboardPage";
+import { ImportPage } from "./pages/ImportPage";
 import { LeadDetailPage } from "./pages/LeadDetailPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -27,6 +28,7 @@ export function App() {
         <Route path="leads/:id" element={<LeadDetailPage />} />
         <Route path="properties" element={<PropertiesPage />} />
         <Route path="properties/new" element={<NewPropertyPage />} />
+        <Route path="properties/import" element={<ImportPage />} />
         <Route path="properties/:id" element={<PropertyEditPage />} />
         <Route
           path="users"

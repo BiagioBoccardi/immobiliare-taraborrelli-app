@@ -94,6 +94,13 @@ export function PropertyForm({
             </select>
           </Field>
         </div>
+        <Field
+          label={t("properties.externalRef")}
+          htmlFor="external_ref"
+          hint={t("properties.externalRefHint")}
+        >
+          {input("external_ref", "text", { maxLength: 50 })}
+        </Field>
         <Field label={t("properties.titleField")} htmlFor="title" error={errors.title}>
           {input("title", "text", { maxLength: 120 })}
         </Field>

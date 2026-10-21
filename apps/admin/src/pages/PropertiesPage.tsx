@@ -43,9 +43,14 @@ export function PropertiesPage() {
       <PageHeader
         title={t("properties.title")}
         actions={
-          <Link to="/properties/new" className="button button-primary">
-            {t("properties.new")}
-          </Link>
+          <>
+            <Link to="/properties/import" className="button">
+              {t("properties.import")}
+            </Link>
+            <Link to="/properties/new" className="button button-primary">
+              {t("properties.new")}
+            </Link>
+          </>
         }
       />
       <form className="filters" onSubmit={search}>

@@ -60,6 +60,7 @@ export function makeProperty(overrides: Partial<AdminProperty> = {}): AdminPrope
   return {
     id: "prop-1",
     reference: "TR00001",
+    external_ref: null,
     status: "draft",
     contract: "sale",
     property_type: "apartment",
@@ -125,6 +126,9 @@ export function fakeApi(): FakeApi {
       "updatePhoto",
       "reorderPhotos",
       "deletePhoto",
+      "previewImport",
+      "runImport",
+      "importTemplate",
     ]),
   } as unknown as FakeApi;
 }

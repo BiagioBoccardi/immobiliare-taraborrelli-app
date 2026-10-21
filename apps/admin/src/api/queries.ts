@@ -148,6 +148,22 @@ export function useDeleteProperty() {
   });
 }
 
+export function usePreviewImport() {
+  const api = useApi();
+  return useMutation({ mutationFn: (file: File) => api.property.previewImport(file) });
+}
+
+export function useRunImport() {
+  const api = useApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => api.property.runImport(file),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["properties"] });
+    },
+  });
+}
+
 // Staff accounts -------------------------------------------------------------------------
 
 export function useUsers(role: Role | undefined, page: number) {

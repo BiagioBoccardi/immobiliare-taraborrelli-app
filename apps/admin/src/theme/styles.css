@@ -637,3 +637,59 @@ textarea:focus {
     padding: var(--space-lg);
   }
 }
+
+/* Excel import */
+
+.columns-map {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-sm) var(--space-lg);
+  margin: 0;
+}
+
+.columns-map dt {
+  font-weight: 600;
+}
+
+.columns-map dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: 0;
+}
+
+.chip {
+  padding: var(--space-xxs) var(--space-sm);
+  border-radius: var(--radius-pill);
+  background: var(--color-brand-light-blue-soft);
+  color: var(--color-brand-blue-dark);
+  font-size: var(--font-size-sm);
+}
+
+.issues {
+  display: grid;
+  gap: var(--space-xxs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.issue {
+  padding-left: var(--space-md);
+  border-left: 3px solid transparent;
+  font-size: var(--font-size-sm);
+}
+
+.issue-error {
+  border-left-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.issue-warning {
+  border-left-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
