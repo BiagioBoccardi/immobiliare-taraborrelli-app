@@ -40,6 +40,28 @@ export const it = {
   "login.submit": "Accedi",
   "login.submitting": "Accesso in corso…",
   "login.notStaff": "Questo account non ha accesso all'area gestione.",
+  "login.showPassword": "Mostra password",
+  "login.hidePassword": "Nascondi password",
+  "login.forgot": "Password dimenticata?",
+  "forgot.title": "Password dimenticata",
+  "forgot.subtitle":
+    "Inserisci l'email del tuo account: ti mandiamo un codice per sceglierne una nuova.",
+  "forgot.send": "Invia il codice",
+  "forgot.sending": "Invio in corso…",
+  "forgot.codeTitle": "Controlla la tua email",
+  "forgot.codeSubtitle":
+    "Se {email} ha un account, riceverai un codice di 6 cifre. Inseriscilo qui sotto insieme alla nuova password.",
+  "forgot.code": "Codice di 6 cifre",
+  "forgot.newPassword": "Nuova password (almeno 10 caratteri)",
+  "forgot.save": "Salva la nuova password",
+  "forgot.saving": "Salvataggio…",
+  "forgot.resend": "Non è arrivato? Invia di nuovo",
+  "forgot.resent": "Ti abbiamo inviato un nuovo codice.",
+  "forgot.invalidCode": "Il codice ha 6 cifre.",
+  "forgot.shortPassword": "La password deve avere almeno 10 caratteri.",
+  "forgot.doneTitle": "Password aggiornata",
+  "forgot.doneSubtitle": "Ora puoi accedere con la nuova password.",
+  "forgot.backToLogin": "Torna all'accesso",
 
   "errors.invalid_credentials": "Email o password non corretti.",
   "errors.network_error": "Impossibile contattare il server. Controlla la connessione.",
@@ -59,6 +81,8 @@ export const it = {
   "errors.email_taken": "Esiste già un account con questa email.",
   "errors.last_admin": "Deve restare almeno un amministratore attivo.",
   "errors.too_many_requests": "Troppi tentativi. Riprova tra qualche minuto.",
+  "errors.invalid_reset_code":
+    "Codice non valido o scaduto. Controlla l'email o chiedine uno nuovo.",
   "errors.generic": "Si è verificato un errore. Riprova.",
   "errors.external_ref_taken": "Un altro immobile ha già questo codice del gestionale.",
   "errors.xls_not_supported":

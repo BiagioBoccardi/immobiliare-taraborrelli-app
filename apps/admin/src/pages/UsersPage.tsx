@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 
 import { useCreateStaff, useUpdateUser, useUsers } from "../api/queries";
 import { useSession } from "../auth/SessionContext";
+import { PasswordInput } from "../components/PasswordInput";
 import {
   Empty,
   ErrorAlert,
@@ -65,9 +66,8 @@ function CreateStaffForm() {
         />
       </Field>
       <Field label={t("users.password")} htmlFor="new-password">
-        <input
+        <PasswordInput
           id="new-password"
-          type="password"
           autoComplete="new-password"
           required
           minLength={10}

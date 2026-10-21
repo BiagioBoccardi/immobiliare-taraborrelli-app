@@ -693,3 +693,59 @@ textarea:focus {
 .nowrap {
   white-space: nowrap;
 }
+
+/* Password field with show/hide button */
+
+.password-input {
+  position: relative;
+}
+
+.password-input input {
+  width: 100%;
+  padding-right: calc(var(--space-xxxl) + var(--space-sm));
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-sm);
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-gray500);
+  cursor: pointer;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--color-brand-blue);
+}
+
+.login-links {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-brand-blue);
+  font: inherit;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.link-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

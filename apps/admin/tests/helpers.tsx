@@ -102,7 +102,17 @@ export function fakeApi(): FakeApi {
   const group = (names: string[]) =>
     Object.fromEntries(names.map((name) => [name, jest.fn()])) as Record<string, jest.Mock>;
   return {
-    auth: group(["login", "refresh", "logout", "me", "listUsers", "createStaff", "updateUser"]),
+    auth: group([
+      "login",
+      "refresh",
+      "logout",
+      "me",
+      "listUsers",
+      "createStaff",
+      "updateUser",
+      "forgotPassword",
+      "resetPassword",
+    ]),
     lead: group([
       "createValuation",
       "completeValuation",

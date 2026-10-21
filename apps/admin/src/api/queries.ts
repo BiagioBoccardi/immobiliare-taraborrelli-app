@@ -62,6 +62,21 @@ export function useDeleteLead() {
   });
 }
 
+// Password reset (public) ----------------------------------------------------------------
+
+export function useForgotPassword() {
+  const api = useApi();
+  return useMutation({ mutationFn: (email: string) => api.auth.forgotPassword(email) });
+}
+
+export function useResetPassword() {
+  const api = useApi();
+  return useMutation({
+    mutationFn: ({ email, code, password }: { email: string; code: string; password: string }) =>
+      api.auth.resetPassword(email, code, password),
+  });
+}
+
 // Properties -----------------------------------------------------------------------------
 
 export function useProperties(filters: AdminPropertyFilters) {

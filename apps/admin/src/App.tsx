@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { RequireAuth } from "./components/RequireAuth";
 import { DashboardPage } from "./pages/DashboardPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ImportPage } from "./pages/ImportPage";
 import { LeadDetailPage } from "./pages/LeadDetailPage";
 import { LeadsPage } from "./pages/LeadsPage";
@@ -16,6 +17,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route
         element={
           <RequireAuth>

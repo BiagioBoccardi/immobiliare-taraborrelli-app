@@ -1,9 +1,10 @@
 import { ApiError } from "@taraborrelli/api-client";
 import logo from "@taraborrelli/theme/assets/logo.png";
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useSession, useSessionStore } from "../auth/SessionContext";
+import { PasswordInput } from "../components/PasswordInput";
 import { Field } from "../components/ui";
 import { t, tError } from "../i18n";
 
@@ -67,15 +68,18 @@ export function LoginPage() {
           />
         </Field>
         <Field label={t("login.password")} htmlFor="password">
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </Field>
+        <div className="login-links">
+          <span />
+          <Link to="/forgot-password">{t("login.forgot")}</Link>
+        </div>
         <button
           type="submit"
           className="button button-primary"
