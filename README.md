@@ -30,13 +30,16 @@ scripts/dev-local.sh up     # avvia tutto in circa 20 secondi (la prima volta di
 # pannello: http://localhost:5173 — admin@taraborrelli.test / Admin-di-prova-1
 # app (anteprima nel browser): http://localhost:8081
 scripts/dev-local.sh logs   # log dei servizi
-scripts/dev-local.sh down   # ferma tutto ed elimina i dati di prova
+scripts/dev-local.sh down   # ferma tutto (i dati restano per il prossimo avvio)
+scripts/dev-local.sh reset  # ferma tutto ed elimina tutti i dati di prova
 ```
 
-Lo script avvia PostgreSQL in Docker, i servizi auth, lead e property, uno storage S3 in memoria
-per le foto, il pannello e l'app mobile in anteprima nel browser. Ogni avvio riparte da dati
-vuoti, con un amministratore di prova, due richieste di esempio e cinque immobili di esempio
-(inventati, con foto segnaposto). Le porte usate sono 5173, 8081, 8001-8003, 9100 e 55432.
+Lo script avvia PostgreSQL e MinIO (foto) in Docker, i servizi auth, lead e property, il
+pannello e l'app mobile in anteprima nel browser. Database e foto stanno in volumi Docker:
+immobili importati, foto caricate e utenti restano dopo `down`, un riavvio del PC o un
+`git pull`. Il primo avvio (o il primo dopo `reset`) crea un amministratore di prova, un utente
+dell'app, due richieste di esempio e cinque immobili di esempio (inventati, con foto
+segnaposto). Le porte usate sono 5173, 8081, 8001-8003, 9100 e 55432.
 
 ## Avvio rapido
 

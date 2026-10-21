@@ -6,18 +6,20 @@
 #   scripts/dev-local.sh up --tunnel   same, reachable from a phone on any network through a
 #                                      Cloudflare tunnel; with "npx expo login" the app is
 #                                      listed in Expo Go (needs cloudflared)
-#   scripts/dev-local.sh down   stop everything (data is discarded)
+#   scripts/dev-local.sh down   stop everything (data is kept for the next start)
+#   scripts/dev-local.sh reset  stop everything and delete all data (next start is empty)
 #   scripts/dev-local.sh logs   follow the services' logs
 #   scripts/dev-local.sh email  show the last email saved (e.g. a password reset code)
 #
 # What it starts: PostgreSQL in Docker (one database per service), the auth, lead and
-# property services with uv, an in-memory S3 for photos (moto, run with uvx), the admin
-# panel with Vite and the mobile app in the browser (Expo web). Events are disabled. Every
-# start begins from empty data, with a test administrator, two sample owner requests and
-# five fictional sample properties.
+# property services with uv, MinIO in Docker for photos, the admin panel with Vite and the
+# mobile app in the browser (Expo web). Events are disabled. Database and photos live in
+# Docker volumes, so imported properties and uploaded photos survive restarts and git pull.
+# The first start (or the first after "reset") creates a test administrator, a test user,
+# two sample owner requests and five fictional sample properties.
 #
 # Requirements: Docker, uv, Node.js 20+ and openssl (cloudflared for --tunnel). On Windows use WSL2.
-# Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (S3), 8090 (tunnel proxy),
+# Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (MinIO), 8090 (tunnel proxy),
 # 55432 (PostgreSQL).
 set -euo pipefail
 
@@ -40,6 +42,11 @@ if [ -f "$ROOT/.dev-local.env" ]; then
   done <"$ROOT/.dev-local.env"
 fi
 DB_CONTAINER="taraborrelli-dev-db"
+DB_VOLUME="taraborrelli-dev-pgdata"
+S3_CONTAINER="taraborrelli-dev-s3"
+S3_VOLUME="taraborrelli-dev-s3data"
+S3_USER="taraborrelli"
+S3_PASSWORD="taraborrelli-minio"
 DB_PORT="${DEV_DB_PORT:-55432}"
 S3_PORT="${DEV_S3_PORT:-9100}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@taraborrelli.test}"
@@ -106,8 +113,15 @@ down() {
     while read -r pid; do kill_tree "$pid"; done <"$STATE/pids"
     rm -f "$STATE/pids"
   fi
-  docker rm -f "$DB_CONTAINER" >/dev/null 2>&1 || true
-  info "Ambiente di prova fermato."
+  docker rm -f "$DB_CONTAINER" "$S3_CONTAINER" >/dev/null 2>&1 || true
+  info "Ambiente di prova fermato (i dati restano per il prossimo avvio)."
+}
+
+reset() {
+  down
+  docker volume rm "$DB_VOLUME" "$S3_VOLUME" >/dev/null 2>&1 || true
+  rm -f "$STATE/jwt-private.pem" "$STATE/jwt-public.pem"
+  info "Dati di prova eliminati: il prossimo avvio riparte da zero."
 }
 
 # Starts the single entry point and a Cloudflare quick tunnel to it; sets TUNNEL_URL.
@@ -130,74 +144,8 @@ start_tunnel() {
   fail "Il collegamento pubblico non è partito: guarda $STATE/logs/tunnel.log"
 }
 
-up() {
-  require
-  if [ "${1:-}" = "--tunnel" ]; then
-    MODE=tunnel
-  elif [ "${1:-}" = "--lan" ]; then
-    MODE=lan
-    LAN=true
-    PUBLIC_HOST="$(detect_lan_host)"
-    [ -n "$PUBLIC_HOST" ] || fail "Indirizzo di rete non trovato: avvia con LAN_HOST=<ip del PC> scripts/dev-local.sh up --lan"
-    case "$PUBLIC_HOST" in
-      172.*) info "Attenzione: $PUBLIC_HOST sembra l'indirizzo interno di WSL, il telefono non lo raggiunge. Attiva networkingMode=mirrored oppure indica LAN_HOST." ;;
-    esac
-    API_BASE="http://$PUBLIC_HOST:5173"
-    MEDIA_BASE="http://$PUBLIC_HOST:$S3_PORT/property-media"
-  fi
-  [ -f "$STATE/pids" ] && down
-  mkdir -p "$STATE/logs"
-  rm -rf "$STATE/outbox"  # every start begins from empty data, emails included
-  : >"$STATE/logs/tunnel.log"
-  if [ "$MODE" = tunnel ]; then
-    start_tunnel
-    API_BASE="$TUNNEL_URL"
-    MEDIA_BASE="$TUNNEL_URL/property-media"
-  fi
-
-  info "PostgreSQL (porta $DB_PORT)…"
-  docker run -d --rm --name "$DB_CONTAINER" -e POSTGRES_USER=dev -e POSTGRES_PASSWORD=dev \
-    -e POSTGRES_DB=auth -p "$DB_PORT:5432" postgres:16-alpine >/dev/null
-  until docker exec "$DB_CONTAINER" pg_isready -U dev -h localhost >/dev/null 2>&1; do sleep 1; done
-  sleep 2
-  for db in lead property; do docker exec "$DB_CONTAINER" psql -U dev -d auth -qc "CREATE DATABASE $db"; done
-
-  info "Chiavi JWT di prova…"
-  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$STATE/jwt-private.pem" 2>/dev/null
-  openssl pkey -in "$STATE/jwt-private.pem" -pubout -out "$STATE/jwt-public.pem"
-
-  info "S3 in memoria per le foto (porta $S3_PORT)…"
-  # With --lan the phone loads the photos directly from here.
-  local s3_bind=127.0.0.1
-  $LAN && s3_bind=0.0.0.0
-  start_bg s3 "$STATE" uvx --quiet --from "moto[server]" moto_server -H "$s3_bind" -p "$S3_PORT"
-  wait_for "http://localhost:$S3_PORT" "S3"
-
-  export EVENTS_ENABLED=false LOG_LEVEL=INFO
-  local email_backend=outbox  # emails saved in .dev/outbox
-  [ -n "${SMTP_HOST:-}" ] && email_backend=smtp  # really sent (.dev-local.env)
-  local port=8001
-  for service in auth lead property; do
-    info "Servizio $service (porta $port)…"
-    local db_url="postgresql+asyncpg://dev:dev@localhost:$DB_PORT/$service"
-    (cd "$ROOT/services/$service" && DATABASE_URL="$db_url" uv run --quiet alembic upgrade head) \
-      >>"$STATE/logs/$service.log" 2>&1 || fail "Migrazioni di $service fallite: $STATE/logs/$service.log"
-    if [ "$service" = auth ]; then
-      start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
-        JWT_PRIVATE_KEY="$(cat "$STATE/jwt-private.pem")" \
-        EMAIL_BACKEND="$email_backend" EMAIL_OUTBOX_DIR="$STATE/outbox" \
-        uv run --quiet uvicorn app.main:app --port "$port"
-    else
-      start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
-        JWT_PUBLIC_KEY="$(cat "$STATE/jwt-public.pem")" \
-        S3_ENDPOINT_URL="http://localhost:$S3_PORT" S3_ACCESS_KEY=dev S3_SECRET_KEY=dev \
-        S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="$MEDIA_BASE" \
-        uv run --quiet uvicorn app.main:app --port "$port"
-    fi
-    wait_for "http://localhost:$port/health" "$service"
-    port=$((port + 1))
-  done
-
+# First start only: test administrator, test user and sample owner requests.
+seed_accounts() {
   info "Amministratore di prova…"
   (cd "$ROOT/services/auth" && DATABASE_URL="postgresql+asyncpg://dev:dev@localhost:$DB_PORT/auth" \
     ADMIN_PASSWORD="$ADMIN_PASSWORD" uv run --quiet python -c "
@@ -223,7 +171,90 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
     -H 'Content-Type: application/json' -d '{"full_name":"Mario Rossi","phone":"333 000 0000","municipality":"Chieti","property_type":"apartment","surface_sqm":95,"rooms":4,"condition":"good","intention":"decided","consent":{"privacy_accepted":true,"privacy_policy_version":"2026-01","marketing_accepted":true}}'
   curl -fs -o /dev/null -X POST "http://localhost:8002/api/v1/lead/owner-requests" \
     -H 'Content-Type: application/json' -d '{"kind":"rent","full_name":"Anna Bianchi","phone":"333 111 2222","municipality":"Chieti Scalo","property_type":"apartment","intention":"planning","message":"Bilocale vicino all università","consent":{"privacy_accepted":true,"privacy_policy_version":"2026-01"}}'
+}
 
+up() {
+  require
+  if [ "${1:-}" = "--tunnel" ]; then
+    MODE=tunnel
+  elif [ "${1:-}" = "--lan" ]; then
+    MODE=lan
+    LAN=true
+    PUBLIC_HOST="$(detect_lan_host)"
+    [ -n "$PUBLIC_HOST" ] || fail "Indirizzo di rete non trovato: avvia con LAN_HOST=<ip del PC> scripts/dev-local.sh up --lan"
+    case "$PUBLIC_HOST" in
+      172.*) info "Attenzione: $PUBLIC_HOST sembra l'indirizzo interno di WSL, il telefono non lo raggiunge. Attiva networkingMode=mirrored oppure indica LAN_HOST." ;;
+    esac
+    API_BASE="http://$PUBLIC_HOST:5173"
+    MEDIA_BASE="http://$PUBLIC_HOST:$S3_PORT/property-media"
+  fi
+  [ -f "$STATE/pids" ] && down
+  mkdir -p "$STATE/logs"
+  # Data is kept between starts: the sample data is created only the first time.
+  local fresh=false
+  docker volume inspect "$DB_VOLUME" >/dev/null 2>&1 || fresh=true
+  : >"$STATE/logs/tunnel.log"
+  if [ "$MODE" = tunnel ]; then
+    start_tunnel
+    API_BASE="$TUNNEL_URL"
+    MEDIA_BASE="$TUNNEL_URL/property-media"
+  fi
+
+  info "PostgreSQL (porta $DB_PORT)…"
+  docker rm -f "$DB_CONTAINER" "$S3_CONTAINER" >/dev/null 2>&1 || true
+  docker run -d --rm --name "$DB_CONTAINER" -e POSTGRES_USER=dev -e POSTGRES_PASSWORD=dev \
+    -e POSTGRES_DB=auth -v "$DB_VOLUME:/var/lib/postgresql/data" \
+    -p "127.0.0.1:$DB_PORT:5432" postgres:16-alpine >/dev/null
+  until docker exec "$DB_CONTAINER" pg_isready -U dev -h localhost >/dev/null 2>&1; do sleep 1; done
+  sleep 2
+  for db in lead property; do
+    docker exec "$DB_CONTAINER" psql -U dev -d auth -tAc \
+      "SELECT 1 FROM pg_database WHERE datname = '$db'" | grep -q 1 \
+      || docker exec "$DB_CONTAINER" psql -U dev -d auth -qc "CREATE DATABASE $db"
+  done
+
+  # Kept between starts, so whoever is signed in stays signed in.
+  if [ ! -f "$STATE/jwt-private.pem" ]; then
+    info "Chiavi JWT di prova…"
+    openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$STATE/jwt-private.pem" 2>/dev/null
+    openssl pkey -in "$STATE/jwt-private.pem" -pubout -out "$STATE/jwt-public.pem"
+  fi
+
+  info "MinIO per le foto (porta $S3_PORT)…"
+  # With --lan the phone loads the photos directly from here.
+  local s3_bind=127.0.0.1
+  $LAN && s3_bind=0.0.0.0
+  docker run -d --rm --name "$S3_CONTAINER" -e MINIO_ROOT_USER="$S3_USER" \
+    -e MINIO_ROOT_PASSWORD="$S3_PASSWORD" -v "$S3_VOLUME:/data" -p "$s3_bind:$S3_PORT:9000" \
+    minio/minio:RELEASE.2024-10-13T13-34-11Z server /data >/dev/null
+  wait_for "http://localhost:$S3_PORT/minio/health/live" "MinIO"
+
+  export EVENTS_ENABLED=false LOG_LEVEL=INFO
+  local email_backend=outbox  # emails saved in .dev/outbox
+  [ -n "${SMTP_HOST:-}" ] && email_backend=smtp  # really sent (.dev-local.env)
+  local port=8001
+  for service in auth lead property; do
+    info "Servizio $service (porta $port)…"
+    local db_url="postgresql+asyncpg://dev:dev@localhost:$DB_PORT/$service"
+    (cd "$ROOT/services/$service" && DATABASE_URL="$db_url" uv run --quiet alembic upgrade head) \
+      >>"$STATE/logs/$service.log" 2>&1 || fail "Migrazioni di $service fallite: $STATE/logs/$service.log"
+    if [ "$service" = auth ]; then
+      start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
+        JWT_PRIVATE_KEY="$(cat "$STATE/jwt-private.pem")" \
+        EMAIL_BACKEND="$email_backend" EMAIL_OUTBOX_DIR="$STATE/outbox" \
+        uv run --quiet uvicorn app.main:app --port "$port"
+    else
+      start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
+        JWT_PUBLIC_KEY="$(cat "$STATE/jwt-public.pem")" \
+        S3_ENDPOINT_URL="http://localhost:$S3_PORT" S3_ACCESS_KEY="$S3_USER" S3_SECRET_KEY="$S3_PASSWORD" \
+        S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="$MEDIA_BASE" \
+        uv run --quiet uvicorn app.main:app --port "$port"
+    fi
+    wait_for "http://localhost:$port/health" "$service"
+    port=$((port + 1))
+  done
+
+  if $fresh; then seed_accounts; else info "Dati del precedente avvio mantenuti (per ripartire da zero: scripts/dev-local.sh reset)."; fi
   info "Pannello di amministrazione…"
   # Install exactly what package-lock.json lists, only when it changed (e.g. after a git pull).
   # npm ci never rewrites the lockfile, so git pull is never blocked by local changes.
@@ -238,9 +269,11 @@ sys.exit(cli.main(['create-admin', '--email', '$ADMIN_EMAIL', '--name', 'Amminis
     npm run dev --workspace @taraborrelli/admin
   wait_for "http://localhost:5173" "Pannello"
 
-  info "Immobili di esempio…"
-  node "$ROOT/scripts/demo/seed.mjs" "http://localhost:5173" "$ADMIN_EMAIL" "$ADMIN_PASSWORD" \
-    >>"$STATE/logs/seed.log" 2>&1 || fail "Creazione immobili di esempio fallita: $STATE/logs/seed.log"
+  if $fresh; then
+    info "Immobili di esempio…"
+    node "$ROOT/scripts/demo/seed.mjs" "http://localhost:5173" "$ADMIN_EMAIL" "$ADMIN_PASSWORD" \
+      >>"$STATE/logs/seed.log" 2>&1 || fail "Creazione immobili di esempio fallita: $STATE/logs/seed.log"
+  fi
 
   info "App mobile nel browser (porta 8081)…"
   if [ "$MODE" = tunnel ]; then
@@ -304,7 +337,8 @@ MSG
   cat <<MSG
 
   Log:   scripts/dev-local.sh logs
-  Stop:  scripts/dev-local.sh down   (i dati di prova vengono eliminati)
+  Stop:  scripts/dev-local.sh down    (immobili, foto e utenti restano per il prossimo avvio)
+  Da zero: scripts/dev-local.sh reset (elimina tutti i dati di prova)
 
 MSG
 }
@@ -312,6 +346,7 @@ MSG
 case "${1:-up}" in
   up) up "${2:-}" ;;
   down) down ;;
+  reset) reset ;;
   logs) tail -f "$STATE"/logs/*.log ;;
   email)
     # Shows the most recent email saved by the auth service (local trial only).
@@ -319,5 +354,5 @@ case "${1:-up}" in
     [ -n "$latest" ] || fail "Nessuna email salvata finora."
     python3 -c 'import sys, email; m = email.message_from_binary_file(open(sys.argv[1], "rb")); print("A:", m["To"]); print("Oggetto:", m["Subject"]); print(); print(m.get_payload(decode=True).decode())' "$latest"
     ;;
-  *) fail "Uso: scripts/dev-local.sh [up|down|logs|email]" ;;
+  *) fail "Uso: scripts/dev-local.sh [up|down|reset|logs|email]" ;;
 esac
