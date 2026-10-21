@@ -23,6 +23,22 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STATE="$ROOT/.dev"
+# Optional local settings, never committed (e.g. SMTP to really send emails):
+# copy scripts/dev-local.env.example to .dev-local.env and fill it in.
+# Read as plain KEY=value lines (never executed), surrounding quotes removed.
+if [ -f "$ROOT/.dev-local.env" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in ''|'#'*) continue ;; esac
+    key="${line%%=*}"
+    value="${line#*=}"
+    value="${value#\"}"; value="${value%\"}"
+    value="${value#\'}"; value="${value%\'}"
+    case "$key" in
+      SMTP_HOST|SMTP_PORT|SMTP_SSL|SMTP_USERNAME|SMTP_PASSWORD|EMAIL_FROM) export "$key=$value" ;;
+    esac
+  done <"$ROOT/.dev-local.env"
+fi
 DB_CONTAINER="taraborrelli-dev-db"
 DB_PORT="${DEV_DB_PORT:-55432}"
 S3_PORT="${DEV_S3_PORT:-9100}"
@@ -158,6 +174,8 @@ up() {
   wait_for "http://localhost:$S3_PORT" "S3"
 
   export EVENTS_ENABLED=false LOG_LEVEL=INFO
+  local email_backend=outbox  # emails saved in .dev/outbox
+  [ -n "${SMTP_HOST:-}" ] && email_backend=smtp  # really sent (.dev-local.env)
   local port=8001
   for service in auth lead property; do
     info "Servizio $service (porta $port)…"
@@ -167,7 +185,7 @@ up() {
     if [ "$service" = auth ]; then
       start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
         JWT_PRIVATE_KEY="$(cat "$STATE/jwt-private.pem")" \
-        EMAIL_BACKEND=outbox EMAIL_OUTBOX_DIR="$STATE/outbox" \
+        EMAIL_BACKEND="$email_backend" EMAIL_OUTBOX_DIR="$STATE/outbox" \
         uv run --quiet uvicorn app.main:app --port "$port"
     else
       start_bg "$service" "$ROOT/services/$service" env DATABASE_URL="$db_url" \
@@ -273,9 +291,17 @@ MSG
 
 MSG
   fi
-  cat <<MSG
+  if [ -n "${SMTP_HOST:-}" ]; then
+    cat <<MSG
+  Email (es. codici "password dimenticata"): spedite davvero tramite $SMTP_HOST
+MSG
+  else
+    cat <<MSG
   Email di prova (es. codici "password dimenticata"): non vengono spedite ma salvate in
     $STATE/outbox    (leggile con: scripts/dev-local.sh email)
+MSG
+  fi
+  cat <<MSG
 
   Log:   scripts/dev-local.sh logs
   Stop:  scripts/dev-local.sh down   (i dati di prova vengono eliminati)
