@@ -4,6 +4,7 @@ import { WebView } from "react-native-webview";
 
 import { colors } from "../theme";
 import { Body } from "./ui";
+import { viewerAttributes, type ViewerMode } from "./viewerOptions";
 
 /** Same version as the @google/model-viewer package used by the web app. */
 const MODEL_VIEWER_SCRIPT =
@@ -13,13 +14,19 @@ function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
-export function viewerHtml(url: string, label: string): string {
+function attributesHtml(mode: ViewerMode): string {
+  return Object.entries(viewerAttributes(mode))
+    .map(([name, value]) => (value === true ? name : `${name}="${escapeAttribute(String(value))}"`))
+    .join(" ");
+}
+
+export function viewerHtml(url: string, label: string, mode: ViewerMode = "object"): string {
   return `<!doctype html>
 <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
 <script type="module" src="${MODEL_VIEWER_SCRIPT}"></script>
 <style>html,body{margin:0;height:100%;background:${colors.gray50}}model-viewer{width:100%;height:100%}</style>
 </head><body>
-<model-viewer src="${escapeAttribute(url)}" alt="${escapeAttribute(label)}" camera-controls auto-rotate shadow-intensity="1" touch-action="pan-y" ar></model-viewer>
+<model-viewer src="${escapeAttribute(url)}" alt="${escapeAttribute(label)}" ${attributesHtml(mode)}></model-viewer>
 </body></html>`;
 }
 
@@ -33,13 +40,15 @@ export function ModelViewer({
   url,
   label,
   errorText,
+  mode = "object",
 }: {
   url: string;
   label: string;
   errorText: string;
+  mode?: ViewerMode;
 }) {
   const [failed, setFailed] = useState(false);
-  const html = useMemo(() => viewerHtml(url, label), [url, label]);
+  const html = useMemo(() => viewerHtml(url, label, mode), [url, label, mode]);
   if (failed) {
     return (
       <View style={styles.center}>

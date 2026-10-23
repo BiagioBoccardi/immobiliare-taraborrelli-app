@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { PropertyDetail } from "@taraborrelli/api-client";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,26 +14,12 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 
+import { photosToLoad } from "../gallery";
 import { t } from "../i18n";
 import { cardShadow, colors, radii, spacing, typography } from "../theme";
 
 /** Dots are shown up to this many photos; with more, the counter is enough. */
 const MAX_DOTS = 12;
-/** Photos downloaded around the current one: on slow connections the visible photo comes first. */
-const PRELOAD_AROUND = 1;
-
-/** Indexes to download: the ones already seen plus the neighbors of the current photo. */
-export function photosToLoad(
-  seen: ReadonlySet<number>,
-  current: number,
-  total: number,
-): Set<number> {
-  const result = new Set(seen);
-  for (let i = current - PRELOAD_AROUND; i <= current + PRELOAD_AROUND; i++) {
-    if (i >= 0 && i < total) result.add(i);
-  }
-  return result;
-}
 
 /**
  * Photos of a property: swipe on phones, arrows and dots with the mouse in the browser.
@@ -150,6 +137,22 @@ export function PhotoGallery({
           </Text>
         </>
       ) : null}
+      {photos[index]?.three_d_url ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("property.photo3d")}
+          onPress={() =>
+            router.push({
+              pathname: "/modello-3d/[id]",
+              params: { id: property.id, foto: photos[index]?.id ?? "" },
+            })
+          }
+          style={[styles.threeD, rounded ? styles.threeDRounded : null]}
+        >
+          <Ionicons name="cube-outline" size={16} color={colors.white} />
+          <Text style={styles.threeDText}>3D</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -204,4 +207,19 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   counterRounded: { bottom: spacing.md },
+  // The room in the current photo can be opened in 3D.
+  threeD: {
+    position: "absolute",
+    left: spacing.lg,
+    bottom: spacing.xxl + spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: colors.brandBlue,
+  },
+  threeDRounded: { bottom: spacing.md },
+  threeDText: { color: colors.white, fontSize: typography.sizes.xs, fontWeight: "700" },
 });

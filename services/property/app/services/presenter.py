@@ -25,7 +25,12 @@ class Presenter:
 
     def photo(self, photo: Photo) -> PhotoOut:
         return PhotoOut(
-            id=photo.id, url=self._storage.public_url(photo.storage_key), caption=photo.caption
+            id=photo.id,
+            url=self._storage.public_url(photo.storage_key),
+            caption=photo.caption,
+            three_d_url=(
+                self._storage.public_url(photo.three_d_key) if photo.three_d_key else None
+            ),
         )
 
     def admin_photo(self, photo: Photo) -> AdminPhotoOut:

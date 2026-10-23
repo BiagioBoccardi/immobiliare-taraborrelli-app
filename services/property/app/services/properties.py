@@ -254,6 +254,7 @@ class PropertyService:
         was_public = [item.id for item in items if item.status in PUBLIC_STATUSES]
         keys = [photo.storage_key for item in items for photo in item.photos]
         keys += [item.three_d_model_key for item in items if item.three_d_model_key]
+        keys += [p.three_d_key for item in items for p in item.photos if p.three_d_key]
         for item in items:
             await self._repo.delete(item)
         await self._repo.commit()
@@ -390,12 +391,15 @@ class PropertyService:
                 "A published property needs at least one photo", code="photo_required"
             )
         key = photo.storage_key
+        three_d_key = photo.three_d_key
         item.photos.remove(photo)
         for position, remaining in enumerate(item.photos):
             remaining.position = position
         item.updated_at = self._clock()
         await self._repo.commit()
         await self._delete_object(key)
+        if three_d_key is not None:
+            await self._delete_object(three_d_key)
         return self._present.admin(item)
 
     # 3D model -----------------------------------------------------------------------------
@@ -403,14 +407,7 @@ class PropertyService:
     async def set_three_d_model(self, property_id: uuid.UUID, data: bytes) -> AdminPropertyOut:
         """Saves the 3D model of the property (binary glTF), replacing the previous one."""
         item = await self._get(property_id)
-        if len(data) > self._max_model_bytes:
-            raise AppError(
-                "The 3D model is too large",
-                code="model_too_large",
-                details={"max_bytes": self._max_model_bytes},
-            )
-        if not is_glb(data):
-            raise AppError("Only 3D models in GLB format are accepted", code="invalid_model")
+        self._check_model(data)
         old_key = item.three_d_model_key
         key = f"{PUBLIC_MEDIA_PREFIX}{item.id}/models/{uuid.uuid4()}.{GLB_EXTENSION}"
         await self._storage.put(key, data, GLB_CONTENT_TYPE)
@@ -437,6 +434,54 @@ class PropertyService:
         await self._repo.commit()
         await self._delete_object(key)
         return self._present.admin(item)
+
+    async def set_photo_three_d(
+        self, property_id: uuid.UUID, photo_id: uuid.UUID, data: bytes
+    ) -> AdminPropertyOut:
+        """Saves the 3D version of the room in a photo (binary glTF), replacing the old one."""
+        item = await self._get(property_id)
+        photo = self._find_photo(item, photo_id)
+        self._check_model(data)
+        old_key = photo.three_d_key
+        name = f"{photo.id}-{uuid.uuid4().hex[:8]}.{GLB_EXTENSION}"
+        key = f"{PUBLIC_MEDIA_PREFIX}{item.id}/rooms/{name}"
+        await self._storage.put(key, data, GLB_CONTENT_TYPE)
+        photo.three_d_key = key
+        photo.three_d_size = len(data)
+        item.updated_at = self._clock()
+        try:
+            await self._repo.commit()
+        except Exception:
+            await self._delete_object(key)  # do not leave orphan files in the bucket
+            raise
+        if old_key is not None:
+            await self._delete_object(old_key)
+        return self._present.admin(item)
+
+    async def delete_photo_three_d(
+        self, property_id: uuid.UUID, photo_id: uuid.UUID
+    ) -> AdminPropertyOut:
+        item = await self._get(property_id)
+        photo = self._find_photo(item, photo_id)
+        key = photo.three_d_key
+        if key is None:
+            raise NotFoundError("This photo has no 3D version")
+        photo.three_d_key = None
+        photo.three_d_size = None
+        item.updated_at = self._clock()
+        await self._repo.commit()
+        await self._delete_object(key)
+        return self._present.admin(item)
+
+    def _check_model(self, data: bytes) -> None:
+        if len(data) > self._max_model_bytes:
+            raise AppError(
+                "The 3D model is too large",
+                code="model_too_large",
+                details={"max_bytes": self._max_model_bytes},
+            )
+        if not is_glb(data):
+            raise AppError("Only 3D models in GLB format are accepted", code="invalid_model")
 
     # Excel import ---------------------------------------------------------------------------
 

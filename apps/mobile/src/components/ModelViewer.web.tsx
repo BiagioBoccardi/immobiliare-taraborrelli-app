@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 
 import { colors } from "../theme";
 import { Body, Loading } from "./ui";
+import { viewerAttributes, type ViewerMode } from "./viewerOptions";
 
 /**
  * 3D viewer in the browser: Google's <model-viewer> web component (rotate, zoom, AR on
@@ -12,10 +13,12 @@ export function ModelViewer({
   url,
   label,
   errorText,
+  mode = "object",
 }: {
   url: string;
   label: string;
   errorText: string;
+  mode?: ViewerMode;
 }) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
 
@@ -38,13 +41,11 @@ export function ModelViewer({
     );
   }
   return createElement("model-viewer", {
+    // A new element per model, so the camera starts from the front for every room.
+    key: url,
     src: url,
     alt: label,
-    "camera-controls": true,
-    "auto-rotate": true,
-    "shadow-intensity": "1",
-    "touch-action": "pan-y",
-    ar: true,
+    ...viewerAttributes(mode),
     style: { width: "100%", height: "100%", backgroundColor: colors.gray50 },
   });
 }

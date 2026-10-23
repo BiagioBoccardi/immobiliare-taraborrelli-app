@@ -209,7 +209,47 @@ describe("3D model", () => {
     mockedApi.property.getPublic.mockResolvedValue(makeDetail());
     await renderWithProviders(<ThreeDModelScreen />);
 
-    expect(await screen.findByText("Questo immobile non ha un modello 3D.")).toBeTruthy();
+    expect(await screen.findByText("Questo immobile non ha ancora una vista 3D.")).toBeTruthy();
+  });
+});
+
+describe("3D rooms", () => {
+  const rooms = [1, 2, 3].map((n) => ({
+    id: `f${n}`,
+    url: `https://media.test/f${n}.jpg`,
+    caption: null,
+    three_d_url: n === 2 ? null : `https://media.test/f${n}.glb`,
+  }));
+
+  it("shows the rooms that have a 3D version and switches between them", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail({ photos: rooms }));
+    await renderWithProviders(<ThreeDModelScreen />);
+
+    expect((await screen.findAllByLabelText("Stanza 1")).length).toBeGreaterThan(0);
+    expect(screen.getByText("1/2")).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText("Stanza successiva"));
+
+    expect(screen.getByText("2/2")).toBeTruthy();
+  });
+
+  it("opens the room of the photo chosen in the gallery", async () => {
+    mockParams = { id: "p1", foto: "f3" };
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail({ photos: rooms }));
+    await renderWithProviders(<ThreeDModelScreen />);
+
+    expect(await screen.findByText("2/2")).toBeTruthy();
+  });
+
+  it("offers the 3D of the current photo from the property gallery", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail({ photos: rooms }));
+    await renderWithProviders(<PropertyScreen />);
+
+    await fireEvent.press(await screen.findByLabelText("Vedi questa stanza in 3D"));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/modello-3d/[id]",
+      params: { id: "p1", foto: "f1" },
+    });
   });
 });
 

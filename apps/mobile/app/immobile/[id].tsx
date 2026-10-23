@@ -20,6 +20,7 @@ import { formatDate, formatEuro, formatPrice, place } from "../../src/format";
 import { t, tCount, tEnum } from "../../src/i18n";
 import { CONTENT_MAX_WIDTH, DESKTOP_PADDING, useLayout } from "../../src/layout";
 import { isNotFound, useProperty } from "../../src/queries";
+import { hasThreeD } from "../../src/threeD";
 import { cardShadow, colors, radii, spacing, typography } from "../../src/theme";
 
 /** Width of the photo column next to the price card on desktop. */
@@ -141,9 +142,9 @@ export default function PropertyScreen() {
         <Fact icon="resize-outline" label={t("common.sqm", { value: data.surface_sqm })} />
       </View>
 
-      {data.three_d_model || data.contract === "sale" ? (
+      {hasThreeD(data) || data.contract === "sale" ? (
         <View style={styles.actions}>
-          {data.three_d_model ? (
+          {hasThreeD(data) ? (
             <Button
               label={t("property.view3d")}
               icon="cube-outline"

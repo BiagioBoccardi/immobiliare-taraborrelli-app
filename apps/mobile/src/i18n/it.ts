@@ -165,7 +165,11 @@ export const it = {
 
   "model3d.title": "Vista 3D",
   "model3d.hint": "Trascina per ruotare, pizzica o usa la rotellina per avvicinarti.",
-  "model3d.missing": "Questo immobile non ha un modello 3D.",
+  "model3d.missing": "Questo immobile non ha ancora una vista 3D.",
+  "model3d.room": "Stanza {index}",
+  "model3d.previousRoom": "Stanza precedente",
+  "model3d.nextRoom": "Stanza successiva",
+  "property.photo3d": "Vedi questa stanza in 3D",
   "model3d.loadError": "Non è stato possibile caricare il modello 3D.",
 
   "favorites.title": "Preferiti",

@@ -129,6 +129,9 @@ class Photo(Base):
     caption: Mapped[str | None] = mapped_column(String(200))
     # Only authorized photos are shown in "Immobili venduti".
     show_when_sold: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Optional 3D version of the room in the photo (binary glTF built from the photo).
+    three_d_key: Mapped[str | None] = mapped_column(String(200), unique=True)
+    three_d_size: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, server_default=func.now()
     )

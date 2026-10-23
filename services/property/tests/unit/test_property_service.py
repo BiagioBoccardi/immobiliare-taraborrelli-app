@@ -611,3 +611,83 @@ async def test_delete_property_removes_its_three_d_model() -> None:
     await service.delete(item.id)
 
     assert storage.objects == {}
+
+
+# 3D version of the rooms in the photos --------------------------------------------------
+
+
+async def test_set_photo_three_d_stores_glb_and_shows_it_in_the_photo() -> None:
+    item = make_property(photos=2)
+    service, _, storage, _ = build([item])
+    photo = item.photos[1]
+
+    out = await service.set_photo_three_d(item.id, photo.id, GLB_BYTES)
+
+    key = photo.three_d_key
+    assert key is not None and key.startswith(f"properties/{item.id}/rooms/{photo.id}-")
+    assert storage.objects[key] == (GLB_BYTES, "model/gltf-binary")
+    assert out.photos[1].three_d_url == f"https://media.test/{key}"
+    assert out.photos[0].three_d_url is None
+
+
+async def test_set_photo_three_d_replaces_previous_file() -> None:
+    item = make_property(photos=1)
+    service, _, storage, _ = build([item])
+    photo = item.photos[0]
+    await service.set_photo_three_d(item.id, photo.id, GLB_BYTES)
+    old_key = photo.three_d_key
+
+    await service.set_photo_three_d(item.id, photo.id, GLB_BYTES)
+
+    assert old_key not in storage.objects
+    assert photo.three_d_key in storage.objects
+
+
+async def test_set_photo_three_d_with_other_file_raises_invalid_model() -> None:
+    item = make_property(photos=1)
+    service, _, storage, _ = build([item])
+
+    with pytest.raises(AppError) as exc_info:
+        await service.set_photo_three_d(item.id, item.photos[0].id, JPEG_BYTES)
+
+    assert exc_info.value.code == "invalid_model"
+    assert storage.objects == {}
+
+
+async def test_set_photo_three_d_of_unknown_photo_raises_not_found() -> None:
+    item = make_property(photos=1)
+    service, _, _, _ = build([item])
+
+    with pytest.raises(NotFoundError):
+        await service.set_photo_three_d(item.id, uuid.uuid4(), GLB_BYTES)
+
+
+async def test_delete_photo_three_d_removes_file() -> None:
+    item = make_property(photos=1)
+    service, _, storage, _ = build([item])
+    photo = item.photos[0]
+    await service.set_photo_three_d(item.id, photo.id, GLB_BYTES)
+
+    out = await service.delete_photo_three_d(item.id, photo.id)
+
+    assert out.photos[0].three_d_url is None
+    assert storage.objects == {}
+
+
+async def test_delete_photo_three_d_without_3d_raises_not_found() -> None:
+    item = make_property(photos=1)
+    service, _, _, _ = build([item])
+
+    with pytest.raises(NotFoundError):
+        await service.delete_photo_three_d(item.id, item.photos[0].id)
+
+
+async def test_delete_photo_also_removes_its_three_d() -> None:
+    item = make_property(photos=2, status=PropertyStatus.DRAFT)
+    service, _, storage, _ = build([item])
+    photo = item.photos[0]
+    await service.set_photo_three_d(item.id, photo.id, GLB_BYTES)
+
+    await service.delete_photo(item.id, photo.id)
+
+    assert not any("/rooms/" in key for key in storage.objects)

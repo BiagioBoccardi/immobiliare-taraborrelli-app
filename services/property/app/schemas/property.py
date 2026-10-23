@@ -141,6 +141,8 @@ class PhotoOut(BaseModel):
     id: uuid.UUID
     url: str
     caption: str | None
+    # 3D version of the room in the photo, when there is one (binary glTF).
+    three_d_url: str | None = None
 
 
 class AdminPhotoOut(PhotoOut):

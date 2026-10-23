@@ -122,6 +122,16 @@ export function propertyApi(http: HttpClient) {
       form.append("file", file);
       return http.request<AdminProperty>("PUT", `${ADMIN}/${id}/model-3d`, { form });
     },
+    // 3D version of the room in a photo (.glb).
+    uploadPhotoThreeD: (id: string, photoId: string, file: Blob) => {
+      const form = new FormData();
+      form.append("file", file);
+      return http.request<AdminProperty>("PUT", `${ADMIN}/${id}/photos/${photoId}/model-3d`, {
+        form,
+      });
+    },
+    deletePhotoThreeD: (id: string, photoId: string) =>
+      http.request<AdminProperty>("DELETE", `${ADMIN}/${id}/photos/${photoId}/model-3d`),
     deleteThreeDModel: (id: string) =>
       http.request<AdminProperty>("DELETE", `${ADMIN}/${id}/model-3d`),
 

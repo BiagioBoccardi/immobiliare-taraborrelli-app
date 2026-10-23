@@ -1,7 +1,7 @@
 import { formatEuro, formatPrice, place, whatsappUrl } from "../src/format";
 import { tCount } from "../src/i18n";
 import { viewerHtml } from "../src/components/ModelViewer";
-import { photosToLoad } from "../src/components/PhotoGallery";
+import { photosToLoad } from "../src/gallery";
 import { gridFor, layoutFor, SIDEBAR_WIDTH } from "../src/layout";
 import {
   computeMortgage,
