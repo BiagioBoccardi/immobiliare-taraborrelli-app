@@ -150,6 +150,13 @@ class AdminPhotoOut(PhotoOut):
     size_bytes: int
 
 
+class ThreeDModelOut(BaseModel):
+    """3D model of the property (binary glTF, .glb)."""
+
+    url: str
+    size_bytes: int
+
+
 class Coordinates(BaseModel):
     latitude: Decimal
     longitude: Decimal
@@ -191,6 +198,7 @@ class PropertyDetail(PropertyCard):
     tenant_types: list[TenantType]
     accommodation: Accommodation | None
     photos: list[PhotoOut]
+    three_d_model: ThreeDModelOut | None
 
 
 class AdminPropertyOut(BaseModel):
@@ -233,6 +241,7 @@ class AdminPropertyOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     photos: list[AdminPhotoOut]
+    three_d_model: ThreeDModelOut | None
 
 
 class SoldCard(BaseModel):

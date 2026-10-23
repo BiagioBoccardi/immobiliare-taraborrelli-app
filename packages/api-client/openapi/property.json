@@ -342,6 +342,16 @@
             "title": "Tenant Types",
             "type": "array"
           },
+          "three_d_model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDModelOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -420,7 +430,8 @@
           "closed_at",
           "created_at",
           "updated_at",
-          "photos"
+          "photos",
+          "three_d_model"
         ],
         "title": "AdminPropertyOut",
         "type": "object"
@@ -477,6 +488,20 @@
           "file"
         ],
         "title": "Body_upload_photo_api_v1_property_admin_properties__property_id__photos_post",
+        "type": "object"
+      },
+      "Body_upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put",
         "type": "object"
       },
       "BulkResult": {
@@ -1670,6 +1695,16 @@
             "title": "Tenant Types",
             "type": "array"
           },
+          "three_d_model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThreeDModelOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -1737,7 +1772,8 @@
           "features",
           "tenant_types",
           "accommodation",
-          "photos"
+          "photos",
+          "three_d_model"
         ],
         "title": "PropertyDetail",
         "type": "object"
@@ -2206,6 +2242,25 @@
         ],
         "title": "TenantType",
         "type": "string"
+      },
+      "ThreeDModelOut": {
+        "description": "3D model of the property (binary glTF, .glb).",
+        "properties": {
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "size_bytes"
+        ],
+        "title": "ThreeDModelOut",
+        "type": "object"
       },
       "ValidationError": {
         "properties": {
@@ -2760,6 +2815,111 @@
           }
         ],
         "summary": "Update Property",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/property/admin/properties/{property_id}/model-3d": {
+      "delete": {
+        "operationId": "delete_three_d_model_api_v1_property_admin_properties__property_id__model_3d_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Property Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPropertyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Three D Model",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "description": "Uploads the 3D model of the property (.glb), replacing the previous one.",
+        "operationId": "upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Property Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminPropertyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload Three D Model",
         "tags": [
           "admin"
         ]

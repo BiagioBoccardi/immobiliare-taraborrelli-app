@@ -12,3 +12,6 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn().mockResolvedValue(undefined),
   deleteItemAsync: jest.fn().mockResolvedValue(undefined),
 }));
+
+// The native WebView is not available in tests: render it as a plain host element.
+jest.mock("react-native-webview", () => ({ WebView: "WebView" }));

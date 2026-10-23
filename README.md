@@ -122,6 +122,13 @@ servizi useranno per cancellare i dati collegati.
 | `POST` | `/api/v1/property/admin/properties/{id}/photos` | Staff — caricamento foto (JPEG, PNG, WebP, max 10 MB, max 40) |
 | `PATCH` / `DELETE` | `/api/v1/property/admin/properties/{id}/photos/{photo_id}` | Staff — didascalia, autorizzazione per i venduti, eliminazione |
 | `PUT` | `/api/v1/property/admin/properties/{id}/photos/order` | Staff — ordine delle foto (la prima è la copertina) |
+| `PUT` / `DELETE` | `/api/v1/property/admin/properties/{id}/model-3d` | Staff — modello 3D dell'immobile (`.glb`, max 10 MB; un nuovo caricamento sostituisce il precedente) |
+
+**Modello 3D:** la scheda pubblica restituisce `three_d_model` (URL e dimensione) quando c'è un
+modello; l'app mostra il pulsante «Vedi in 3D». Nel browser il visore è `@google/model-viewer`
+(caricato solo quando si apre il modello); sul telefono lo stesso componente gira in una WebView
+e viene scaricato da jsDelivr, alla stessa versione del pacchetto. Lo storage dei file deve
+permettere la lettura cross-origin (CORS) dei `.glb`: in locale lo fa già `scripts/dev-s3.py`.
 
 **Filtri di ricerca:** `contract`, `property_type` (ripetibile), `municipality`, `zone`,
 `price_min`/`price_max`, `surface_min`/`surface_max`, `rooms_min`, `bedrooms_min`,

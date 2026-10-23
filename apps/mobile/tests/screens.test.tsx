@@ -7,6 +7,9 @@ import Home from "../app/(tabs)/index";
 import Favorites from "../app/(tabs)/preferiti";
 import Sell from "../app/(tabs)/vendi";
 import PropertyScreen from "../app/immobile/[id]";
+import ThreeDModelScreen from "../app/modello-3d/[id]";
+import Mortgage from "../app/mutuo";
+import { router } from "expo-router";
 import { api } from "../src/api";
 import { favoritesKey } from "../src/favorites";
 import { makeCard, makeDetail, page, renderWithProviders, TEST_USER } from "./helpers";
@@ -20,6 +23,8 @@ jest.mock("../src/api", () => ({
   },
 }));
 
+let mockParams: Record<string, string> = { id: "p1" };
+
 jest.mock("expo-router", () => ({
   router: {
     push: jest.fn(),
@@ -28,7 +33,7 @@ jest.mock("expo-router", () => ({
     replace: jest.fn(),
     canGoBack: () => true,
   },
-  useLocalSearchParams: () => ({ id: "p1" }),
+  useLocalSearchParams: () => mockParams,
 }));
 
 const mockedApi = api as unknown as {
@@ -38,6 +43,7 @@ const mockedApi = api as unknown as {
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  mockParams = { id: "p1" };
   await AsyncStorage.clear();
 });
 
@@ -109,6 +115,149 @@ describe("Property detail", () => {
     await renderWithProviders(<PropertyScreen />);
 
     expect(await screen.findByText("Questo immobile non è più disponibile.")).toBeTruthy();
+  });
+});
+
+describe("Photo gallery", () => {
+  const photos = [1, 2, 3].map((n) => ({
+    id: `f${n}`,
+    url: `https://media.test/f${n}.jpg`,
+    caption: null,
+  }));
+
+  it("moves to the next and previous photo with the arrows", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail({ photos }));
+    await renderWithProviders(<PropertyScreen />);
+
+    expect(await screen.findByText("1/3")).toBeTruthy();
+    expect(screen.queryByLabelText("Foto precedente")).toBeNull();
+    await fireEvent.press(screen.getByLabelText("Foto successiva"));
+    await fireEvent.press(screen.getByLabelText("Foto successiva"));
+
+    expect(screen.getByText("3/3")).toBeTruthy();
+    expect(screen.queryByLabelText("Foto successiva")).toBeNull();
+    await fireEvent.press(screen.getByLabelText("Foto precedente"));
+    expect(screen.getByText("2/3")).toBeTruthy();
+  });
+
+  it("jumps to a photo from its dot", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail({ photos }));
+    await renderWithProviders(<PropertyScreen />);
+
+    await fireEvent.press(await screen.findByRole("button", { name: "Foto 3 di 3" }));
+
+    expect(screen.getByText("3/3")).toBeTruthy();
+  });
+
+  it("has no arrows with a single photo", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail());
+    await renderWithProviders(<PropertyScreen />);
+
+    expect(await screen.findByText("139.000 €")).toBeTruthy();
+    expect(screen.queryByLabelText("Foto successiva")).toBeNull();
+  });
+});
+
+describe("Property tools", () => {
+  it("opens the mortgage calculator with the price of a property for sale", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail());
+    await renderWithProviders(<PropertyScreen />);
+
+    await fireEvent.press(await screen.findByText("Rata mutuo"));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: "/mutuo",
+      params: { prezzo: "139000" },
+    });
+  });
+
+  it("shows the 3D button only when the property has a model", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(
+      makeDetail({ three_d_model: { url: "https://media.test/casa.glb", size_bytes: 1024 } }),
+    );
+    await renderWithProviders(<PropertyScreen />);
+
+    await fireEvent.press(await screen.findByText("Vedi in 3D"));
+
+    expect(router.push).toHaveBeenCalledWith("/modello-3d/p1");
+  });
+
+  it("does not offer 3D or mortgage for a rental without a model", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail({ contract: "rent", price: 500 }));
+    await renderWithProviders(<PropertyScreen />);
+
+    expect(await screen.findByText("500 €/mese")).toBeTruthy();
+    expect(screen.queryByText("Vedi in 3D")).toBeNull();
+    expect(screen.queryByText("Rata mutuo")).toBeNull();
+  });
+});
+
+describe("3D model", () => {
+  it("shows the viewer with the model of the property", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(
+      makeDetail({ three_d_model: { url: "https://media.test/casa.glb", size_bytes: 1024 } }),
+    );
+    await renderWithProviders(<ThreeDModelScreen />);
+
+    expect(await screen.findByLabelText("Trilocale luminoso con balcone")).toBeTruthy();
+    expect(
+      screen.getByText("Trascina per ruotare, pizzica o usa la rotellina per avvicinarti."),
+    ).toBeTruthy();
+  });
+
+  it("explains when the property has no model", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail());
+    await renderWithProviders(<ThreeDModelScreen />);
+
+    expect(await screen.findByText("Questo immobile non ha un modello 3D.")).toBeTruthy();
+  });
+});
+
+describe("Mortgage", () => {
+  it("fills in the price of the property and shows the monthly payment", async () => {
+    mockParams = { prezzo: "150000" };
+    await renderWithProviders(<Mortgage />);
+
+    expect(screen.getByDisplayValue("150.000")).toBeTruthy();
+    expect(screen.getByDisplayValue("30.000")).toBeTruthy();
+    // 120.000 € at 3% for 25 years.
+    expect(screen.getByText("569 €")).toBeTruthy();
+    expect(screen.getByText("Percentuale finanziata: 80% del prezzo")).toBeTruthy();
+  });
+
+  it("recalculates when the duration changes", async () => {
+    mockParams = { prezzo: "150000" };
+    await renderWithProviders(<Mortgage />);
+
+    await fireEvent.press(screen.getByText("30 anni"));
+
+    expect(screen.getByText("506 €")).toBeTruthy();
+  });
+
+  it("warns when the loan is above the usual 80%", async () => {
+    mockParams = { prezzo: "150000" };
+    await renderWithProviders(<Mortgage />);
+
+    await fireEvent.changeText(screen.getByLabelText("Anticipo (€)"), "10.000");
+
+    expect(screen.getByText(/fino all'80% del valore/)).toBeTruthy();
+  });
+
+  it("asks for a down payment lower than the price", async () => {
+    mockParams = { prezzo: "150000" };
+    await renderWithProviders(<Mortgage />);
+
+    await fireEvent.changeText(screen.getByLabelText("Anticipo (€)"), "200.000");
+
+    expect(screen.getByText("L'anticipo deve essere inferiore al prezzo")).toBeTruthy();
+    expect(screen.queryByText("Rata mensile")).toBeNull();
+  });
+
+  it("always says that the result is indicative", async () => {
+    mockParams = {};
+    await renderWithProviders(<Mortgage />);
+
+    expect(screen.getByText(/Il risultato è indicativo e non è un preventivo/)).toBeTruthy();
   });
 });
 

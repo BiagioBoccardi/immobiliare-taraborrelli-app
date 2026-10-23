@@ -44,6 +44,17 @@ const ITEMS: {
   },
 ];
 
+/** Tools reachable from the sidebar besides the five sections of the tab bar. */
+const TOOLS: (typeof ITEMS)[number][] = [
+  {
+    href: "/mutuo",
+    path: "/mutuo",
+    label: "tabs.mortgage",
+    icon: "calculator-outline",
+    activeIcon: "calculator",
+  },
+];
+
 function SidebarItem({ item, active }: { item: (typeof ITEMS)[number]; active: boolean }) {
   const [hovered, setHovered] = useState(false);
   const label = t(item.label);
@@ -89,6 +100,10 @@ export function Sidebar() {
 
       <View style={styles.nav} accessibilityRole="tablist">
         {ITEMS.map((item) => (
+          <SidebarItem key={item.path} item={item} active={pathname === item.path} />
+        ))}
+        <View style={styles.separator} />
+        {TOOLS.map((item) => (
           <SidebarItem key={item.path} item={item} active={pathname === item.path} />
         ))}
       </View>
@@ -139,6 +154,12 @@ const styles = StyleSheet.create({
   logoLink: { paddingVertical: spacing.md, alignItems: "center" },
   logo: { width: 176, aspectRatio: 868 / 480 },
   nav: { gap: spacing.xs, flex: 1 },
+  separator: {
+    height: 1,
+    marginVertical: spacing.sm,
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.brandBlue,
+  },
   item: {
     flexDirection: "row",
     alignItems: "center",

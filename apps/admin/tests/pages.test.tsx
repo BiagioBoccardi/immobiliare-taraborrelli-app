@@ -269,6 +269,59 @@ describe("properties", () => {
     ]);
   });
 
+  it("uploads a 3D model", async () => {
+    const api = fakeApi();
+    const property = makeProperty();
+    api.property.get.mockResolvedValue(property);
+    api.property.uploadThreeDModel.mockResolvedValue({
+      ...property,
+      three_d_model: { url: "https://media.test/casa.glb", size_bytes: 3 * 1024 * 1024 },
+    });
+    const store = await signedInStore(api);
+    renderApp(api, store, "/properties/prop-1");
+    const input = await screen.findByLabelText("Carica modello 3D");
+
+    await userEvent.upload(input, new File(["glTF"], "casa.glb", { type: "model/gltf-binary" }), {
+      applyAccept: false,
+    });
+
+    await waitFor(() => expect(api.property.uploadThreeDModel).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Modello caricato (3 MB)")).toBeVisible();
+  });
+
+  it("rejects a 3D model that is not a .glb file before uploading", async () => {
+    const api = fakeApi();
+    api.property.get.mockResolvedValue(makeProperty());
+    const store = await signedInStore(api);
+    renderApp(api, store, "/properties/prop-1");
+    const input = await screen.findByLabelText("Carica modello 3D");
+
+    await userEvent.upload(input, new File(["obj"], "casa.obj", { type: "text/plain" }), {
+      applyAccept: false,
+    });
+
+    expect(await screen.findByText("casa.obj: serve un file .glb.")).toBeVisible();
+    expect(api.property.uploadThreeDModel).not.toHaveBeenCalled();
+  });
+
+  it("deletes the 3D model after confirmation", async () => {
+    const api = fakeApi();
+    const property = makeProperty({
+      three_d_model: { url: "https://media.test/casa.glb", size_bytes: 1024 * 1024 },
+    });
+    api.property.get.mockResolvedValue(property);
+    api.property.deleteThreeDModel.mockResolvedValue({ ...property, three_d_model: null });
+    const store = await signedInStore(api);
+    renderApp(api, store, "/properties/prop-1");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Elimina modello" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Elimina" }));
+
+    await waitFor(() => expect(api.property.deleteThreeDModel).toHaveBeenCalledWith("prop-1"));
+    expect(await screen.findByText("Nessun modello 3D per questo immobile.")).toBeVisible();
+  });
+
   it("moves a photo to become the cover", async () => {
     const api = fakeApi();
     const photo = (id: string, position: number) => ({

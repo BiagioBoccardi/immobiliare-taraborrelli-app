@@ -1,11 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { PropertyDetail } from "@taraborrelli/api-client";
-import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import { FlatList, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { PhotoGallery } from "../../src/components/PhotoGallery";
 import { FavoriteButton } from "../../src/components/PropertyCard";
 import {
   Body,
@@ -26,53 +24,6 @@ import { cardShadow, colors, radii, spacing, typography } from "../../src/theme"
 
 /** Width of the photo column next to the price card on desktop. */
 const DESKTOP_CARD_WIDTH = 380;
-
-function Gallery({
-  property,
-  width,
-  rounded = false,
-}: {
-  property: PropertyDetail;
-  width: number;
-  rounded?: boolean;
-}) {
-  const height = rounded ? width * 0.62 : width * 0.85;
-  const [index, setIndex] = useState(0);
-  const photos = property.photos;
-  return (
-    <View style={rounded ? styles.galleryRounded : null}>
-      <FlatList
-        horizontal
-        pagingEnabled
-        data={photos}
-        keyExtractor={(photo) => photo.id}
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(event) =>
-          setIndex(Math.round(event.nativeEvent.contentOffset.x / width))
-        }
-        renderItem={({ item, index: i }) => (
-          <Image
-            source={{ uri: item.url }}
-            style={{ width, height }}
-            contentFit="cover"
-            transition={150}
-            accessibilityLabel={
-              item.caption ?? t("property.photo", { index: i + 1, total: photos.length })
-            }
-          />
-        )}
-        ListEmptyComponent={
-          <View style={{ width, height: width * 0.6, backgroundColor: colors.gray100 }} />
-        }
-      />
-      {photos.length > 1 ? (
-        <Text style={styles.counter}>
-          {index + 1}/{photos.length}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
 
 function Fact({ icon, label }: { icon: IconName; label: string }) {
   return (
@@ -189,6 +140,31 @@ export default function PropertyScreen() {
         ) : null}
         <Fact icon="resize-outline" label={t("common.sqm", { value: data.surface_sqm })} />
       </View>
+
+      {data.three_d_model || data.contract === "sale" ? (
+        <View style={styles.actions}>
+          {data.three_d_model ? (
+            <Button
+              label={t("property.view3d")}
+              icon="cube-outline"
+              variant="secondary"
+              onPress={() => router.push(`/modello-3d/${data.id}`)}
+              style={styles.action}
+            />
+          ) : null}
+          {data.contract === "sale" ? (
+            <Button
+              label={t("property.mortgage")}
+              icon="calculator-outline"
+              variant="secondary"
+              onPress={() =>
+                router.push({ pathname: "/mutuo", params: { prezzo: String(data.price) } })
+              }
+              style={styles.action}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </>
   );
 
@@ -291,7 +267,7 @@ export default function PropertyScreen() {
         <View style={styles.desktopToolbar}>{toolbar}</View>
         <View style={styles.desktopColumns}>
           <View style={[styles.desktopMain, { width: photoWidth }]}>
-            <Gallery property={data} width={photoWidth} rounded />
+            <PhotoGallery property={data} width={photoWidth} rounded />
             <View style={styles.desktopSections}>{sections}</View>
           </View>
           <View style={styles.desktopCard}>
@@ -306,7 +282,7 @@ export default function PropertyScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}>
-        <Gallery property={data} width={areaWidth} />
+        <PhotoGallery property={data} width={areaWidth} />
         <View style={[styles.topButtons, { top: insets.top + spacing.sm }]}>{toolbar}</View>
         <View style={styles.panel}>
           {info}
@@ -353,22 +329,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.md,
   },
-  galleryRounded: { borderRadius: radii.lg, overflow: "hidden" },
   screen: { flex: 1, backgroundColor: colors.white },
   missing: { flex: 1, backgroundColor: colors.gray50 },
-  counter: {
-    position: "absolute",
-    right: spacing.lg,
-    bottom: spacing.xxl + spacing.md,
-    overflow: "hidden",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
-    backgroundColor: colors.overlay,
-    color: colors.white,
-    fontSize: typography.sizes.xs,
-    fontWeight: "600",
-  },
   topButtons: {
     position: "absolute",
     left: spacing.lg,
@@ -407,6 +369,8 @@ const styles = StyleSheet.create({
   badgeWarning: { backgroundColor: colors.warningSoft, color: colors.warning },
   price: { fontSize: typography.sizes.xxl, fontWeight: "700", color: colors.brandBlue },
   facts: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+  action: { flexGrow: 1, flexBasis: 140 },
   fact: {
     flexDirection: "row",
     alignItems: "center",

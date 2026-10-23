@@ -11,6 +11,7 @@ import {
 } from "../api/queries";
 import { PropertyStatusBadge } from "../components/badges";
 import { PhotoManager } from "../components/PhotoManager";
+import { ThreeDModelManager } from "../components/ThreeDModelManager";
 import { PropertyForm } from "../components/PropertyForm";
 import { ConfirmDialog, ErrorAlert, Loading, PageHeader, SuccessAlert } from "../components/ui";
 import { t, tEnum } from "../i18n";
@@ -117,6 +118,7 @@ export function PropertyEditPage() {
         {created ? <SuccessAlert>{t("properties.created")}</SuccessAlert> : null}
         <StatusPanel property={data} />
         <PhotoManager property={data} />
+        <ThreeDModelManager property={data} />
         {update.isSuccess ? <SuccessAlert>{t("common.saved")}</SuccessAlert> : null}
         <ErrorAlert error={update.error} />
         <PropertyForm

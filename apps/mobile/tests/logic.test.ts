@@ -1,6 +1,14 @@
 import { formatEuro, formatPrice, place, whatsappUrl } from "../src/format";
 import { tCount } from "../src/i18n";
+import { viewerHtml } from "../src/components/ModelViewer";
 import { gridFor, layoutFor, SIDEBAR_WIDTH } from "../src/layout";
+import {
+  computeMortgage,
+  defaultDownPayment,
+  monthlyPayment,
+  parseNumber,
+  validateMortgage,
+} from "../src/mortgage";
 import { toOwnerRequest, validateOwnerForm, EMPTY_OWNER_FORM } from "../src/ownerRequest";
 import { activeFilterCount, DEFAULT_FILTERS, toQuery } from "../src/search";
 
@@ -127,5 +135,58 @@ describe("layout", () => {
     expect(gridFor(layoutFor(390, "web")).columns).toBe(1);
     expect(gridFor(layoutFor(1100, "web")).columns).toBe(2);
     expect(gridFor(layoutFor(1920, "web")).columns).toBe(3);
+  });
+});
+
+describe("mortgage", () => {
+  it("computes the payment with French amortization", () => {
+    const result = computeMortgage({ price: 150000, downPayment: 30000, years: 25, annualRate: 3 });
+
+    expect(result.loan).toBe(120000);
+    expect(result.monthlyPayment).toBeCloseTo(569.05, 2);
+    expect(result.totalInterest).toBeCloseTo(result.monthlyPayment * 300 - 120000, 6);
+    expect(result.loanShare).toBeCloseTo(0.8);
+  });
+
+  it("splits the loan evenly with a zero rate", () => {
+    expect(monthlyPayment(120000, 0, 10)).toBe(1000);
+  });
+
+  it.each([
+    ["120.000", 120000],
+    ["120000 €", 120000],
+    ["3,5", 3.5],
+    ["3.5", 3.5],
+    ["1.250.000", 1250000],
+    ["", null],
+    ["abc", null],
+  ])("reads %p as %p", (text, expected) => {
+    expect(parseNumber(text)).toBe(expected);
+  });
+
+  it("rejects a down payment equal to the price and an impossible rate", () => {
+    expect(validateMortgage({ price: 100000, downPayment: 100000, years: 20, annualRate: 3 })).toBe(
+      "invalidDownPayment",
+    );
+    expect(validateMortgage({ price: 100000, downPayment: 0, years: 20, annualRate: 30 })).toBe(
+      "invalidRate",
+    );
+    expect(validateMortgage({ price: 0, downPayment: 0, years: 20, annualRate: 3 })).toBe(
+      "invalidPrice",
+    );
+  });
+
+  it("suggests a 20% down payment rounded to the thousand", () => {
+    expect(defaultDownPayment(139000)).toBe(28000);
+  });
+});
+
+describe("3D viewer page", () => {
+  it("escapes the model address and the title", () => {
+    const html = viewerHtml('https://media.test/a.glb?x="1"', "Casa <bella>");
+
+    expect(html).toContain('src="https://media.test/a.glb?x=&quot;1&quot;"');
+    expect(html).toContain('alt="Casa &lt;bella>"');
+    expect(html).toContain("@google/model-viewer@4.4.0");
   });
 });
