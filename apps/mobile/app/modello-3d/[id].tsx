@@ -71,6 +71,7 @@ function Rooms({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.thumbList}
           contentContainerStyle={styles.thumbs}
         >
           {rooms.map((item, i) => (
@@ -192,6 +193,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xs,
     fontWeight: "600",
   },
+  thumbList: { flexGrow: 0 },
   thumbs: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   thumb: {
     width: 84,

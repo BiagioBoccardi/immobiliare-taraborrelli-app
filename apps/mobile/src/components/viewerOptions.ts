@@ -7,12 +7,17 @@ export type ViewerMode = "room" | "object";
 
 export function viewerAttributes(mode: ViewerMode): Record<string, string | boolean> {
   if (mode === "room") {
+    // The room models put the photo's camera 3 m in front of the origin: starting there the
+    // first view is the photo itself, and turning a little shows the depth of the room.
     return {
       "camera-controls": true,
-      "camera-orbit": "0deg 90deg 105%",
-      "min-camera-orbit": "-40deg 60deg auto",
-      "max-camera-orbit": "40deg 115deg auto",
-      "field-of-view": "45deg",
+      "camera-target": "0m 0m 0m",
+      "camera-orbit": "0deg 90deg 3m",
+      "min-camera-orbit": "-12deg 80deg 2.4m",
+      "max-camera-orbit": "12deg 100deg 3.4m",
+      "field-of-view": "52deg",
+      "min-field-of-view": "25deg",
+      "max-field-of-view": "60deg",
       "interaction-prompt": "auto",
       "touch-action": "pan-y",
     };
