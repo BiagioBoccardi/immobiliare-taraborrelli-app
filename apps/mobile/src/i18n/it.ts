@@ -163,7 +163,7 @@ export const it = {
     "Il risultato è indicativo e non è un preventivo: rata e condizioni dipendono dalla banca, dalle spese e dalla tua situazione.",
   "mortgage.contact": "Parla con l'agenzia",
 
-  "model3d.title": "Modello 3D",
+  "model3d.title": "Vista 3D",
   "model3d.hint": "Trascina per ruotare, pizzica o usa la rotellina per avvicinarti.",
   "model3d.missing": "Questo immobile non ha un modello 3D.",
   "model3d.loadError": "Non è stato possibile caricare il modello 3D.",
