@@ -93,6 +93,7 @@ export function makeProperty(overrides: Partial<AdminProperty> = {}): AdminPrope
     created_at: "2026-10-12T09:00:00Z",
     updated_at: "2026-10-12T09:00:00Z",
     photos: [],
+    three_d_model: null,
     ...overrides,
   };
 }
@@ -136,6 +137,8 @@ export function fakeApi(): FakeApi {
       "updatePhoto",
       "reorderPhotos",
       "deletePhoto",
+      "uploadThreeDModel",
+      "deleteThreeDModel",
       "bulkPublish",
       "bulkDelete",
       "previewImport",

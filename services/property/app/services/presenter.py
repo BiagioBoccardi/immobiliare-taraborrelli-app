@@ -11,6 +11,7 @@ from app.schemas.property import (
     PropertyCard,
     PropertyDetail,
     SoldCard,
+    ThreeDModelOut,
 )
 from app.storage.base import MediaStorage
 
@@ -24,7 +25,12 @@ class Presenter:
 
     def photo(self, photo: Photo) -> PhotoOut:
         return PhotoOut(
-            id=photo.id, url=self._storage.public_url(photo.storage_key), caption=photo.caption
+            id=photo.id,
+            url=self._storage.public_url(photo.storage_key),
+            caption=photo.caption,
+            three_d_url=(
+                self._storage.public_url(photo.three_d_key) if photo.three_d_key else None
+            ),
         )
 
     def admin_photo(self, photo: Photo) -> AdminPhotoOut:
@@ -34,6 +40,14 @@ class Presenter:
             show_when_sold=photo.show_when_sold,
             content_type=photo.content_type,
             size_bytes=photo.size_bytes,
+        )
+
+    def three_d_model(self, item: Property) -> ThreeDModelOut | None:
+        if item.three_d_model_key is None:
+            return None
+        return ThreeDModelOut(
+            url=self._storage.public_url(item.three_d_model_key),
+            size_bytes=item.three_d_model_size or 0,
         )
 
     @staticmethod
@@ -65,6 +79,7 @@ class Presenter:
             tenant_types=item.tenant_types,
             accommodation=item.accommodation,
             photos=[self.photo(photo) for photo in item.photos],
+            three_d_model=self.three_d_model(item),
         )
 
     def sold(self, item: Property) -> SoldCard:
@@ -82,12 +97,13 @@ class Presenter:
         data = {
             name: getattr(item, name)
             for name in AdminPropertyOut.model_fields
-            if name not in {"photos", "reference"}
+            if name not in {"photos", "reference", "three_d_model"}
         }
         return AdminPropertyOut(
             **data,
             reference=item.reference,
             photos=[self.admin_photo(photo) for photo in item.photos],
+            three_d_model=self.three_d_model(item),
         )
 
     def _card_fields(self, item: Property) -> dict[str, object]:

@@ -5,6 +5,7 @@ import type { Page, PageQuery } from "./common";
 type Schemas = components["schemas"];
 export type AdminProperty = Schemas["AdminPropertyOut"];
 export type AdminPhoto = Schemas["AdminPhotoOut"];
+export type ThreeDModel = Schemas["ThreeDModelOut"];
 export type PropertyCreate = Schemas["PropertyCreate"];
 export type PropertyUpdate = Schemas["PropertyUpdate"];
 export type PropertyCard = Schemas["PropertyCard"];
@@ -114,6 +115,25 @@ export function propertyApi(http: HttpClient) {
       }),
     deletePhoto: (id: string, photoId: string) =>
       http.request<AdminProperty>("DELETE", `${ADMIN}/${id}/photos/${photoId}`),
+
+    // 3D model of the property (.glb): a new upload replaces the previous one.
+    uploadThreeDModel: (id: string, file: Blob) => {
+      const form = new FormData();
+      form.append("file", file);
+      return http.request<AdminProperty>("PUT", `${ADMIN}/${id}/model-3d`, { form });
+    },
+    // 3D version of the room in a photo (.glb).
+    uploadPhotoThreeD: (id: string, photoId: string, file: Blob) => {
+      const form = new FormData();
+      form.append("file", file);
+      return http.request<AdminProperty>("PUT", `${ADMIN}/${id}/photos/${photoId}/model-3d`, {
+        form,
+      });
+    },
+    deletePhotoThreeD: (id: string, photoId: string) =>
+      http.request<AdminProperty>("DELETE", `${ADMIN}/${id}/photos/${photoId}/model-3d`),
+    deleteThreeDModel: (id: string) =>
+      http.request<AdminProperty>("DELETE", `${ADMIN}/${id}/model-3d`),
 
     // Excel import from the management software: check first, then import the same file.
     previewImport: (file: Blob) => {

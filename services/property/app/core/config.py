@@ -22,6 +22,9 @@ class Settings(BaseServiceSettings):
 
     max_photo_bytes: int = 10 * 1024 * 1024
     max_photos_per_property: int = 40
+    # 3D model of the property (binary glTF). Kept under the gateway's upload limit for the
+    # admin routes: models should be exported compressed (e.g. Draco) from the 3D software.
+    max_model_bytes: int = 10 * 1024 * 1024
 
     # Excel import of listings from the management software.
     max_import_bytes: int = 5 * 1024 * 1024

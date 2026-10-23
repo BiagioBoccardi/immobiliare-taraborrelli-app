@@ -90,6 +90,10 @@ class Property(Base):
     )
     available_from: Mapped[date | None] = mapped_column(Date)
 
+    # Optional 3D model of the property (binary glTF), shown in the app's 3D viewer.
+    three_d_model_key: Mapped[str | None] = mapped_column(String(200), unique=True)
+    three_d_model_size: Mapped[int | None] = mapped_column(Integer)
+
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # sold/rented
     created_at: Mapped[datetime] = mapped_column(
@@ -125,6 +129,9 @@ class Photo(Base):
     caption: Mapped[str | None] = mapped_column(String(200))
     # Only authorized photos are shown in "Immobili venduti".
     show_when_sold: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Optional 3D version of the room in the photo (binary glTF built from the photo).
+    three_d_key: Mapped[str | None] = mapped_column(String(200), unique=True)
+    three_d_size: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, server_default=func.now()
     )
