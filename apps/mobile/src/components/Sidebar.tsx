@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   logoLink: { paddingVertical: spacing.md, alignItems: "center" },
   logo: { width: 176, aspectRatio: 868 / 480 },
-  nav: { gap: spacing.xs, flex: 1 },
+  nav: { gap: spacing.xs, flexGrow: 1 },
   separator: {
     height: 1,
     marginVertical: spacing.sm,
@@ -172,7 +172,9 @@ const styles = StyleSheet.create({
   itemActive: { backgroundColor: colors.white },
   label: { color: colors.white, fontSize: typography.sizes.md, fontWeight: "500" },
   labelActive: { color: colors.brandBlue, fontWeight: "600" },
+  // Kept apart from the last menu item (Mutuo) even when the window is short.
   contact: {
+    marginTop: spacing.xxl,
     gap: spacing.sm,
     padding: spacing.lg,
     borderRadius: radii.lg,
