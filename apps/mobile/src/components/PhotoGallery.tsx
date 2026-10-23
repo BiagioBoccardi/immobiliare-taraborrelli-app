@@ -3,6 +3,7 @@ import type { PropertyDetail } from "@taraborrelli/api-client";
 import { Image } from "expo-image";
 import { useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -17,6 +18,21 @@ import { cardShadow, colors, radii, spacing, typography } from "../theme";
 
 /** Dots are shown up to this many photos; with more, the counter is enough. */
 const MAX_DOTS = 12;
+/** Photos downloaded around the current one: on slow connections the visible photo comes first. */
+const PRELOAD_AROUND = 1;
+
+/** Indexes to download: the ones already seen plus the neighbors of the current photo. */
+export function photosToLoad(
+  seen: ReadonlySet<number>,
+  current: number,
+  total: number,
+): Set<number> {
+  const result = new Set(seen);
+  for (let i = current - PRELOAD_AROUND; i <= current + PRELOAD_AROUND; i++) {
+    if (i >= 0 && i < total) result.add(i);
+  }
+  return result;
+}
 
 /**
  * Photos of a property: swipe on phones, arrows and dots with the mouse in the browser.
@@ -32,20 +48,29 @@ export function PhotoGallery({
   rounded?: boolean;
 }) {
   const height = rounded ? width * 0.62 : width * 0.85;
-  const [index, setIndex] = useState(0);
-  const list = useRef<FlatList<PropertyDetail["photos"][number]>>(null);
   const photos = property.photos;
+  const [index, setIndex] = useState(0);
+  // Photos stay loaded once downloaded, so going back never shows an empty frame.
+  const [loaded, setLoaded] = useState<Set<number>>(() =>
+    photosToLoad(new Set(), 0, photos.length),
+  );
+  const list = useRef<FlatList<PropertyDetail["photos"][number]>>(null);
   const last = photos.length - 1;
+
+  const show = (current: number) => {
+    setIndex(current);
+    setLoaded((previous) => photosToLoad(previous, current, photos.length));
+  };
 
   const goTo = (target: number) => {
     const next = Math.max(0, Math.min(last, target));
     list.current?.scrollToOffset({ offset: next * width, animated: true });
-    setIndex(next);
+    show(next);
   };
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const current = Math.round(event.nativeEvent.contentOffset.x / width);
-    if (current !== index && current >= 0 && current <= last) setIndex(current);
+    if (current !== index && current >= 0 && current <= last) show(current);
   };
 
   return (
@@ -60,16 +85,26 @@ export function PhotoGallery({
         onScroll={onScroll}
         scrollEventThrottle={16}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+        // Every page is mounted, so scrolling far ahead never lands on an unrendered page.
+        initialNumToRender={photos.length}
+        windowSize={photos.length * 2 + 1}
+        extraData={loaded}
         renderItem={({ item, index: i }) => (
-          <Image
-            source={{ uri: item.url }}
-            style={{ width, height }}
-            contentFit="cover"
-            transition={150}
-            accessibilityLabel={
-              item.caption ?? t("property.photo", { index: i + 1, total: photos.length })
-            }
-          />
+          <View style={[styles.page, { width, height }]}>
+            <ActivityIndicator color={colors.brandBlue} style={styles.spinner} />
+            {loaded.has(i) ? (
+              <Image
+                source={{ uri: item.url }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={150}
+                priority={i === index ? "high" : "normal"}
+                accessibilityLabel={
+                  item.caption ?? t("property.photo", { index: i + 1, total: photos.length })
+                }
+              />
+            ) : null}
+          </View>
         )}
         ListEmptyComponent={<View style={{ width, height, backgroundColor: colors.gray100 }} />}
       />
@@ -121,6 +156,8 @@ export function PhotoGallery({
 
 const styles = StyleSheet.create({
   rounded: { borderRadius: radii.lg, overflow: "hidden" },
+  page: { alignItems: "center", justifyContent: "center", backgroundColor: colors.gray100 },
+  spinner: { position: "absolute" },
   arrow: {
     position: "absolute",
     width: 40,

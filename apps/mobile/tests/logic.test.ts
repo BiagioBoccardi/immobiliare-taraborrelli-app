@@ -1,6 +1,7 @@
 import { formatEuro, formatPrice, place, whatsappUrl } from "../src/format";
 import { tCount } from "../src/i18n";
 import { viewerHtml } from "../src/components/ModelViewer";
+import { photosToLoad } from "../src/components/PhotoGallery";
 import { gridFor, layoutFor, SIDEBAR_WIDTH } from "../src/layout";
 import {
   computeMortgage,
@@ -188,5 +189,21 @@ describe("3D viewer page", () => {
     expect(html).toContain('src="https://media.test/a.glb?x=&quot;1&quot;"');
     expect(html).toContain('alt="Casa &lt;bella>"');
     expect(html).toContain("@google/model-viewer@4.4.0");
+  });
+});
+
+describe("photo gallery loading", () => {
+  it("downloads the current photo and its neighbors first", () => {
+    expect([...photosToLoad(new Set(), 0, 11)].sort((a, b) => a - b)).toEqual([0, 1]);
+  });
+
+  it("keeps the photos already seen", () => {
+    const loaded = photosToLoad(new Set([0, 1]), 5, 11);
+
+    expect([...loaded].sort((a, b) => a - b)).toEqual([0, 1, 4, 5, 6]);
+  });
+
+  it("stays within the photos of the property", () => {
+    expect([...photosToLoad(new Set(), 10, 11)].sort((a, b) => a - b)).toEqual([9, 10]);
   });
 });
