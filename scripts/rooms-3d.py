@@ -79,18 +79,36 @@ def login(api: str, email: str, password: str) -> str:
     )
 
 
-def all_properties(api: str, token: str) -> list[dict[str, Any]]:
+class Session:
+    """Staff session that logs in again when the short-lived access token expires."""
+
+    def __init__(self, api: str, email: str, password: str) -> None:
+        self.api, self.email, self.password = api, email, password
+        self.token = login(api, email, password)
+
+    def call(self, path: str, method: str = "GET", body: bytes | None = None,
+             content_type: str | None = None) -> Any:  # fmt: skip
+        try:
+            return http(f"{self.api}{path}", method, self.token, body, content_type)
+        except urllib.error.HTTPError as error:
+            if error.code != 401:
+                raise
+            self.token = login(self.api, self.email, self.password)
+            return http(f"{self.api}{path}", method, self.token, body, content_type)
+
+
+def all_properties(session: Session) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     page = 1
     while True:
-        result = http(f"{api}{ADMIN}?size=100&page={page}", token=token)
+        result = session.call(f"{ADMIN}?size=100&page={page}")
         items += result["items"]
         if not result["items"] or len(items) >= result["total"]:
             return items
         page += 1
 
 
-def put_glb(url: str, token: str, data: bytes, name: str) -> None:
+def put_glb(session: Session, path: str, data: bytes, name: str) -> None:
     boundary = uuid.uuid4().hex
     body = (
         (
@@ -100,7 +118,7 @@ def put_glb(url: str, token: str, data: bytes, name: str) -> None:
         + data
         + f"\r\n--{boundary}--\r\n".encode()
     )
-    http(url, "PUT", token, body, f"multipart/form-data; boundary={boundary}")
+    session.call(path, "PUT", body, f"multipart/form-data; boundary={boundary}")
 
 
 # --- Depth ------------------------------------------------------------------------------
@@ -233,23 +251,27 @@ def main() -> int:
     api = args.api.rstrip("/")
 
     try:
-        token = login(api, args.email, args.password)
-        properties = all_properties(api, token)
+        session = Session(api, args.email, args.password)
+        properties = all_properties(session)
     except urllib.error.URLError as error:
         print(f"Impossibile contattare il pannello su {api}: {error}. L'ambiente è avviato?")
         return 1
     if args.code:
         properties = [p for p in properties if p["external_ref"] in set(args.code)]
     properties.sort(key=lambda p: (len(p["external_ref"] or ""), p["external_ref"] or ""))
-    session = depth_session()
+    depth = depth_session()
 
     done = skipped = failed = removed = 0
     started = time.time()
     for item in properties:
         code = item["external_ref"] or item["reference"]
         if args.remove_property_models and item.get("three_d_model"):
-            http(f"{api}{ADMIN}/{item['id']}/model-3d", "DELETE", token)
-            removed += 1
+            try:
+                session.call(f"{ADMIN}/{item['id']}/model-3d", "DELETE")
+                removed += 1
+            except urllib.error.URLError as error:
+                failed += 1
+                print(f"{code} modello dell'immobile: errore {error}")
         for number, photo in enumerate(item["photos"], start=1):
             if photo.get("three_d_url") and not args.replace:
                 skipped += 1
@@ -261,8 +283,8 @@ def main() -> int:
                     path = url.split("/property-media/", 1)[1]
                     url = f"http://localhost:9100/property-media/{path}"
                 image = Image.open(io.BytesIO(http(url, raw=True))).convert("RGB")
-                glb = room_glb(image, estimate_depth(session, image))
-                put_glb(f"{api}{ADMIN}/{item['id']}/photos/{photo['id']}/model-3d", token, glb,
+                glb = room_glb(image, estimate_depth(depth, image))
+                put_glb(session, f"{ADMIN}/{item['id']}/photos/{photo['id']}/model-3d", glb,
                         f"{code}-{number:02d}.glb")  # fmt: skip
                 done += 1
             except (urllib.error.URLError, OSError, ValueError) as error:
