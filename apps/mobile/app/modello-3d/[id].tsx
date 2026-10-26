@@ -67,6 +67,9 @@ function Rooms({
           </>
         ) : null}
       </View>
+      <View style={styles.note}>
+        <Body muted>{t("model3d.rebuilt")}</Body>
+      </View>
       {rooms.length > 1 ? (
         <ScrollView
           horizontal
@@ -193,6 +196,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.xs,
     fontWeight: "600",
   },
+  note: { paddingHorizontal: spacing.lg },
   thumbList: { flexGrow: 0 },
   thumbs: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   thumb: {

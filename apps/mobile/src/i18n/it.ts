@@ -167,6 +167,8 @@ export const it = {
   "model3d.hint": "Trascina per ruotare, pizzica o usa la rotellina per avvicinarti.",
   "model3d.missing": "Questo immobile non ha ancora una vista 3D.",
   "model3d.room": "Stanza {index}",
+  "model3d.rebuilt":
+    "Ricostruzione indicativa della stanza, ricavata dalla foto: misure e arredi sono approssimativi.",
   "model3d.previousRoom": "Stanza precedente",
   "model3d.nextRoom": "Stanza successiva",
   "property.photo3d": "Vedi questa stanza in 3D",

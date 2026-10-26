@@ -232,6 +232,13 @@ describe("3D rooms", () => {
     expect(screen.getByText("2/2")).toBeTruthy();
   });
 
+  it("says that the rebuilt room is only indicative", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(makeDetail({ photos: rooms }));
+    await renderWithProviders(<ThreeDModelScreen />);
+
+    expect(await screen.findByText(/Ricostruzione indicativa della stanza/)).toBeTruthy();
+  });
+
   it("opens the room of the photo chosen in the gallery", async () => {
     mockParams = { id: "p1", foto: "f3" };
     mockedApi.property.getPublic.mockResolvedValue(makeDetail({ photos: rooms }));
