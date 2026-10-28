@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +13,7 @@ from tests.factories import (
     owner_request_payload,
     valuation_payload,
 )
+from tests.unit.fakes import RecordingNotifier
 
 BASE = "/api/v1/lead"
 
@@ -216,3 +218,15 @@ async def test_create_callback_request_validation_error_does_not_echo_contacts(
     assert response.status_code == 422
     assert "luca.neri" not in response.text
     assert "not-a-phone" not in response.text
+
+
+async def test_create_callback_request_notifies_the_agency(
+    app: FastAPI, client: AsyncClient
+) -> None:
+    notifier = RecordingNotifier()
+    app.state.staff_notifier = notifier
+
+    response = await client.post(f"{BASE}/callback-requests", json=callback_request_payload())
+
+    assert response.status_code == 201
+    assert [str(lead.id) for lead in notifier.notified] == [response.json()["id"]]

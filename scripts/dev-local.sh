@@ -17,7 +17,8 @@
 # disabled. The database lives in a Docker volume and the photos in .dev/media, so imported
 # properties and uploaded photos survive restarts and git pull.
 # The first start (or the first after "reset") creates a test administrator, a test user,
-# two sample owner requests and five fictional sample properties.
+# two sample owner requests and five fictional sample properties. The agency's notice for
+# every new request is saved in .dev/outbox (read it with "scripts/dev-local.sh email").
 #
 # Requirements: Docker, uv, Node.js 20+, Python 3 and openssl (cloudflared for --tunnel). On Windows use WSL2.
 # Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (photos), 8090 (tunnel proxy),
@@ -261,6 +262,8 @@ up() {
         JWT_PUBLIC_KEY="$(cat "$STATE/jwt-public.pem")" \
         S3_ENDPOINT_URL="http://localhost:$S3_PORT" S3_ACCESS_KEY=dev S3_SECRET_KEY=dev \
         S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="$MEDIA_BASE" \
+        STAFF_NOTIFICATION_EMAILS=agenzia@taraborrelli.test ADMIN_PANEL_URL=http://localhost:5173 \
+        EMAIL_BACKEND=outbox EMAIL_OUTBOX_DIR="$STATE/outbox" \
         uv run --quiet uvicorn app.main:app --port "$port"
     fi
     wait_for "http://localhost:$port/health" "$service"

@@ -24,7 +24,12 @@ from tests.factories import (
     owner_request_payload,
     valuation_payload,
 )
-from tests.unit.fakes import FailingPublisher, FakeLeadRepository
+from tests.unit.fakes import (
+    FailingNotifier,
+    FailingPublisher,
+    FakeLeadRepository,
+    RecordingNotifier,
+)
 
 NOW = datetime(2026, 10, 12, 9, 0, tzinfo=UTC)
 WINDOW = timedelta(days=7)
@@ -293,3 +298,37 @@ async def test_create_callback_request_with_empty_message_stores_none() -> None:
     )
 
     assert repo.leads[lead.id].message is None
+
+
+async def test_every_new_request_notifies_the_agency() -> None:
+    notifier = RecordingNotifier()
+    repo = FakeLeadRepository()
+    service = LeadService(
+        repo, InMemoryEventPublisher(), WINDOW, clock=lambda: NOW, notifier=notifier
+    )
+
+    await service.create_valuation(ValuationCreate.model_validate(valuation_payload()))
+    await service.create_owner_request(OwnerRequestCreate.model_validate(owner_request_payload()))
+    await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload())
+    )
+
+    assert [lead.kind for lead in notifier.notified] == [
+        LeadKind.VALUATION,
+        LeadKind.SELL,
+        LeadKind.CALLBACK,
+    ]
+
+
+async def test_create_callback_request_with_failing_email_still_stores_the_lead() -> None:
+    repo = FakeLeadRepository()
+    service = LeadService(
+        repo, InMemoryEventPublisher(), WINDOW, clock=lambda: NOW, notifier=FailingNotifier()
+    )
+
+    lead = await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload())
+    )
+
+    assert lead.id in repo.leads
+    assert repo.commits == 1

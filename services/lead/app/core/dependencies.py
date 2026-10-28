@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import Settings
 from app.repositories.lead import SqlLeadRepository
 from app.services.lead import LeadService
+from app.services.notifications import StaffNotifier
 
 
 def get_settings_dep(request: Request) -> Settings:
@@ -34,15 +35,21 @@ def get_token_verifier(request: Request) -> TokenVerifier:
     return cast(TokenVerifier, request.app.state.token_verifier)
 
 
+def get_staff_notifier(request: Request) -> StaffNotifier:
+    return cast(StaffNotifier, request.app.state.staff_notifier)
+
+
 def get_lead_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     publisher: Annotated[EventPublisher, Depends(get_publisher)],
     settings: Annotated[Settings, Depends(get_settings_dep)],
+    notifier: Annotated[StaffNotifier, Depends(get_staff_notifier)],
 ) -> LeadService:
     return LeadService(
         SqlLeadRepository(session),
         publisher,
         completion_window=timedelta(days=settings.valuation_completion_window_days),
+        notifier=notifier,
     )
 
 

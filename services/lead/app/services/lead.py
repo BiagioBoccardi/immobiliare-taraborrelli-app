@@ -28,6 +28,7 @@ from app.schemas.lead import (
     ValuationCreate,
     ValuationDetails,
 )
+from app.services.notifications import NoStaffNotifier, StaffNotifier
 from app.services.priority import priority_for
 from app.services.tokens import hash_token, new_token, token_matches
 
@@ -54,11 +55,13 @@ class LeadService:
         publisher: EventPublisher,
         completion_window: timedelta,
         clock: Callable[[], datetime] = utcnow,
+        notifier: StaffNotifier | None = None,
     ) -> None:
         self._repo = repository
         self._publisher = publisher
         self._completion_window = completion_window
         self._clock = clock
+        self._notifier = notifier or NoStaffNotifier()
 
     async def create_valuation(
         self, data: ValuationCreate, user_id: uuid.UUID | None = None
@@ -98,6 +101,7 @@ class LeadService:
             )
         )
         await self._emit_consent(lead)
+        await self._notify_staff(lead)
         return CreatedValuation(lead, token, now + self._completion_window)
 
     async def complete_valuation(
@@ -161,6 +165,7 @@ class LeadService:
             )
         )
         await self._emit_consent(lead)
+        await self._notify_staff(lead)
         return lead
 
     async def create_callback_request(
@@ -200,6 +205,7 @@ class LeadService:
             )
         )
         await self._emit_consent(lead)
+        await self._notify_staff(lead)
         return lead
 
     async def list_leads(self, filters: LeadFilters, params: PageParams) -> Page[LeadOut]:
@@ -261,6 +267,14 @@ class LeadService:
                 given_at=lead.contact_consent_at,
             )
         )
+
+    async def _notify_staff(self, lead: Lead) -> None:
+        # Sent before answering: on Cloud Run work after the response may never run.
+        # The request is already stored, so a failed email must not fail the form.
+        try:
+            await self._notifier.new_lead(lead)
+        except Exception:
+            logger.exception("failed to notify the agency of a new lead")
 
     async def _emit(self, payload: Any) -> None:
         # The lead is already stored: a broker failure must not lose the owner's request.
