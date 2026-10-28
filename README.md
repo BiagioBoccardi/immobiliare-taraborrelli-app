@@ -87,6 +87,11 @@ non fornisce quelli definitivi.
 | `GET` | `/api/v1/lead/leads` | Staff — lista paginata con filtri `kind`, `status`, `priority`, `due_for_contact` |
 | `GET` / `PATCH` / `DELETE` | `/api/v1/lead/leads/{id}` | Staff — dettaglio, aggiornamento CRM, cancellazione (GDPR) |
 
+Per ogni nuova richiesta (valutazione, vendita, affitto, ricontatto) l'agenzia riceve un'email
+di avviso con i contatti e il link alla richiesta nel pannello. I destinatari si indicano in
+`STAFF_NOTIFICATION_EMAILS` del servizio lead (vuoto: nessuna email); se l'invio fallisce la
+richiesta resta comunque salvata. Nella prova locale gli avvisi finiscono in `.dev/outbox`.
+
 Le richieste di ricontatto non descrivono un immobile (comune, tipologia e intenzione restano
 vuoti), hanno priorità media e risultano subito «da ricontattare», perché il sito promette una
 chiamata entro il giorno lavorativo successivo.
