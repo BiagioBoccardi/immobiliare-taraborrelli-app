@@ -36,6 +36,8 @@ function detailValue(key: string, value: unknown): string {
   if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
   if (key === "expected_price" && typeof value === "number") return formatEuro(value);
   if (key === "sell_timeline" && typeof value === "string") return tEnum("sellTimeline", value);
+  if (key === "preferred_time" && typeof value === "string") return tEnum("preferredTime", value);
+  if (key === "source" && typeof value === "string") return tEnum("leadSource", value);
   if (key === "parts_condition" && value && typeof value === "object") {
     return Object.entries(value as Record<string, string>)
       .map(([part, condition]) => `${tEnum("part", part)}: ${tEnum("partCondition", condition)}`)
@@ -191,23 +193,26 @@ export function LeadDetailPage() {
             </div>
           </section>
 
-          <section className="card">
-            <h2>{t("leads.property")}</h2>
-            <dl className="facts">
-              <dt>{t("leads.intention")}</dt>
-              <dd>{tEnum("intention", data.intention)}</dd>
-              <dt>{t("leads.municipality")}</dt>
-              <dd>{data.municipality}</dd>
-              <dt>{t("properties.type")}</dt>
-              <dd>{tEnum("propertyType", data.property_type)}</dd>
-              <dt>{t("details.surface")}</dt>
-              <dd>{data.surface_sqm ? `${data.surface_sqm} m²` : t("common.none")}</dd>
-              <dt>{t("details.rooms")}</dt>
-              <dd>{data.rooms ?? t("common.none")}</dd>
-              <dt>{t("details.condition")}</dt>
-              <dd>{tEnum("condition", data.condition)}</dd>
-            </dl>
-          </section>
+          {/* Callback requests from the website carry contact details only. */}
+          {data.kind === "callback" ? null : (
+            <section className="card">
+              <h2>{t("leads.property")}</h2>
+              <dl className="facts">
+                <dt>{t("leads.intention")}</dt>
+                <dd>{tEnum("intention", data.intention)}</dd>
+                <dt>{t("leads.municipality")}</dt>
+                <dd>{data.municipality ?? t("common.none")}</dd>
+                <dt>{t("properties.type")}</dt>
+                <dd>{tEnum("propertyType", data.property_type)}</dd>
+                <dt>{t("details.surface")}</dt>
+                <dd>{data.surface_sqm ? `${data.surface_sqm} m²` : t("common.none")}</dd>
+                <dt>{t("details.rooms")}</dt>
+                <dd>{data.rooms ?? t("common.none")}</dd>
+                <dt>{t("details.condition")}</dt>
+                <dd>{tEnum("condition", data.condition)}</dd>
+              </dl>
+            </section>
+          )}
 
           <section className="card">
             <h2>{t("leads.details")}</h2>

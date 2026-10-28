@@ -10,6 +10,7 @@ from app.models.enums import (
     LeadPriority,
     LeadStatus,
     OwnerIntention,
+    PreferredTime,
     PropertyCondition,
     PropertyType,
 )
@@ -123,6 +124,23 @@ class OwnerRequestCreate(BaseModel):
     consent: ConsentIn
 
 
+CallbackMessage = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+
+
+class CallbackRequestCreate(BaseModel):
+    """ "Richiedi di essere ricontattato" on the agency's website: contact details only."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    first_name: PersonName
+    last_name: PersonName
+    email: EmailText
+    phone: Phone
+    preferred_time: PreferredTime
+    message: CallbackMessage | None = None
+    consent: ConsentIn
+
+
 class LeadCreatedOut(BaseModel):
     id: uuid.UUID
     kind: LeadKind
@@ -143,12 +161,12 @@ class LeadOut(BaseModel):
     kind: LeadKind
     status: LeadStatus
     priority: LeadPriority
-    intention: OwnerIntention
+    intention: OwnerIntention | None
     full_name: str
     phone: str
     email: str | None
-    municipality: str
-    property_type: PropertyType
+    municipality: str | None
+    property_type: PropertyType | None
     surface_sqm: int | None
     rooms: int | None
     condition: PropertyCondition | None
@@ -196,6 +214,6 @@ class MyRequestOut(BaseModel):
     id: uuid.UUID
     kind: LeadKind
     status: LeadStatus
-    municipality: str
-    property_type: PropertyType
+    municipality: str | None
+    property_type: PropertyType | None
     created_at: datetime

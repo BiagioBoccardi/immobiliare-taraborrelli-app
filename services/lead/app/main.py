@@ -13,8 +13,35 @@ from app.core.config import Settings, get_settings
 from app.core.database import create_engine, create_session_factory
 from app.events.consumers import USER_DELETED_ROUTING_KEY, UserDeletedHandler
 from app.events.publisher import LoggingEventPublisher
+from app.services.email import EmailSender, OutboxEmailSender, SmtpEmailSender
+from app.services.notifications import EmailStaffNotifier, NoStaffNotifier, StaffNotifier
 
 API_PREFIX = "/api/v1/lead"
+
+
+def build_email_sender(settings: Settings) -> EmailSender:
+    if settings.email_backend == "smtp":
+        if not settings.smtp_host:
+            raise RuntimeError("SMTP_HOST is required when EMAIL_BACKEND=smtp")
+        return SmtpEmailSender(
+            settings.smtp_host,
+            settings.smtp_port,
+            settings.smtp_username,
+            settings.smtp_password,
+            settings.email_from,
+            use_ssl=settings.smtp_ssl,
+        )
+    return OutboxEmailSender(settings.email_outbox_dir, settings.email_from)
+
+
+def build_staff_notifier(settings: Settings) -> StaffNotifier:
+    if not settings.staff_notification_emails:
+        return NoStaffNotifier()
+    return EmailStaffNotifier(
+        build_email_sender(settings),
+        settings.staff_notification_emails,
+        settings.admin_panel_url,
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -56,6 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=f"{API_PREFIX}/docs",
     )
     app.state.settings = settings
+    app.state.staff_notifier = build_staff_notifier(settings)
     app.state.token_verifier = TokenVerifier(
         settings.jwt_public_key, settings.jwt_algorithm, settings.jwt_audience, settings.jwt_issuer
     )

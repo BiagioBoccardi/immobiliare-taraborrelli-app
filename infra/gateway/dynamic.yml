@@ -9,6 +9,7 @@ http:
           - http://localhost:5173  # admin (Vite)
           - http://localhost:5174  # public valuation page (Vite)
           - http://localhost:8081  # Expo web
+          - https://immobiliare-taraborrelli.netlify.app  # agency website: callback form
         accessControlMaxAge: 600
         addVaryHeader: true
 

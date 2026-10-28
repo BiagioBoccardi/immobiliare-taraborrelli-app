@@ -1,11 +1,19 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.lead import Lead
-from tests.factories import consent_payload, make_lead, owner_request_payload, valuation_payload
+from tests.factories import (
+    callback_request_payload,
+    consent_payload,
+    make_lead,
+    owner_request_payload,
+    valuation_payload,
+)
+from tests.unit.fakes import RecordingNotifier
 
 BASE = "/api/v1/lead"
 
@@ -143,3 +151,82 @@ async def test_create_owner_request_with_missing_intention_returns_422(
     response = await client.post(f"{BASE}/owner-requests", json=payload)
 
     assert response.status_code == 422
+
+
+async def test_create_callback_request_returns_201_and_stores_lead(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    response = await client.post(f"{BASE}/callback-requests", json=callback_request_payload())
+
+    body = response.json()
+    assert response.status_code == 201
+    assert body["kind"] == "callback"
+    lead = await db_session.get(Lead, uuid.UUID(body["id"]))
+    assert lead is not None
+    assert lead.details["preferred_time"] == "morning"
+
+
+async def test_create_callback_request_without_privacy_consent_returns_422(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload(consent=consent_payload(privacy_accepted=False))
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+
+
+async def test_create_callback_request_without_consent_field_returns_422(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload()
+    del payload["consent"]
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+
+
+async def test_create_callback_request_with_unknown_time_slot_returns_422(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload(preferred_time="notte")
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+
+
+async def test_create_callback_request_with_long_message_returns_422(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload(message="a" * 501)
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+
+
+async def test_create_callback_request_validation_error_does_not_echo_contacts(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload(email="luca.neri-at-example", phone="not-a-phone")
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+    assert "luca.neri" not in response.text
+    assert "not-a-phone" not in response.text
+
+
+async def test_create_callback_request_notifies_the_agency(
+    app: FastAPI, client: AsyncClient
+) -> None:
+    notifier = RecordingNotifier()
+    app.state.staff_notifier = notifier
+
+    response = await client.post(f"{BASE}/callback-requests", json=callback_request_payload())
+
+    assert response.status_code == 201
+    assert [str(lead.id) for lead in notifier.notified] == [response.json()["id"]]

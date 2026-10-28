@@ -8,6 +8,7 @@ from py_common.pagination import PageParams
 
 from app.models.enums import LeadKind, LeadPriority, LeadStatus
 from app.schemas.lead import (
+    CallbackRequestCreate,
     LeadFilters,
     LeadUpdate,
     OwnerRequestCreate,
@@ -17,12 +18,18 @@ from app.schemas.lead import (
 from app.services.lead import LeadService
 from app.services.tokens import token_matches
 from tests.factories import (
+    callback_request_payload,
     consent_payload,
     make_lead,
     owner_request_payload,
     valuation_payload,
 )
-from tests.unit.fakes import FailingPublisher, FakeLeadRepository
+from tests.unit.fakes import (
+    FailingNotifier,
+    FailingPublisher,
+    FakeLeadRepository,
+    RecordingNotifier,
+)
 
 NOW = datetime(2026, 10, 12, 9, 0, tzinfo=UTC)
 WINDOW = timedelta(days=7)
@@ -251,3 +258,77 @@ async def test_delete_user_requests_twice_deletes_once() -> None:
 
     assert deleted_again == 0
     assert len(repo.leads) == 1
+
+
+async def test_create_callback_request_stores_contact_details_without_property() -> None:
+    service, repo, _ = build_service()
+
+    lead = await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload())
+    )
+
+    stored = repo.leads[lead.id]
+    assert stored.kind is LeadKind.CALLBACK
+    assert stored.full_name == "Luca Neri"
+    assert stored.phone == "+393334445555"
+    assert stored.email == "luca.neri@example.com"
+    assert stored.municipality is None
+    assert stored.property_type is None
+    assert stored.intention is None
+    assert stored.details == {"preferred_time": "morning", "source": "website"}
+    assert repo.commits == 1
+
+
+async def test_create_callback_request_is_due_for_contact_immediately() -> None:
+    service, repo, _ = build_service()
+
+    lead = await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload())
+    )
+
+    assert repo.leads[lead.id].next_contact_at == NOW
+    assert repo.leads[lead.id].priority is LeadPriority.MEDIUM
+
+
+async def test_create_callback_request_with_empty_message_stores_none() -> None:
+    service, repo, _ = build_service()
+
+    lead = await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload(message="   "))
+    )
+
+    assert repo.leads[lead.id].message is None
+
+
+async def test_every_new_request_notifies_the_agency() -> None:
+    notifier = RecordingNotifier()
+    repo = FakeLeadRepository()
+    service = LeadService(
+        repo, InMemoryEventPublisher(), WINDOW, clock=lambda: NOW, notifier=notifier
+    )
+
+    await service.create_valuation(ValuationCreate.model_validate(valuation_payload()))
+    await service.create_owner_request(OwnerRequestCreate.model_validate(owner_request_payload()))
+    await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload())
+    )
+
+    assert [lead.kind for lead in notifier.notified] == [
+        LeadKind.VALUATION,
+        LeadKind.SELL,
+        LeadKind.CALLBACK,
+    ]
+
+
+async def test_create_callback_request_with_failing_email_still_stores_the_lead() -> None:
+    repo = FakeLeadRepository()
+    service = LeadService(
+        repo, InMemoryEventPublisher(), WINDOW, clock=lambda: NOW, notifier=FailingNotifier()
+    )
+
+    lead = await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload())
+    )
+
+    assert lead.id in repo.leads
+    assert repo.commits == 1

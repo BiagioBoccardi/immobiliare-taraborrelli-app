@@ -8,16 +8,18 @@ from typing import Any, Literal
 from py_common.errors import AppError, ConflictError, NotFoundError
 from py_common.events import Event, EventPublisher
 from py_common.events.lead import (
+    CallbackRequestedV1,
     LeadConsentGivenV1,
     OwnerRequestReceivedV1,
     ValuationRequestedV1,
 )
 from py_common.pagination import Page, PageParams
 
-from app.models.enums import LeadKind, LeadStatus
+from app.models.enums import LeadKind, LeadPriority, LeadStatus
 from app.models.lead import Lead
 from app.repositories.lead import LeadRepository
 from app.schemas.lead import (
+    CallbackRequestCreate,
     LeadFilters,
     LeadOut,
     LeadUpdate,
@@ -26,6 +28,7 @@ from app.schemas.lead import (
     ValuationCreate,
     ValuationDetails,
 )
+from app.services.notifications import NoStaffNotifier, StaffNotifier
 from app.services.priority import priority_for
 from app.services.tokens import hash_token, new_token, token_matches
 
@@ -52,11 +55,13 @@ class LeadService:
         publisher: EventPublisher,
         completion_window: timedelta,
         clock: Callable[[], datetime] = utcnow,
+        notifier: StaffNotifier | None = None,
     ) -> None:
         self._repo = repository
         self._publisher = publisher
         self._completion_window = completion_window
         self._clock = clock
+        self._notifier = notifier or NoStaffNotifier()
 
     async def create_valuation(
         self, data: ValuationCreate, user_id: uuid.UUID | None = None
@@ -91,11 +96,12 @@ class LeadService:
             ValuationRequestedV1(
                 lead_id=lead.id,
                 priority=lead.priority.value,
-                municipality=lead.municipality,
-                property_type=lead.property_type.value,
+                municipality=data.municipality,
+                property_type=data.property_type.value,
             )
         )
         await self._emit_consent(lead)
+        await self._notify_staff(lead)
         return CreatedValuation(lead, token, now + self._completion_window)
 
     async def complete_valuation(
@@ -154,11 +160,52 @@ class LeadService:
                 lead_id=lead.id,
                 kind=kind,
                 priority=lead.priority.value,
-                municipality=lead.municipality,
-                property_type=lead.property_type.value,
+                municipality=data.municipality,
+                property_type=data.property_type.value,
             )
         )
         await self._emit_consent(lead)
+        await self._notify_staff(lead)
+        return lead
+
+    async def create_callback_request(
+        self, data: CallbackRequestCreate, user_id: uuid.UUID | None = None
+    ) -> Lead:
+        """The website promises a call back by the next working day, so the request is
+        due for contact as soon as it arrives and shows up in "Da ricontattare"."""
+        now = self._clock()
+        lead = Lead(
+            id=uuid.uuid4(),
+            kind=LeadKind.CALLBACK,
+            status=LeadStatus.NEW,
+            user_id=user_id,
+            priority=LeadPriority.MEDIUM,
+            intention=None,
+            full_name=f"{data.first_name} {data.last_name}",
+            phone=data.phone,
+            email=data.email,
+            municipality=None,
+            property_type=None,
+            message=data.message or None,
+            details={"preferred_time": data.preferred_time.value, "source": "website"},
+            contact_consent_at=now,
+            privacy_policy_version=data.consent.privacy_policy_version,
+            marketing_consent=data.consent.marketing_accepted,
+            next_contact_at=now,
+            created_at=now,
+            updated_at=now,
+        )
+        await self._repo.add(lead)
+        await self._repo.commit()
+        await self._emit(
+            CallbackRequestedV1(
+                lead_id=lead.id,
+                priority=lead.priority.value,
+                preferred_time=data.preferred_time.value,
+            )
+        )
+        await self._emit_consent(lead)
+        await self._notify_staff(lead)
         return lead
 
     async def list_leads(self, filters: LeadFilters, params: PageParams) -> Page[LeadOut]:
@@ -220,6 +267,14 @@ class LeadService:
                 given_at=lead.contact_consent_at,
             )
         )
+
+    async def _notify_staff(self, lead: Lead) -> None:
+        # Sent before answering: on Cloud Run work after the response may never run.
+        # The request is already stored, so a failed email must not fail the form.
+        try:
+            await self._notifier.new_lead(lead)
+        except Exception:
+            logger.exception("failed to notify the agency of a new lead")
 
     async def _emit(self, payload: Any) -> None:
         # The lead is already stored: a broker failure must not lose the owner's request.

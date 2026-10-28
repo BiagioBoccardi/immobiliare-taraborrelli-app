@@ -1,6 +1,63 @@
 {
   "components": {
     "schemas": {
+      "CallbackRequestCreate": {
+        "additionalProperties": false,
+        "description": "\"Richiedi di essere ricontattato\" on the agency's website: contact details only.",
+        "properties": {
+          "consent": {
+            "$ref": "#/components/schemas/ConsentIn"
+          },
+          "email": {
+            "maxLength": 254,
+            "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "first_name": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Last Name",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "phone": {
+            "maxLength": 25,
+            "title": "Phone",
+            "type": "string"
+          },
+          "preferred_time": {
+            "$ref": "#/components/schemas/PreferredTime"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "phone",
+          "preferred_time",
+          "consent"
+        ],
+        "title": "CallbackRequestCreate",
+        "type": "object"
+      },
       "ConsentIn": {
         "description": "Consent given when the form is submitted. Contact consent is mandatory (GDPR).",
         "properties": {
@@ -85,7 +142,8 @@
         "enum": [
           "valuation",
           "sell",
-          "rent"
+          "rent",
+          "callback"
         ],
         "title": "LeadKind",
         "type": "string"
@@ -138,7 +196,14 @@
             "type": "string"
           },
           "intention": {
-            "$ref": "#/components/schemas/OwnerIntention"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OwnerIntention"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "kind": {
             "$ref": "#/components/schemas/LeadKind"
@@ -159,8 +224,15 @@
             "title": "Message"
           },
           "municipality": {
-            "title": "Municipality",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Municipality"
           },
           "next_contact_at": {
             "anyOf": [
@@ -186,7 +258,14 @@
             "type": "string"
           },
           "property_type": {
-            "$ref": "#/components/schemas/PropertyType"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropertyType"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "rooms": {
             "anyOf": [
@@ -359,11 +438,25 @@
             "$ref": "#/components/schemas/LeadKind"
           },
           "municipality": {
-            "title": "Municipality",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Municipality"
           },
           "property_type": {
-            "$ref": "#/components/schemas/PropertyType"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PropertyType"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
             "$ref": "#/components/schemas/LeadStatus"
@@ -597,6 +690,17 @@
         },
         "title": "PartsCondition",
         "type": "object"
+      },
+      "PreferredTime": {
+        "description": "When the person asking to be called back prefers to receive the call.",
+        "enum": [
+          "morning",
+          "afternoon",
+          "evening",
+          "any"
+        ],
+        "title": "PreferredTime",
+        "type": "string"
       },
       "PropertyCondition": {
         "enum": [
@@ -948,6 +1052,53 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/lead/callback-requests": {
+      "post": {
+        "description": "\"Richiedi di essere ricontattato\" from the agency's website.",
+        "operationId": "create_callback_request_api_v1_lead_callback_requests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallbackRequestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeadCreatedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Callback Request",
+        "tags": [
+          "public"
+        ]
+      }
+    },
     "/api/v1/lead/leads": {
       "get": {
         "operationId": "list_leads_api_v1_lead_leads_get",
