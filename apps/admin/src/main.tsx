@@ -10,9 +10,13 @@ import { SessionProvider } from "./auth/SessionContext";
 import { SessionStore } from "./auth/session";
 import { config } from "./config";
 import { applyTheme } from "./theme/applyTheme";
+import { warmUpServices } from "./warmUp";
 import "./theme/styles.css";
 
 applyTheme();
+
+// Hosted on Render's free plan, where the services sleep when idle (see warmUp.ts).
+if (import.meta.env.VITE_WARM_UP_SERVICES === "true") void warmUpServices();
 
 const session = new SessionStore(window.sessionStorage);
 const api = createApiClient({
