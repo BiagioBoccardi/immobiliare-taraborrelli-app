@@ -177,7 +177,7 @@ services:
       - traefik.enable=true
       - traefik.http.services.lead.loadbalancer.server.port=8000
       # Public owner forms, with a strict rate limit.
-      - traefik.http.routers.lead-public.rule=PathPrefix(`/api/v1/lead/valuations`) || PathPrefix(`/api/v1/lead/owner-requests`)
+      - traefik.http.routers.lead-public.rule=PathPrefix(`/api/v1/lead/valuations`) || PathPrefix(`/api/v1/lead/owner-requests`) || PathPrefix(`/api/v1/lead/callback-requests`)
       - traefik.http.routers.lead-public.entrypoints=web
       - traefik.http.routers.lead-public.middlewares=cors@file,public-forms-ratelimit@file
       - traefik.http.routers.lead-public.service=lead
