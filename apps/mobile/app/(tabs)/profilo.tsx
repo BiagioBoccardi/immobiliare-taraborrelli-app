@@ -20,6 +20,7 @@ const KIND_LABEL: Record<MyRequest["kind"], TranslationKey> = {
   valuation: "profile.requestValuation",
   sell: "profile.requestSell",
   rent: "profile.requestRent",
+  callback: "profile.requestCallback",
 };
 
 const CONSENTS: { purpose: ConsentPurpose; label: TranslationKey }[] = [
@@ -67,7 +68,9 @@ function Requests() {
         <View key={request.id} style={styles.request}>
           <View style={styles.requestText}>
             <Text style={styles.requestTitle}>
-              {t(KIND_LABEL[request.kind])} · {request.municipality}
+              {request.municipality
+                ? `${t(KIND_LABEL[request.kind])} · ${request.municipality}`
+                : t(KIND_LABEL[request.kind])}
             </Text>
             <Body muted>{t("profile.sentOn", { date: formatDate(request.created_at) })}</Body>
           </View>

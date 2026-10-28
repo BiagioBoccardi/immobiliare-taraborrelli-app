@@ -13,6 +13,8 @@ export type ValuationCreate = Schemas["ValuationCreate"];
 export type ValuationCreated = Schemas["ValuationCreatedOut"];
 export type ValuationDetails = Schemas["ValuationDetails"];
 export type OwnerRequestCreate = Schemas["OwnerRequestCreate"];
+export type CallbackRequestCreate = Schemas["CallbackRequestCreate"];
+export type PreferredTime = Schemas["PreferredTime"];
 export type LeadCreated = Schemas["LeadCreatedOut"];
 export type MyRequest = Schemas["MyRequestOut"];
 
@@ -38,6 +40,9 @@ export function leadApi(http: HttpClient) {
       }),
     createOwnerRequest: (data: OwnerRequestCreate) =>
       http.request<LeadCreated>("POST", `${BASE}/owner-requests`, { json: data }),
+    // "Richiedi di essere ricontattato" on the agency's website.
+    createCallbackRequest: (data: CallbackRequestCreate) =>
+      http.request<LeadCreated>("POST", `${BASE}/callback-requests`, { json: data }),
     myRequests: (query: PageQuery) =>
       http.request<Page<MyRequest>>("GET", `${BASE}/me/requests`, { query: { ...query } }),
 

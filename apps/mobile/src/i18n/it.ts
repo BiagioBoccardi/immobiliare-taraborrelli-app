@@ -213,6 +213,7 @@ export const it = {
   "profile.requestSell": "Vendita",
   "profile.requestRent": "Affitto",
   "profile.requestValuation": "Valutazione",
+  "profile.requestCallback": "Richiesta di ricontatto",
   "profile.sentOn": "Inviata il {date}",
   "profile.consents": "Preferenze",
   "profile.consentMarketing": "Novità e offerte dall'agenzia",

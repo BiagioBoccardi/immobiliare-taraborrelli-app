@@ -7,7 +7,7 @@ import { Empty, ErrorAlert, Field, Loading, PageHeader, Pagination } from "../co
 import { t, tEnum } from "../i18n";
 import { formatDateTime } from "../utils/format";
 
-const KINDS: LeadKind[] = ["valuation", "sell", "rent"];
+const KINDS: LeadKind[] = ["valuation", "sell", "rent", "callback"];
 const STATUSES: LeadStatus[] = [
   "new",
   "contacted",
@@ -136,7 +136,7 @@ export function LeadsPage() {
                         </a>
                       </td>
                       <td>{tEnum("leadKind", lead.kind)}</td>
-                      <td>{lead.municipality}</td>
+                      <td>{lead.municipality ?? t("common.none")}</td>
                       <td>
                         <PriorityBadge priority={lead.priority} />
                       </td>

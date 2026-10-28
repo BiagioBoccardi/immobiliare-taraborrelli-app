@@ -70,7 +70,7 @@ export function DashboardPage() {
                       <Link to={`/leads/${lead.id}`}>{lead.full_name}</Link>
                     </td>
                     <td>{tEnum("leadKind", lead.kind)}</td>
-                    <td>{lead.municipality}</td>
+                    <td>{lead.municipality ?? t("common.none")}</td>
                     <td>
                       <PriorityBadge priority={lead.priority} />
                     </td>

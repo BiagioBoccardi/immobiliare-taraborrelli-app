@@ -130,6 +130,33 @@ describe("leads", () => {
     );
   });
 
+  it("shows a callback request from the website without the property section", async () => {
+    const api = fakeApi();
+    const lead = makeLead({
+      kind: "callback",
+      full_name: "Luca Neri",
+      email: "luca.neri@example.com",
+      intention: null,
+      municipality: null,
+      property_type: null,
+      details: { preferred_time: "morning", source: "website" },
+      message: "Cerco un bilocale a Chieti Scalo.",
+    });
+    api.lead.getLead.mockResolvedValue(lead);
+    const store = await signedInStore(api);
+    renderApp(api, store, "/leads/lead-1");
+
+    expect(await screen.findByText(/Richiesta di ricontatto/)).toBeVisible();
+    expect(screen.getByText("Mattina (9:00 – 12:00)")).toBeVisible();
+    expect(screen.getByText("Sito web")).toBeVisible();
+    expect(screen.getByText("Cerco un bilocale a Chieti Scalo.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Scrivi email" })).toHaveAttribute(
+      "href",
+      "mailto:luca.neri@example.com",
+    );
+    expect(screen.queryByRole("heading", { name: "Immobile" })).toBeNull();
+  });
+
   it("deletes a lead only after confirmation", async () => {
     const api = fakeApi();
     api.lead.getLead.mockResolvedValue(makeLead());
