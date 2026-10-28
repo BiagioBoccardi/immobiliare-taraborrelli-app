@@ -226,6 +226,17 @@ describe("service clients", () => {
     expect(fetch.calls[0]?.init.headers).not.toHaveProperty("Content-Type");
   });
 
+  it("sends the 3D model as multipart form data with PUT", async () => {
+    const fetch = fakeFetch(jsonResponse(200, {}));
+    const api = createApiClient({ baseUrl: "", fetch: fetch.impl });
+
+    await api.property.uploadThreeDModel("p-1", new Blob(["glTF"], { type: "model/gltf-binary" }));
+
+    expect(fetch.calls[0]?.url).toBe("/api/v1/property/admin/properties/p-1/model-3d");
+    expect(fetch.calls[0]?.init.method).toBe("PUT");
+    expect(fetch.calls[0]?.init.body).toBeInstanceOf(FormData);
+  });
+
   it("serializes property search filters", async () => {
     const fetch = fakeFetch(jsonResponse(200, { items: [], total: 0, page: 1, size: 20 }));
     const api = createApiClient({ baseUrl: "", fetch: fetch.impl });

@@ -161,6 +161,11 @@ export default function Profile() {
           label={t("profile.contact")}
           onPress={() => router.push("/contatti")}
         />
+        <Row
+          icon="calculator-outline"
+          label={t("mortgage.title")}
+          onPress={() => router.push("/mutuo")}
+        />
         {privacy.url ? (
           <Row
             icon="shield-checkmark-outline"

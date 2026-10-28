@@ -114,9 +114,26 @@ down() {
   info "Ambiente di prova fermato (i dati restano per il prossimo avvio)."
 }
 
+# Photos of the trial when it still used MinIO: copied once into .dev/media at the next start.
+OLD_MINIO_VOLUME="taraborrelli-dev-s3data"
+
+# Copies the photos left in the old MinIO volume, once (a marker file remembers it).
+import_old_photos() {
+  local marker="$STATE/media/.minio-imported"
+  [ -f "$marker" ] && return
+  docker volume inspect "$OLD_MINIO_VOLUME" >/dev/null 2>&1 || return 0
+  info "Recupero delle foto caricate con la versione precedente (MinIO)…"
+  if "$ROOT/scripts/import-minio-photos.sh" >>"$STATE/logs/import-photos.log" 2>&1; then
+    mkdir -p "$STATE/media" && touch "$marker"
+    info "$(grep -E 'Foto copiate' "$STATE/logs/import-photos.log" | tail -1)"
+  else
+    info "Attenzione: foto della versione precedente non recuperate, vedi $STATE/logs/import-photos.log (riprovo al prossimo avvio)."
+  fi
+}
+
 reset() {
   down
-  docker volume rm "$DB_VOLUME" >/dev/null 2>&1 || true
+  docker volume rm "$DB_VOLUME" "$OLD_MINIO_VOLUME" >/dev/null 2>&1 || true
   rm -rf "$STATE/media" "$STATE/jwt-private.pem" "$STATE/jwt-public.pem"
   info "Dati di prova eliminati: il prossimo avvio riparte da zero."
 }
@@ -217,6 +234,7 @@ up() {
     openssl pkey -in "$STATE/jwt-private.pem" -pubout -out "$STATE/jwt-public.pem"
   fi
 
+  import_old_photos
   info "Archivio foto (porta $S3_PORT, cartella .dev/media)…"
   # With --lan the phone loads the photos directly from here.
   local s3_bind=127.0.0.1

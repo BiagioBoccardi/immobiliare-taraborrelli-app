@@ -150,6 +150,45 @@ async def upload_photo(
     return await service.add_photo(property_id, data, caption)
 
 
+@router.put("/{property_id}/model-3d", response_model=AdminPropertyOut)
+async def upload_three_d_model(
+    property_id: uuid.UUID,
+    service: Service,
+    settings: Annotated[Settings, Depends(get_settings_dep)],
+    file: Annotated[UploadFile, File()],
+) -> AdminPropertyOut:
+    """Uploads the 3D model of the property (.glb), replacing the previous one."""
+    # Read one byte more than allowed, so oversized files are rejected without loading them.
+    data = await file.read(settings.max_model_bytes + 1)
+    return await service.set_three_d_model(property_id, data)
+
+
+@router.delete("/{property_id}/model-3d", response_model=AdminPropertyOut)
+async def delete_three_d_model(property_id: uuid.UUID, service: Service) -> AdminPropertyOut:
+    return await service.delete_three_d_model(property_id)
+
+
+@router.put("/{property_id}/photos/{photo_id}/model-3d", response_model=AdminPropertyOut)
+async def upload_photo_three_d(
+    property_id: uuid.UUID,
+    photo_id: uuid.UUID,
+    service: Service,
+    settings: Annotated[Settings, Depends(get_settings_dep)],
+    file: Annotated[UploadFile, File()],
+) -> AdminPropertyOut:
+    """Uploads the 3D version of the room in a photo (.glb), replacing the previous one."""
+    # Read one byte more than allowed, so oversized files are rejected without loading them.
+    data = await file.read(settings.max_model_bytes + 1)
+    return await service.set_photo_three_d(property_id, photo_id, data)
+
+
+@router.delete("/{property_id}/photos/{photo_id}/model-3d", response_model=AdminPropertyOut)
+async def delete_photo_three_d(
+    property_id: uuid.UUID, photo_id: uuid.UUID, service: Service
+) -> AdminPropertyOut:
+    return await service.delete_photo_three_d(property_id, photo_id)
+
+
 @router.patch("/{property_id}/photos/{photo_id}", response_model=AdminPropertyOut)
 async def update_photo(
     property_id: uuid.UUID, photo_id: uuid.UUID, changes: PhotoUpdate, service: Service

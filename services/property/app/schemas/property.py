@@ -141,12 +141,21 @@ class PhotoOut(BaseModel):
     id: uuid.UUID
     url: str
     caption: str | None
+    # 3D version of the room in the photo, when there is one (binary glTF).
+    three_d_url: str | None = None
 
 
 class AdminPhotoOut(PhotoOut):
     position: int
     show_when_sold: bool
     content_type: str
+    size_bytes: int
+
+
+class ThreeDModelOut(BaseModel):
+    """3D model of the property (binary glTF, .glb)."""
+
+    url: str
     size_bytes: int
 
 
@@ -191,6 +200,7 @@ class PropertyDetail(PropertyCard):
     tenant_types: list[TenantType]
     accommodation: Accommodation | None
     photos: list[PhotoOut]
+    three_d_model: ThreeDModelOut | None
 
 
 class AdminPropertyOut(BaseModel):
@@ -233,6 +243,7 @@ class AdminPropertyOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     photos: list[AdminPhotoOut]
+    three_d_model: ThreeDModelOut | None
 
 
 class SoldCard(BaseModel):

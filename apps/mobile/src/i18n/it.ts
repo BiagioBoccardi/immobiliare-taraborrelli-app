@@ -132,6 +132,47 @@ export const it = {
   "property.removeFavorite": "Togli dai preferiti",
   "property.shareLabel": "Condividi",
   "property.photo": "Foto {index} di {total}",
+  "property.previousPhoto": "Foto precedente",
+  "property.nextPhoto": "Foto successiva",
+  "property.view3d": "Vedi in 3D",
+  "property.mortgage": "Rata mutuo",
+
+  "tabs.mortgage": "Mutuo",
+
+  "mortgage.title": "Calcola il mutuo",
+  "mortgage.subtitle":
+    "Inserisci prezzo, anticipo, durata e tasso: ti mostriamo la rata mensile e quanto costa il mutuo in totale.",
+  "mortgage.price": "Prezzo dell'immobile (€)",
+  "mortgage.downPayment": "Anticipo (€)",
+  "mortgage.downPaymentHint": "Pari al {percent}% del prezzo",
+  "mortgage.years": "Durata",
+  "mortgage.yearsValue": "{years} anni",
+  "mortgage.rate": "Tasso annuo (%)",
+  "mortgage.rateHint": "Valore di esempio: inserisci il tasso proposto dalla tua banca.",
+  "mortgage.invalidPrice": "Inserisci il prezzo dell'immobile",
+  "mortgage.invalidDownPayment": "L'anticipo deve essere inferiore al prezzo",
+  "mortgage.invalidRate": "Inserisci un tasso tra 0 e 15%",
+  "mortgage.monthly": "Rata mensile",
+  "mortgage.loan": "Importo del mutuo",
+  "mortgage.interest": "Interessi totali",
+  "mortgage.total": "Totale da restituire",
+  "mortgage.ratio": "Percentuale finanziata: {percent}% del prezzo",
+  "mortgage.highRatio":
+    "Di solito le banche finanziano fino all'80% del valore dell'immobile: con questo anticipo potrebbe servire una garanzia in più.",
+  "mortgage.disclaimer":
+    "Il risultato è indicativo e non è un preventivo: rata e condizioni dipendono dalla banca, dalle spese e dalla tua situazione.",
+  "mortgage.contact": "Parla con l'agenzia",
+
+  "model3d.title": "Vista 3D",
+  "model3d.hint": "Trascina per ruotare, pizzica o usa la rotellina per avvicinarti.",
+  "model3d.missing": "Questo immobile non ha ancora una vista 3D.",
+  "model3d.room": "Stanza {index}",
+  "model3d.rebuilt":
+    "Ricostruzione indicativa della stanza, ricavata dalla foto: misure e arredi sono approssimativi.",
+  "model3d.previousRoom": "Stanza precedente",
+  "model3d.nextRoom": "Stanza successiva",
+  "property.photo3d": "Vedi questa stanza in 3D",
+  "model3d.loadError": "Non è stato possibile caricare il modello 3D.",
 
   "favorites.title": "Preferiti",
   "favorites.empty": "Non hai ancora salvato immobili.",

@@ -14,6 +14,15 @@ JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 64
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 WEBP_BYTES = b"RIFF\x00\x00\x00\x00WEBPVP8 " + b"\x00" * 64
 
+
+def glb_bytes(body_size: int = 52) -> bytes:
+    """A binary glTF 2.0 file: 12-byte header (magic, version, total length) and a body."""
+    total = 12 + body_size
+    return b"glTF" + (2).to_bytes(4, "little") + total.to_bytes(4, "little") + b"\x00" * body_size
+
+
+GLB_BYTES = glb_bytes()
+
 _numbers = itertools.count(1)
 
 

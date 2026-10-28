@@ -122,6 +122,27 @@ servizi useranno per cancellare i dati collegati.
 | `POST` | `/api/v1/property/admin/properties/{id}/photos` | Staff — caricamento foto (JPEG, PNG, WebP, max 10 MB, max 40) |
 | `PATCH` / `DELETE` | `/api/v1/property/admin/properties/{id}/photos/{photo_id}` | Staff — didascalia, autorizzazione per i venduti, eliminazione |
 | `PUT` | `/api/v1/property/admin/properties/{id}/photos/order` | Staff — ordine delle foto (la prima è la copertina) |
+| `PUT` / `DELETE` | `/api/v1/property/admin/properties/{id}/model-3d` | Staff — modello 3D dell'immobile (`.glb`, max 10 MB; un nuovo caricamento sostituisce il precedente) |
+
+**Modello 3D:** la scheda pubblica restituisce `three_d_model` (URL e dimensione) quando c'è un
+modello; l'app mostra il pulsante «Vedi in 3D». Nel browser il visore è `@google/model-viewer`
+(caricato solo quando si apre il modello); sul telefono lo stesso componente gira in una WebView
+e viene scaricato da jsDelivr, alla stessa versione del pacchetto. Lo storage dei file deve
+permettere la lettura cross-origin (CORS) dei `.glb`: in locale lo fa già `scripts/dev-s3.py`.
+
+**Stanze 3D dalle foto:** ogni foto può avere la sua stanza 3D (`photos[].three_d_url`, caricata
+con `PUT /admin/properties/{id}/photos/{photo_id}/model-3d`); l'app mostra il pulsante «3D» sulla
+foto e la schermata «Vista 3D», con la nota che la ricostruzione è indicativa. Le stanze si creano
+in blocco con `scripts/rooms-3d.py`: per ogni foto un modello di profondità per interni e un
+riconoscitore di mobili (entrambi Apache-2.0, scaricati da GitHub in `~/.cache/taraborrelli`)
+ricavano dimensioni della stanza, colori, mobili, armadi lungo le pareti e finestre;
+`scripts/room-builder.mjs` costruisce la stanza con three.js (pavimento, pareti, mobili come
+oggetti, lato verso chi guarda aperto) e la esporta in `.glb`. Le foto che non mostrano una stanza
+(esterni, balconi) restano senza 3D.
+
+```bash
+uv run --no-project --with onnxruntime --with numpy --with pillow scripts/rooms-3d.py --replace
+```
 
 **Filtri di ricerca:** `contract`, `property_type` (ripetibile), `municipality`, `zone`,
 `price_min`/`price_max`, `surface_min`/`surface_max`, `rooms_min`, `bedrooms_min`,
