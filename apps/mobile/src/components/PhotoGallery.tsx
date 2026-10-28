@@ -14,6 +14,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 
+import { features } from "../config";
 import { photosToLoad } from "../gallery";
 import { t } from "../i18n";
 import { cardShadow, colors, radii, spacing, typography } from "../theme";
@@ -137,7 +138,7 @@ export function PhotoGallery({
           </Text>
         </>
       ) : null}
-      {photos[index]?.three_d_url ? (
+      {features.threeD && photos[index]?.three_d_url ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("property.photo3d")}

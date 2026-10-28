@@ -4,14 +4,26 @@ export const config = {
   apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:5173",
 };
 
+/**
+ * Features that can be switched off without removing their code.
+ * threeD: the "Vedi in 3D" button, the 3D badge on photos and the 3D viewer
+ * (hidden for now; set to true to show them again).
+ */
+export const features = {
+  threeD: false,
+};
+
 export const agency = {
   name: "Immobiliare Taraborrelli",
   area: "Chieti e Chieti Scalo",
-  // TODO: real contact details of the agency.
-  phone: "+390000000000",
-  phoneLabel: "+39 000 000 0000",
-  whatsapp: "390000000000",
-  email: "info@immobiliaretaraborrelli.it",
+  // Office landline: used by every "Chiama" button.
+  phone: "+390871271706",
+  phoneLabel: "0871 271706",
+  // Mobile: second call option in Contattaci, and the WhatsApp number.
+  mobile: "+393405383065",
+  mobileLabel: "340 538 3065",
+  whatsapp: "393405383065",
+  email: "immobiliaretaraborrelli@gmail.com",
   address: "Chieti",
 };
 
