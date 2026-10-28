@@ -4,6 +4,7 @@ from typing import Annotated, cast
 
 from fastapi import Depends, Request
 from py_common.events import EventPublisher
+from py_common.ratelimit import RateLimiter, rate_limit_dependency
 from py_common.security import (
     TokenVerifier,
     build_auth_dependencies,
@@ -55,3 +56,11 @@ def get_lead_service(
 
 require_user, require_staff = build_auth_dependencies(get_token_verifier)
 optional_user = build_optional_user_dependency(get_token_verifier)
+
+
+def _forms_limiter(request: Request) -> RateLimiter | None:
+    return cast(RateLimiter | None, request.app.state.forms_limiter)
+
+
+# Public forms: a person sends a few requests, not dozens (same limit as the gateway).
+forms_rate_limit = rate_limit_dependency(_forms_limiter)

@@ -21,6 +21,11 @@ interfaccia) sono in [`CLAUDE.md`](CLAUDE.md).
 | `apps/admin` | Pannello di amministrazione: riepilogo, richieste dei proprietari (CRM), immobili con foto e stati, account staff |
 | Altri servizi e app | Da sviluppare (vedi `CLAUDE.md`, sezione 10) |
 
+## Pubblicazione
+
+Servizi su Render (piano gratuito, `render.yaml`), database su Neon, email con Brevo, pannello
+su Netlify (`netlify.toml`). Guida passo passo: [`docs/deploy/render.md`](docs/deploy/render.md).
+
 ## Provare il pannello di amministrazione
 
 Requisiti: Docker, [uv](https://docs.astral.sh/uv/), Node.js 20+, Python 3 e openssl (su Windows usare WSL2).

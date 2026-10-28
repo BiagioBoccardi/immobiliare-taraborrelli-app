@@ -2,10 +2,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from py_common.email import build_email_sender
 from py_common.errors import register_error_handlers
 from py_common.events import EventPublisher, RabbitMQConsumer, RabbitMQEventPublisher
 from py_common.health import health_router
 from py_common.logging import add_request_id_middleware, configure_logging
+from py_common.ratelimit import RateLimiter
 from py_common.security import TokenVerifier
 
 from app.api import public, staff
@@ -13,25 +15,11 @@ from app.core.config import Settings, get_settings
 from app.core.database import create_engine, create_session_factory
 from app.events.consumers import USER_DELETED_ROUTING_KEY, UserDeletedHandler
 from app.events.publisher import LoggingEventPublisher
-from app.services.email import EmailSender, OutboxEmailSender, SmtpEmailSender
 from app.services.notifications import EmailStaffNotifier, NoStaffNotifier, StaffNotifier
 
 API_PREFIX = "/api/v1/lead"
-
-
-def build_email_sender(settings: Settings) -> EmailSender:
-    if settings.email_backend == "smtp":
-        if not settings.smtp_host:
-            raise RuntimeError("SMTP_HOST is required when EMAIL_BACKEND=smtp")
-        return SmtpEmailSender(
-            settings.smtp_host,
-            settings.smtp_port,
-            settings.smtp_username,
-            settings.smtp_password,
-            settings.email_from,
-            use_ssl=settings.smtp_ssl,
-        )
-    return OutboxEmailSender(settings.email_outbox_dir, settings.email_from)
+# Requests per visitor per minute on the public forms, when rate limiting is on.
+FORMS_PER_MINUTE = 10
 
 
 def build_staff_notifier(settings: Settings) -> StaffNotifier:
@@ -84,6 +72,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.staff_notifier = build_staff_notifier(settings)
+    app.state.forms_limiter = (
+        RateLimiter(FORMS_PER_MINUTE, 60) if settings.rate_limit_enabled else None
+    )
     app.state.token_verifier = TokenVerifier(
         settings.jwt_public_key, settings.jwt_algorithm, settings.jwt_audience, settings.jwt_issuer
     )
