@@ -1,0 +1,119 @@
+name: Deploy
+
+# Manual deploy of the backend to Google Cloud Run: Actions -> Deploy -> Run workflow.
+# One-time preparation: infra/cloudrun/setup-gcp.sh and the values in infra/cloudrun/config.env.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # identity token for Workload Identity Federation (no key files)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read infra/cloudrun/config.env
+        run: |
+          # Plain KEY=value lines, never executed as shell code (values may contain spaces).
+          grep -E '^[A-Z_]+=' infra/cloudrun/config.env >> "$GITHUB_ENV"
+          value() { grep -E "^$1=" infra/cloudrun/config.env | tail -1 | cut -d= -f2-; }
+          for name in GCP_PROJECT_ID GCP_REGION GCP_WIF_PROVIDER GCP_DEPLOY_SA GCP_RUN_SA \
+            S3_ENDPOINT_URL S3_BUCKET MEDIA_PUBLIC_BASE_URL; do
+            [ -n "$(value "$name")" ] || { echo "::error::$name is empty in infra/cloudrun/config.env"; exit 1; }
+          done
+          echo "REGISTRY=$(value GCP_REGION)-docker.pkg.dev/$(value GCP_PROJECT_ID)/taraborrelli" >> "$GITHUB_ENV"
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and push the images
+        run: |
+          gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
+          for service in auth lead property; do
+            docker build -f "services/$service/Dockerfile" -t "$REGISTRY/$service:$GITHUB_SHA" .
+            docker push "$REGISTRY/$service:$GITHUB_SHA"
+          done
+          docker build -t "$REGISTRY/gateway:$GITHUB_SHA" infra/cloudrun/gateway
+          docker push "$REGISTRY/gateway:$GITHUB_SHA"
+
+      - name: Update the databases (migrations)
+        run: |
+          for service in auth lead property; do
+            url="$(gcloud secrets versions access latest --secret "$service-database-url")"
+            echo "::add-mask::$url"
+            docker run --rm -e DATABASE_URL="$url" "$REGISTRY/$service:$GITHUB_SHA" \
+              alembic upgrade head
+          done
+
+      - name: Deploy auth, lead and property
+        run: |
+          # Values with commas or spaces go through a YAML file (JSON is valid YAML).
+          env_file() { python3 -c 'import json, os, sys; print(json.dumps({k: os.environ[k] for k in sys.argv[1:]}))' "$@"; }
+          export ENVIRONMENT=production LOG_LEVEL=INFO EVENTS_ENABLED=false
+          export EMAIL_BACKEND=smtp S3_REGION=auto
+
+          env_file ENVIRONMENT LOG_LEVEL EVENTS_ENABLED EMAIL_BACKEND EMAIL_FROM SMTP_HOST \
+            SMTP_PORT SMTP_USERNAME > auth.env.yaml
+          env_file ENVIRONMENT LOG_LEVEL EVENTS_ENABLED EMAIL_BACKEND EMAIL_FROM SMTP_HOST \
+            SMTP_PORT SMTP_USERNAME STAFF_NOTIFICATION_EMAILS ADMIN_PANEL_URL > lead.env.yaml
+          env_file ENVIRONMENT LOG_LEVEL EVENTS_ENABLED S3_ENDPOINT_URL S3_REGION S3_BUCKET \
+            MEDIA_PUBLIC_BASE_URL > property.env.yaml
+
+          declare -A secrets=(
+            [auth]="DATABASE_URL=auth-database-url:latest,JWT_PRIVATE_KEY=jwt-private-key:latest,SMTP_PASSWORD=smtp-password:latest"
+            [lead]="DATABASE_URL=lead-database-url:latest,JWT_PUBLIC_KEY=jwt-public-key:latest,SMTP_PASSWORD=smtp-password:latest"
+            [property]="DATABASE_URL=property-database-url:latest,JWT_PUBLIC_KEY=jwt-public-key:latest,S3_ACCESS_KEY=s3-access-key:latest,S3_SECRET_KEY=s3-secret-key:latest"
+          )
+          for service in auth lead property; do
+            # Migrations already ran above, so the containers skip them and start faster.
+            gcloud run deploy "taraborrelli-$service" --quiet \
+              --image "$REGISTRY/$service:$GITHUB_SHA" --region "$GCP_REGION" \
+              --service-account "$GCP_RUN_SA" --allow-unauthenticated \
+              --port 8000 --cpu 1 --memory 512Mi --cpu-boost \
+              --min-instances 0 --max-instances 2 --timeout 60 \
+              --command uvicorn \
+              --args app.main:app,--host,0.0.0.0,--port,8000,--proxy-headers \
+              --env-vars-file "$service.env.yaml" \
+              --set-secrets "${secrets[$service]}"
+          done
+
+      - name: Deploy the gateway
+        run: |
+          url() { gcloud run services describe "taraborrelli-$1" --region "$GCP_REGION" --format 'value(status.url)'; }
+          export AUTH_URL="$(url auth)" LEAD_URL="$(url lead)" PROPERTY_URL="$(url property)"
+          python3 -c 'import json, os; print(json.dumps({k: os.environ[k] for k in ["AUTH_URL", "LEAD_URL", "PROPERTY_URL", "ALLOWED_ORIGINS"]}))' > gateway.env.yaml
+          gcloud run deploy taraborrelli-gateway --quiet \
+            --image "$REGISTRY/gateway:$GITHUB_SHA" --region "$GCP_REGION" \
+            --service-account "$GCP_RUN_SA" --allow-unauthenticated \
+            --port 8080 --cpu 1 --memory 256Mi --cpu-boost \
+            --min-instances 0 --max-instances 2 --timeout 60 \
+            --env-vars-file gateway.env.yaml
+          gateway="$(gcloud run services describe taraborrelli-gateway --region "$GCP_REGION" --format 'value(status.url)')"
+          echo "GATEWAY_URL=$gateway" >> "$GITHUB_ENV"
+
+      - name: Check that everything answers
+        run: |
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors "$GATEWAY_URL/ping"
+          for path in auth/public-key property/properties lead/me/requests; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 5 "$GATEWAY_URL/api/v1/$path")"
+            echo "/api/v1/$path -> $code"
+            case "$code" in 200|401) ;; *) echo "::error::/api/v1/$path answered $code"; exit 1 ;; esac
+          done
+          {
+            echo "### Pubblicato"
+            echo ""
+            echo "Indirizzo dell'API (gateway): $GATEWAY_URL"
+            echo ""
+            echo "Usalo come VITE_API_BASE_URL del pannello su Netlify e nel modulo del sito."
+          } >> "$GITHUB_STEP_SUMMARY"
