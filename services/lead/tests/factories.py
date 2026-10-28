@@ -56,6 +56,21 @@ def owner_request_payload(**overrides: Any) -> dict[str, Any]:
     return data
 
 
+def callback_request_payload(**overrides: Any) -> dict[str, Any]:
+    """The website's "Richiedi di essere ricontattato" form."""
+    data: dict[str, Any] = {
+        "first_name": "Luca",
+        "last_name": "Neri",
+        "email": "luca.neri@example.com",
+        "phone": "+39 333 444 5555",
+        "preferred_time": "morning",
+        "message": "Cerco un bilocale a Chieti Scalo.",
+        "consent": consent_payload(),
+    }
+    data.update(overrides)
+    return data
+
+
 def make_lead(
     *,
     token: str | None = None,

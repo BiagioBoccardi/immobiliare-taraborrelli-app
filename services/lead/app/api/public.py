@@ -9,6 +9,7 @@ from py_common.security import Principal
 
 from app.core.dependencies import get_lead_service, optional_user, require_user
 from app.schemas.lead import (
+    CallbackRequestCreate,
     LeadCreatedOut,
     MyRequestOut,
     OwnerRequestCreate,
@@ -58,6 +59,17 @@ async def create_owner_request(
     data: OwnerRequestCreate, service: Service, principal: OptionalUser
 ) -> LeadCreatedOut:
     lead = await service.create_owner_request(data, _user_id(principal))
+    return LeadCreatedOut(id=lead.id, kind=lead.kind, created_at=lead.created_at)
+
+
+@router.post(
+    "/callback-requests", status_code=status.HTTP_201_CREATED, response_model=LeadCreatedOut
+)
+async def create_callback_request(
+    data: CallbackRequestCreate, service: Service, principal: OptionalUser
+) -> LeadCreatedOut:
+    """ "Richiedi di essere ricontattato" from the agency's website."""
+    lead = await service.create_callback_request(data, _user_id(principal))
     return LeadCreatedOut(id=lead.id, kind=lead.kind, created_at=lead.created_at)
 
 

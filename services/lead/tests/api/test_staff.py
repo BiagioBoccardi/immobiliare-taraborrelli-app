@@ -175,3 +175,24 @@ async def test_write_endpoints_with_user_role_return_403(
     response = await getattr(client, method)(f"{BASE}/{lead.id}", **kwargs)
 
     assert response.status_code == 403
+
+
+async def test_list_leads_includes_callback_requests_without_property_fields(
+    client: AsyncClient, db_session: AsyncSession, staff_headers: dict[str, str]
+) -> None:
+    callback = await _store(
+        db_session,
+        kind=LeadKind.CALLBACK,
+        intention=None,
+        municipality=None,
+        property_type=None,
+        details={"preferred_time": "evening", "source": "website"},
+    )
+
+    response = await client.get(BASE, params={"kind": "callback"}, headers=staff_headers)
+
+    items = response.json()["items"]
+    assert response.status_code == 200
+    assert [item["id"] for item in items] == [str(callback.id)]
+    assert items[0]["municipality"] is None
+    assert items[0]["details"]["preferred_time"] == "evening"

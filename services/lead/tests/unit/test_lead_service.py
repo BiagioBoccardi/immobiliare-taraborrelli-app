@@ -8,6 +8,7 @@ from py_common.pagination import PageParams
 
 from app.models.enums import LeadKind, LeadPriority, LeadStatus
 from app.schemas.lead import (
+    CallbackRequestCreate,
     LeadFilters,
     LeadUpdate,
     OwnerRequestCreate,
@@ -17,6 +18,7 @@ from app.schemas.lead import (
 from app.services.lead import LeadService
 from app.services.tokens import token_matches
 from tests.factories import (
+    callback_request_payload,
     consent_payload,
     make_lead,
     owner_request_payload,
@@ -251,3 +253,43 @@ async def test_delete_user_requests_twice_deletes_once() -> None:
 
     assert deleted_again == 0
     assert len(repo.leads) == 1
+
+
+async def test_create_callback_request_stores_contact_details_without_property() -> None:
+    service, repo, _ = build_service()
+
+    lead = await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload())
+    )
+
+    stored = repo.leads[lead.id]
+    assert stored.kind is LeadKind.CALLBACK
+    assert stored.full_name == "Luca Neri"
+    assert stored.phone == "+393334445555"
+    assert stored.email == "luca.neri@example.com"
+    assert stored.municipality is None
+    assert stored.property_type is None
+    assert stored.intention is None
+    assert stored.details == {"preferred_time": "morning", "source": "website"}
+    assert repo.commits == 1
+
+
+async def test_create_callback_request_is_due_for_contact_immediately() -> None:
+    service, repo, _ = build_service()
+
+    lead = await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload())
+    )
+
+    assert repo.leads[lead.id].next_contact_at == NOW
+    assert repo.leads[lead.id].priority is LeadPriority.MEDIUM
+
+
+async def test_create_callback_request_with_empty_message_stores_none() -> None:
+    service, repo, _ = build_service()
+
+    lead = await service.create_callback_request(
+        CallbackRequestCreate.model_validate(callback_request_payload(message="   "))
+    )
+
+    assert repo.leads[lead.id].message is None
