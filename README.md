@@ -83,8 +83,13 @@ non fornisce quelli definitivi.
 | `POST` | `/api/v1/lead/valuations` | Pubblico — passo 1 della valutazione, restituisce un `completion_token` monouso |
 | `PUT` | `/api/v1/lead/valuations/{id}/details` | Pubblico con header `X-Completion-Token` — dettagli facoltativi (entro 7 giorni) |
 | `POST` | `/api/v1/lead/owner-requests` | Pubblico — "Voglio vendere casa" / "Voglio affittare il mio immobile" |
+| `POST` | `/api/v1/lead/callback-requests` | Pubblico — "Richiedi di essere ricontattato" dal sito dell'agenzia: nome, cognome, email, telefono, fascia oraria (`morning`, `afternoon`, `evening`, `any`), messaggio facoltativo e consenso privacy obbligatorio |
 | `GET` | `/api/v1/lead/leads` | Staff — lista paginata con filtri `kind`, `status`, `priority`, `due_for_contact` |
 | `GET` / `PATCH` / `DELETE` | `/api/v1/lead/leads/{id}` | Staff — dettaglio, aggiornamento CRM, cancellazione (GDPR) |
+
+Le richieste di ricontatto non descrivono un immobile (comune, tipologia e intenzione restano
+vuoti), hanno priorità media e risultano subito «da ricontattare», perché il sito promette una
+chiamata entro il giorno lavorativo successivo.
 
 La priorità del lead deriva dal grado di intenzione del proprietario: `know_value` → bassa,
 `planning` → media, `decided` → alta. Lo staff può modificarla.
