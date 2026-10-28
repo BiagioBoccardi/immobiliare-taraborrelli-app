@@ -74,8 +74,10 @@ I client (app, admin, pagina pubblica) parlano solo con il gateway. Ogni servizi
 │   ├── py-common/       # Config, logging, eventi, verifica JWT
 │   └── api-client/      # Client TypeScript generato da OpenAPI
 ├── infra/
-│   └── gateway/
+│   ├── gateway/         # Traefik per docker compose
+│   └── cloudrun/        # Pubblicazione: gateway, script di preparazione, config.env
 ├── docs/
+│   ├── deploy/          # Guida alla pubblicazione (cloud-run.md)
 │   └── design/
 │       └── reference/   # Immagini di riferimento per il front-end (sezione 13)
 │           ├── valutazione/
@@ -231,7 +233,7 @@ uv run pytest --cov=app --cov-report=term-missing --cov-fail-under=80
 3. Test con pytest e verifica della soglia di copertura (servizi), Jest (app e web)
 4. Build dell'immagine Docker (servizi) o build di verifica (app e web)
 
-**CD: da definire.** Hosting e strategia di deploy non sono ancora stati scelti. Non creare workflow di deploy finché questa sezione non viene aggiornata.
+**CD (ottobre 2026): hosting gratuito.** Backend su Google Cloud Run (`europe-west1`), un servizio per `auth`, `lead`, `property` più il gateway Traefik (`infra/cloudrun/gateway`, stesse regole di `docker-compose.yml`); database su Neon (un progetto, un database per servizio); foto su Cloudflare R2; pannello admin su Netlify (`netlify.toml`). La pubblicazione è manuale: GitHub Actions → **Deploy** (`.github/workflows/deploy.yml`), che costruisce le immagini, esegue le migration e pubblica. GitHub accede a Google Cloud senza chiavi (Workload Identity Federation); i segreti stanno in Secret Manager, la configurazione non segreta in `infra/cloudrun/config.env`. RabbitMQ non è attivo in produzione (`EVENTS_ENABLED=false`). Guida completa: `docs/deploy/cloud-run.md`. Nuove variabili d'ambiente dei servizi vanno aggiunte anche al workflow di deploy.
 
 **Rilascio mobile: da definire.** Previsto EAS Build e EAS Submit verso il Play Store, partendo dal canale di test interno.
 
@@ -343,8 +345,8 @@ Elementi esclusi o da adattare: le stelle di valutazione sugli immobili, le date
 
 Non dare per scontate queste scelte: chiedi prima di implementare qualcosa che ne dipende.
 
-- Hosting e strategia di deploy (CD)
-  - **Modulo di ricontatto del sito** https://immobiliare-taraborrelli.netlify.app/ (ottobre 2026). Il modulo «Richiedi di essere ricontattato» (nome, cognome, email, telefono, fascia oraria, messaggio) oggi invia a un backend separato su Render (`immobiliare-taraborell-be.onrender.com/api/contacts`) e non chiede il consenso privacy. Lato app è pronto: `lead` ha il tipo «Richiesta di ricontatto» (`POST /api/v1/lead/callback-requests`, consenso privacy obbligatorio), il gateway accetta il dominio del sito (CORS) e applica il rate limiting dei moduli pubblici, e le richieste compaiono nel pannello in «Richieste proprietari». **Da fare quando si sceglie l'hosting:** nel codice del sito (cartella `my-project`) far inviare il modulo all'indirizzo pubblico del gateway, con la casella del consenso privacy e il link all'informativa, poi ripubblicare il sito su Netlify; se il dominio del sito cambia, aggiornarlo in `infra/gateway/dynamic.yml`. Alternativa valutata e messa da parte: importare le richieste da Netlify Forms tramite la loro API.
+- Hosting: scelto (sezione 9). Restano da decidere il dominio dell'API (per ora l'indirizzo `run.app` del gateway) e se attivare RabbitMQ in produzione.
+  - **Modulo di ricontatto del sito** https://immobiliare-taraborrelli.netlify.app/ (ottobre 2026). Il modulo «Richiedi di essere ricontattato» (nome, cognome, email, telefono, fascia oraria, messaggio) oggi invia a un backend separato su Render (`immobiliare-taraborell-be.onrender.com/api/contacts`) e non chiede il consenso privacy. Lato app è pronto: `lead` ha il tipo «Richiesta di ricontatto» (`POST /api/v1/lead/callback-requests`, consenso privacy obbligatorio), il gateway accetta il dominio del sito (CORS) e applica il rate limiting dei moduli pubblici, e le richieste compaiono nel pannello in «Richieste proprietari». **Da fare dopo la prima pubblicazione:** nel codice del sito (cartella `my-project`) far inviare il modulo all'indirizzo pubblico del gateway, con la casella del consenso privacy e il link all'informativa, poi ripubblicare il sito su Netlify; se il dominio del sito cambia, aggiornarlo in `infra/gateway/dynamic.yml` e in `ALLOWED_ORIGINS` di `infra/cloudrun/config.env`. Il vecchio backend `immobiliare-taraborell-be` (repository separato) espone a chiunque l'elenco delle richieste su `GET /api/contacts`: va spento dopo il passaggio. Alternativa valutata e messa da parte: importare le richieste da Netlify Forms tramite la loro API.
 - Account sviluppatore e tempi di pubblicazione su Play Store; pubblicazione su App Store
 - Metodo e fonte dati per la stima automatica
 - Integrazione con il gestionale immobiliare: l'agenzia usa **Reasoft** (ottobre 2026). Da verificare con l'assistenza Reasoft se offre un'esportazione degli annunci per il sito dell'agenzia (feed XML o API) e in quale formato. Se esiste, `property` importerà periodicamente gli annunci (creazione, aggiornamento, ritiro, foto). Nel frattempo c'è l'importazione da Excel/CSV dal pannello admin (pagina «Importa da Excel»): anteprima con controlli di coerenza, nuovi immobili in bozza, aggiornamento degli esistenti tramite il codice del gestionale; le foto si aggiungono dal pannello, anche in blocco (pagina «Carica foto»: abbinamento tramite il codice del gestionale nel nome della sottocartella o del file). L'elenco immobili esportato da Reasoft è una tabella HTML salvata come `.xls` e non contiene contratto, superficie, titolo e descrizione: il contratto viene dedotto dal prezzo (fino a 5.000 € affitto), la superficie resta vuota nelle bozze ed è obbligatoria per pubblicare. Le colonne Proprietario e Note non vengono mai importate (dati personali). Le intestazioni riconosciute sono in `services/property/app/services/importer.py`.

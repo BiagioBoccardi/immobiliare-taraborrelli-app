@@ -1,0 +1,26 @@
+# Static configuration of the gateway on Cloud Run.
+entryPoints:
+  web:
+    address: ":8080"
+    # Cloud Run is reachable only through Google's front end, which puts the visitor's IP
+    # in X-Forwarded-For: it is read by the rate limits (see dynamic.yml).
+    forwardedHeaders:
+      insecure: true
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: false
+
+ping:
+  entryPoint: web
+
+accessLog:
+  format: json
+  fields:
+    headers:
+      defaultMode: drop  # Never log headers: they can carry tokens.
+
+log:
+  level: INFO
+  format: json
