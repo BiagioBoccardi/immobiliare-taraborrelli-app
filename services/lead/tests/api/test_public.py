@@ -3,8 +3,11 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import FastAPI
 from httpx import AsyncClient
+from py_common.ratelimit import RateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings
+from app.main import create_app
 from app.models.lead import Lead
 from tests.factories import (
     callback_request_payload,
@@ -230,3 +233,46 @@ async def test_create_callback_request_notifies_the_agency(
 
     assert response.status_code == 201
     assert [str(lead.id) for lead in notifier.notified] == [response.json()["id"]]
+
+
+async def test_create_callback_request_over_the_rate_limit_returns_429(
+    app: FastAPI, client: AsyncClient
+) -> None:
+    app.state.forms_limiter = RateLimiter(limit=2, window_seconds=60)
+    visitor = {"x-nf-client-connection-ip": "203.0.113.7"}
+    for _ in range(2):
+        await client.post(
+            f"{BASE}/callback-requests", json=callback_request_payload(), headers=visitor
+        )
+
+    response = await client.post(
+        f"{BASE}/callback-requests", json=callback_request_payload(), headers=visitor
+    )
+
+    assert response.status_code == 429
+    assert response.json()["code"] == "rate_limited"
+
+
+async def test_rate_limit_does_not_block_other_visitors(app: FastAPI, client: AsyncClient) -> None:
+    app.state.forms_limiter = RateLimiter(limit=1, window_seconds=60)
+    await client.post(
+        f"{BASE}/owner-requests",
+        json=owner_request_payload(),
+        headers={"x-nf-client-connection-ip": "203.0.113.7"},
+    )
+
+    response = await client.post(
+        f"{BASE}/owner-requests",
+        json=owner_request_payload(),
+        headers={"x-nf-client-connection-ip": "198.51.100.9"},
+    )
+
+    assert response.status_code == 201
+
+
+def test_create_app_enables_the_forms_limit_only_when_configured(settings: Settings) -> None:
+    off = create_app(settings)
+    on = create_app(settings.model_copy(update={"rate_limit_enabled": True}))
+
+    assert off.state.forms_limiter is None
+    assert isinstance(on.state.forms_limiter, RateLimiter)

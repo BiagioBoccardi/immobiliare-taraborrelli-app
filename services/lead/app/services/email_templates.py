@@ -1,8 +1,9 @@
 """Texts of the emails sent to the agency, in Italian."""
 
+from py_common.email import Email
+
 from app.models.enums import LeadKind, OwnerIntention, PreferredTime, PropertyType
 from app.models.lead import Lead
-from app.services.email import Email
 
 _KIND = {
     LeadKind.VALUATION: "Richiesta di valutazione",

@@ -1,6 +1,8 @@
 import uuid
 
+from fastapi import FastAPI
 from httpx import AsyncClient
+from py_common.ratelimit import RateLimiter
 from py_common.security import Role, TokenVerifier
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -160,3 +162,19 @@ async def test_registered_user_password_is_hashed_with_argon2(
     user = (await db_session.scalars(select(User))).one()
 
     assert user.password_hash.startswith("$argon2id$")
+
+
+async def test_login_over_the_rate_limit_returns_429(app: FastAPI, client: AsyncClient) -> None:
+    app.state.auth_limiter = RateLimiter(limit=3, window_seconds=60)
+    visitor = {"x-nf-client-connection-ip": "203.0.113.7"}
+    attempt = {"email": "nessuno@example.test", "password": "Password-sbagliata-1"}
+    codes = [
+        (await client.post(f"{BASE}/login", json=attempt, headers=visitor)).status_code
+        for _ in range(3)
+    ]
+
+    response = await client.post(f"{BASE}/login", json=attempt, headers=visitor)
+
+    assert codes == [401, 401, 401]
+    assert response.status_code == 429
+    assert response.json()["code"] == "rate_limited"

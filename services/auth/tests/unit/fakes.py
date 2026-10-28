@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from py_common.email import Email
 from py_common.security import Role
 
 from app.models.consent import ConsentRecord
@@ -8,7 +9,6 @@ from app.models.enums import ConsentSubject
 from app.models.password_reset import PasswordReset
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
-from app.services.email import Email
 
 
 class FakeUserRepository:

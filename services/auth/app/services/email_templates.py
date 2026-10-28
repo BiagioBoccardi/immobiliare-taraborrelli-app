@@ -1,6 +1,6 @@
 """Texts of the emails sent to users, in Italian."""
 
-from app.services.email import Email
+from py_common.email import Email
 
 
 def password_reset_email(to: str, full_name: str, code: str, minutes: int) -> Email:
