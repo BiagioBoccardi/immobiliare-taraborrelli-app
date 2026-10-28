@@ -11,6 +11,7 @@ import ThreeDModelScreen from "../app/modello-3d/[id]";
 import Mortgage from "../app/mutuo";
 import { router } from "expo-router";
 import { api } from "../src/api";
+import { features } from "../src/config";
 import { favoritesKey } from "../src/favorites";
 import { makeCard, makeDetail, page, renderWithProviders, TEST_USER } from "./helpers";
 
@@ -172,6 +173,7 @@ describe("Property tools", () => {
   });
 
   it("shows the 3D button only when the property has a model", async () => {
+    features.threeD = true;
     mockedApi.property.getPublic.mockResolvedValue(
       makeDetail({ three_d_model: { url: "https://media.test/casa.glb", size_bytes: 1024 } }),
     );
@@ -180,6 +182,28 @@ describe("Property tools", () => {
     await fireEvent.press(await screen.findByText("Vedi in 3D"));
 
     expect(router.push).toHaveBeenCalledWith("/modello-3d/p1");
+    features.threeD = false;
+  });
+
+  it("hides the 3D button and the photo badge while 3D is switched off", async () => {
+    mockedApi.property.getPublic.mockResolvedValue(
+      makeDetail({
+        three_d_model: { url: "https://media.test/casa.glb", size_bytes: 1024 },
+        photos: [
+          {
+            id: "f1",
+            url: "https://media.test/f1.jpg",
+            caption: null,
+            three_d_url: "https://media.test/f1.glb",
+          },
+        ],
+      }),
+    );
+    await renderWithProviders(<PropertyScreen />);
+
+    expect(await screen.findByText("Rata mutuo")).toBeTruthy();
+    expect(screen.queryByText("Vedi in 3D")).toBeNull();
+    expect(screen.queryByLabelText("Vedi questa stanza in 3D")).toBeNull();
   });
 
   it("does not offer 3D or mortgage for a rental without a model", async () => {
@@ -193,6 +217,13 @@ describe("Property tools", () => {
 });
 
 describe("3D model", () => {
+  beforeEach(() => {
+    features.threeD = true;
+  });
+  afterEach(() => {
+    features.threeD = false;
+  });
+
   it("shows the viewer with the model of the property", async () => {
     mockedApi.property.getPublic.mockResolvedValue(
       makeDetail({ three_d_model: { url: "https://media.test/casa.glb", size_bytes: 1024 } }),
@@ -214,6 +245,13 @@ describe("3D model", () => {
 });
 
 describe("3D rooms", () => {
+  beforeEach(() => {
+    features.threeD = true;
+  });
+  afterEach(() => {
+    features.threeD = false;
+  });
+
   const rooms = [1, 2, 3].map((n) => ({
     id: `f${n}`,
     url: `https://media.test/f${n}.jpg`,
