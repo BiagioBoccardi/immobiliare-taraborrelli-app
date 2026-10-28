@@ -8,13 +8,13 @@ import uuid
 from collections.abc import Callable
 from datetime import timedelta
 
+from py_common.email import EmailSender
 from py_common.errors import AppError
 
 from app.core.security import PasswordHasher
 from app.models.password_reset import PasswordReset
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.clock import Clock, utcnow
-from app.services.email import EmailSender
 from app.services.email_templates import password_reset_email
 
 logger = logging.getLogger(__name__)

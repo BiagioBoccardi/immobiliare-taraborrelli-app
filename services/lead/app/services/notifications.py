@@ -3,8 +3,9 @@
 import logging
 from typing import Protocol
 
+from py_common.email import Email, EmailSender
+
 from app.models.lead import Lead
-from app.services.email import Email, EmailSender
 from app.services.email_templates import new_lead_email
 
 logger = logging.getLogger(__name__)
