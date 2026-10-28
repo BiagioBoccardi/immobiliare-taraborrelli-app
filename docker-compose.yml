@@ -147,7 +147,7 @@ services:
       - traefik.enable=true
       - traefik.http.services.auth.loadbalancer.server.port=8000
       # Credential endpoints, with a strict rate limit against password guessing.
-      - traefik.http.routers.auth-public.rule=Path(`/api/v1/auth/login`) || Path(`/api/v1/auth/register`) || Path(`/api/v1/auth/refresh`)
+      - traefik.http.routers.auth-public.rule=Path(`/api/v1/auth/login`) || Path(`/api/v1/auth/register`) || Path(`/api/v1/auth/refresh`) || PathPrefix(`/api/v1/auth/password`)
       - traefik.http.routers.auth-public.entrypoints=web
       - traefik.http.routers.auth-public.middlewares=cors@file,auth-ratelimit@file
       - traefik.http.routers.auth-public.service=auth

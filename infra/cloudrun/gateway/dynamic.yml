@@ -1,0 +1,101 @@
+# Routes and middlewares of the gateway on Cloud Run. Traefik renders this file as a Go
+# template: the env calls below read the gateway's environment variables, set by the
+# deploy workflow:
+#   AUTH_URL, LEAD_URL, PROPERTY_URL  Cloud Run addresses of the three services
+#   ALLOWED_ORIGINS                    comma-separated origins allowed by CORS
+http:
+  routers:
+    auth-public:
+      rule: "Path(`/api/v1/auth/login`) || Path(`/api/v1/auth/register`) || Path(`/api/v1/auth/refresh`) || PathPrefix(`/api/v1/auth/password`)"
+      entryPoints: [web]
+      middlewares: [cors, auth-ratelimit]
+      service: auth
+    auth:
+      rule: "PathPrefix(`/api/v1/auth`)"
+      entryPoints: [web]
+      middlewares: [cors, api-ratelimit]
+      service: auth
+    lead-public:
+      rule: "PathPrefix(`/api/v1/lead/valuations`) || PathPrefix(`/api/v1/lead/owner-requests`) || PathPrefix(`/api/v1/lead/callback-requests`)"
+      entryPoints: [web]
+      middlewares: [cors, public-forms-ratelimit]
+      service: lead
+    lead:
+      rule: "PathPrefix(`/api/v1/lead`)"
+      entryPoints: [web]
+      middlewares: [cors, api-ratelimit]
+      service: lead
+    property-admin:
+      rule: "PathPrefix(`/api/v1/property/admin`)"
+      entryPoints: [web]
+      middlewares: [cors, api-ratelimit, photo-upload-limit]
+      service: property
+    property:
+      rule: "PathPrefix(`/api/v1/property`)"
+      entryPoints: [web]
+      middlewares: [cors, api-ratelimit]
+      service: property
+
+  services:
+    # Cloud Run routes by host name, so the original Host header is not passed on.
+    auth:
+      loadBalancer:
+        passHostHeader: false
+        servers:
+          - url: '{{ env "AUTH_URL" }}'
+    lead:
+      loadBalancer:
+        passHostHeader: false
+        servers:
+          - url: '{{ env "LEAD_URL" }}'
+    property:
+      loadBalancer:
+        passHostHeader: false
+        servers:
+          - url: '{{ env "PROPERTY_URL" }}'
+
+  middlewares:
+    cors:
+      headers:
+        accessControlAllowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+        accessControlAllowHeaders: [Authorization, Content-Type, X-Completion-Token, X-Request-ID]
+        accessControlAllowOriginList:
+{{- range $origin := splitList "," (env "ALLOWED_ORIGINS") }}
+{{- if trim $origin }}
+          - '{{ trim $origin }}'
+{{- end }}
+{{- end }}
+        accessControlMaxAge: 600
+        addVaryHeader: true
+
+    # Limits are counted per visitor: the rightmost X-Forwarded-For address is the one
+    # added by Google's front end, so a visitor cannot spoof it.
+    public-forms-ratelimit:
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 5
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    auth-ratelimit:
+      rateLimit:
+        average: 20
+        period: 1m
+        burst: 10
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    photo-upload-limit:
+      buffering:
+        maxRequestBodyBytes: 11534336
+
+    api-ratelimit:
+      rateLimit:
+        average: 100
+        burst: 50
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
