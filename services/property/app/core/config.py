@@ -17,6 +17,10 @@ class Settings(BaseServiceSettings):
     # Base URL from which listing photos are served to clients (CDN or public bucket path).
     media_public_base_url: str = "http://localhost:9000/property-media"
 
+    # Cloudinary (free hosting without a payment card): cloudinary://<key>:<secret>@<cloud>.
+    # When set, it replaces the S3 settings above.
+    cloudinary_url: str = ""
+
     # Local development only: create the bucket and make listing photos readable at startup.
     s3_create_bucket: bool = False
 

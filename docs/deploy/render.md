@@ -62,7 +62,7 @@ la registrazione richiede la verifica di un numero di cellulare.
      script e la parola segreta della proprietà `TOKEN`;
    - `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` (almeno 10 caratteri) e
      `INITIAL_ADMIN_NAME` (solo `auth`): il primo amministratore del pannello, vedi sotto;
-   - `S3_…` (`property`): per ora lasciali vuoti, vedi «Foto degli immobili».
+   - `CLOUDINARY_URL` (`property`): vedi «Foto degli immobili»; le `S3_…` restano vuote.
 3. **Apply**. Alla fine ogni servizio ha un indirizzo `https://taraborrelli-….onrender.com`.
    Se Render aggiunge un suffisso perché il nome è già preso, annota gli indirizzi: servono
    a Netlify.
@@ -94,10 +94,20 @@ dello staff si creano dal pannello, in «Account staff».
 
 ## Foto degli immobili
 
-Lo spazio per le foto (compatibile S3) è ancora da scegliere. I servizi gratuiti senza carta
-hanno dei vincoli: Cloudflare R2 (10 GB) e Backblaze B2 chiedono un metodo di pagamento per
-rendere pubbliche le foto, Supabase Storage (1 GB) mette in pausa i progetti inattivi da una
-settimana. Finché `S3_…` resta vuoto, il catalogo funziona ma le foto non si possono caricare.
+Le foto stanno su **Cloudinary**, piano gratuito senza carta (ottobre 2026: 25 crediti al
+mese, un credito vale 1 GB di spazio o 1 GB di traffico o 1.000 trasformazioni). Le foto
+sono servite nel formato e nella qualità migliori per ogni browser (`f_auto,q_auto`), che
+riduce il traffico.
+
+1. Crea un account su https://cloudinary.com (accesso con Google o GitHub, nessuna carta).
+2. Nella **Dashboard** copia la **API environment variable**
+   (`cloudinary://<api_key>:<api_secret>@<cloud_name>`).
+3. Su Render, servizio `taraborrelli-property` → **Environment**: incollala in
+   `CLOUDINARY_URL` e salva. Le variabili `S3_…` restano vuote.
+
+Senza `CLOUDINARY_URL` il servizio usa lo storage compatibile S3 (`S3_…`, MinIO in locale).
+Alternative valutate: Cloudflare R2 e Backblaze B2 chiedono un metodo di pagamento,
+Supabase Storage mette in pausa i progetti inattivi da una settimana.
 
 ## Limiti noti
 
