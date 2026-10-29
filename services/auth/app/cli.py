@@ -43,13 +43,20 @@ async def ensure_initial_admin(
 
     Invalid values are reported in the log without stopping the service.
     """
-    try:
-        valid_email = TypeAdapter(Email).validate_python(email)
-        valid_name = TypeAdapter(PersonName).validate_python(full_name)
-        TypeAdapter(Password).validate_python(password)
-    except ValidationError:
-        logger.error("initial administrator not created: invalid email, name or password")
-        return False
+    checks = (
+        ("INITIAL_ADMIN_EMAIL", Email, email),
+        ("INITIAL_ADMIN_NAME", PersonName, full_name),
+        ("INITIAL_ADMIN_PASSWORD (at least 10 characters)", Password, password),
+    )
+    for variable, field_type, value in checks:
+        try:
+            TypeAdapter(field_type).validate_python(value)
+        except ValidationError:
+            # Names the variable to fix, never its value.
+            logger.error("initial administrator not created: invalid %s", variable)
+            return False
+    valid_email = TypeAdapter(Email).validate_python(email)
+    valid_name = TypeAdapter(PersonName).validate_python(full_name)
     async with session_factory() as session:
         service = UserAdminService(SqlUnitOfWork(session), PasswordHasher())
         try:

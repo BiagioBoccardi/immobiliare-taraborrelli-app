@@ -28,6 +28,19 @@ class Settings(EmailServiceSettings):
     events_enabled: bool = True
     events_queue: str = "auth.consents"
 
+    @field_validator("initial_admin_email", "initial_admin_password", mode="after")
+    @classmethod
+    def _strip_initial_admin_credentials(cls, value: str) -> str:
+        # Values pasted into a hosting dashboard often carry a trailing space or newline.
+        return value.strip()
+
+    @field_validator("initial_admin_name", mode="after")
+    @classmethod
+    def _default_initial_admin_name(cls, value: str) -> str:
+        # A variable left empty on the host arrives as "", which would make the name invalid
+        # and silently skip the creation of the administrator.
+        return value.strip() or "Amministratore"
+
     @field_validator("jwt_private_key", mode="after")
     @classmethod
     def _normalize_private_key(cls, value: str) -> str:
