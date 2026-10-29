@@ -5,19 +5,56 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Dashes as typed by phones and word processors are accepted in place of "-".
+_DASH = "-\u2010\u2011\u2012\u2013\u2014\u2015\u2212"
 _PEM = re.compile(r"-----BEGIN ([A-Z ]+)-----(.*?)-----END \1-----", re.DOTALL)
+_MARKER = re.compile(rf"[{_DASH}]*\s*(?:BEGIN|END)\s+[A-Z ]*?KEY\s*[{_DASH}]*")
+_BASE64 = re.compile(r"[A-Za-z0-9+/]+={0,2}")
+# A key body is far longer than this; shorter values are left as they are.
+_MIN_KEY_BODY = 100
+
+
+def _pem(label: str, body: str) -> str:
+    lines = [body[i : i + 64] for i in range(0, len(body), 64)]
+    return "\n".join([f"-----BEGIN {label}-----", *lines, f"-----END {label}-----"]) + "\n"
 
 
 def normalize_pem(value: str) -> str:
-    """Rebuilds a PEM key pasted into a single-line field: newlines written as \\n, or
-    replaced by spaces, become real line breaks again. Other values are returned unchanged."""
-    text = value.strip().replace("\\n", "\n")
+    """Rebuilds a PEM key pasted into a single-line field, so it can be pasted as it is:
+
+    - newlines written as \\n, or replaced by spaces, become real line breaks again;
+    - quotes around the key, typographic dashes and a missing or damaged BEGIN/END line
+      are repaired, as long as the base64 body is intact;
+    - the base64 body alone is accepted too.
+
+    Other values are returned unchanged."""
+    text = value.strip().strip("\"'").replace("\\n", "\n")
     match = _PEM.search(text)
-    if match is None:
+    if match is not None:
+        return _pem(match.group(1), "".join(match.group(2).split()))
+    body = "".join(_MARKER.sub(" ", text).split()).strip("\"'")
+    if len(body) < _MIN_KEY_BODY or _BASE64.fullmatch(body) is None:
         return text
-    label, body = match.group(1), "".join(match.group(2).split())
-    lines = [body[i : i + 64] for i in range(0, len(body), 64)]
-    return "\n".join([f"-----BEGIN {label}-----", *lines, f"-----END {label}-----"]) + "\n"
+    upper = text.upper()
+    if "PUBLIC" in upper:
+        label = "PUBLIC KEY"
+    elif "RSA" in upper:
+        label = "RSA PRIVATE KEY"
+    else:
+        label = "PRIVATE KEY"
+    return _pem(label, body)
+
+
+def describe_pem(value: str) -> str:
+    """Says what is wrong with a key that cannot be read, without revealing the key."""
+    body = "".join(_MARKER.sub(" ", value).split())
+    invalid = sorted({c for c in body if not (c.isascii() and (c.isalnum() or c in "+/="))})
+    return (
+        f"length {len(value)}, BEGIN line {'found' if 'BEGIN' in value else 'missing'}, "
+        f"END line {'found' if 'END' in value else 'missing'}, "
+        f"key body {len(body)} characters, "
+        f"unexpected characters {[hex(ord(c)) for c in invalid][:10] or 'none'}"
+    )
 
 
 _SSL_MODES_REQUIRING_TLS = {"require", "verify-ca", "verify-full"}
