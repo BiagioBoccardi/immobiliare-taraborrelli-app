@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.repositories.properties import SqlPropertyRepository
+from app.services.media_transfer import MediaTransferService
 from app.services.properties import PropertyService
 from app.storage.base import MediaStorage
 
@@ -49,6 +50,12 @@ def get_property_service(
         max_model_bytes=settings.max_model_bytes,
         max_import_rows=settings.max_import_rows,
     )
+
+
+def get_media_transfer_service(
+    storage: Annotated[MediaStorage, Depends(get_storage)],
+) -> MediaTransferService:
+    return MediaTransferService(storage)
 
 
 require_user, require_staff = build_auth_dependencies(get_token_verifier)

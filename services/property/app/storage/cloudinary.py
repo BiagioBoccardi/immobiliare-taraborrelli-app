@@ -113,6 +113,20 @@ class CloudinaryMediaStorage:
         ).hexdigest()
         return {**params, "api_key": self._credentials.api_key, "signature": signature}
 
+    def browser_signature(self, action: str, public_id: str) -> dict[str, str]:
+        """Signs one upload or deletion made directly from a browser, for moving photos in.
+
+        The signature covers only this public id and expires after an hour (Cloudinary rule).
+        """
+        resource_type, cloudinary_id = _split_key(public_id)
+        params = self._signed({"public_id": cloudinary_id, "timestamp": str(int(self._clock()))})
+        return {
+            **params,
+            "url": f"{API_BASE}/{self._credentials.cloud_name}/{resource_type}/{action}",
+            "delivery_url": f"{DELIVERY_BASE}/{self._credentials.cloud_name}/{resource_type}"
+            f"/upload/{quote(public_id, safe='/.-_')}",
+        }
+
     async def _call(
         self, action: str, resource_type: str, fields: dict[str, str], data: bytes | None
     ) -> dict[str, object]:

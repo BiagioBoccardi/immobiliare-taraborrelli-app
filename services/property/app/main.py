@@ -8,7 +8,7 @@ from py_common.health import health_router
 from py_common.logging import add_request_id_middleware, configure_logging
 from py_common.security import TokenVerifier
 
-from app.api import admin, catalog
+from app.api import admin, admin_media, catalog
 from app.core.config import Settings, get_settings
 from app.core.database import create_engine, create_session_factory
 from app.events.publisher import LoggingEventPublisher
@@ -73,6 +73,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router())
     app.include_router(catalog.router, prefix=API_PREFIX)
     app.include_router(admin.router, prefix=API_PREFIX)
+    app.include_router(admin_media.router, prefix=API_PREFIX)
     return app
 
 
