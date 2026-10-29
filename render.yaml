@@ -113,6 +113,10 @@ services:
         sync: false
       # Listing photos: S3-compatible storage, to be chosen (docs/deploy/render.md). Until
       # then the catalog works but photos cannot be uploaded.
+      # Listing photos on Cloudinary (free plan, no payment card): the API environment
+      # variable from the Cloudinary console. When set, the S3_ values are not used.
+      - key: CLOUDINARY_URL
+        sync: false
       - key: S3_ENDPOINT_URL
         sync: false
       - key: S3_ACCESS_KEY
