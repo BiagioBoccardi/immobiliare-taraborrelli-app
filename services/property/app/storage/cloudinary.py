@@ -5,6 +5,7 @@ library only: uploads are a signed multipart POST, so no SDK is needed.
 """
 
 import asyncio
+import base64
 import hashlib
 import json
 import time
@@ -25,6 +26,8 @@ TIMEOUT_SECONDS = 60.0
 
 # (url, body, content type, timeout) -> (status, response body)
 HttpPost = Callable[[str, bytes, str, float], tuple[int, bytes]]
+# (method, url, headers) -> (status, response body)
+HttpRequest = Callable[[str, str, dict[str, str]], tuple[int, bytes]]
 
 
 class CloudinaryError(RuntimeError):
@@ -66,6 +69,23 @@ def _http_post(url: str, body: bytes, content_type: str, timeout: float) -> tupl
         return int(error.code), error.read()
 
 
+def _http_request(method: str, url: str, headers: dict[str, str]) -> tuple[int, bytes]:
+    request = urllib.request.Request(url, method=method, headers=headers)  # noqa: S310
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
+            return int(response.status), response.read()
+    except urllib.error.HTTPError as error:
+        return int(error.code), error.read()
+
+
+def _json_object(raw: bytes) -> dict[str, object]:
+    try:
+        answer = json.loads(raw or b"{}")
+    except ValueError:
+        return {}
+    return answer if isinstance(answer, dict) else {}
+
+
 def _multipart(fields: dict[str, str], file_bytes: bytes | None) -> tuple[bytes, str]:
     boundary = uuid.uuid4().hex
     chunks: list[bytes] = []
@@ -101,9 +121,11 @@ class CloudinaryMediaStorage:
         credentials: CloudinaryCredentials,
         http_post: HttpPost = _http_post,
         clock: Callable[[], float] = time.time,
+        http_request: HttpRequest | None = None,
     ) -> None:
         self._credentials = credentials
         self._http_post = http_post
+        self._http_request = http_request or _http_request
         self._clock = clock
 
     def _signed(self, params: dict[str, str]) -> dict[str, str]:
@@ -113,19 +135,37 @@ class CloudinaryMediaStorage:
         ).hexdigest()
         return {**params, "api_key": self._credentials.api_key, "signature": signature}
 
-    def browser_signature(self, action: str, public_id: str) -> dict[str, str]:
-        """Signs one upload or deletion made directly from a browser, for moving photos in.
+    def folder_upload_signature(self, folder: str) -> dict[str, str]:
+        """Signs browser uploads into one folder, with ids chosen by Cloudinary.
 
-        The signature covers only this public id and expires after an hour (Cloudinary rule).
+        Used to move photos in from another installation. Cloudinary accepts the signature
+        for an hour; it allows uploads into `folder` only.
         """
-        resource_type, cloudinary_id = _split_key(public_id)
-        params = self._signed({"public_id": cloudinary_id, "timestamp": str(int(self._clock()))})
-        return {
-            **params,
-            "url": f"{API_BASE}/{self._credentials.cloud_name}/{resource_type}/{action}",
-            "delivery_url": f"{DELIVERY_BASE}/{self._credentials.cloud_name}/{resource_type}"
-            f"/upload/{quote(public_id, safe='/.-_')}",
-        }
+        params = self._signed({"folder": folder, "timestamp": str(int(self._clock()))})
+        return {**params, "url": f"{API_BASE}/{self._credentials.cloud_name}/image/upload"}
+
+    async def delete_folder(self, folder: str) -> int:
+        """Deletes every image under `folder/` (Admin API, up to 1000 per request)."""
+        url = (
+            f"{API_BASE}/{self._credentials.cloud_name}/resources/image/upload"
+            f"?prefix={quote(folder.rstrip('/') + '/', safe='')}"
+        )
+        token = base64.b64encode(
+            f"{self._credentials.api_key}:{self._credentials.api_secret}".encode()
+        ).decode()
+        deleted = 0
+        for _ in range(20):
+            status, raw = await asyncio.to_thread(
+                self._http_request, "DELETE", url, {"Authorization": f"Basic {token}"}
+            )
+            answer = _json_object(raw)
+            if status >= 400:
+                raise CloudinaryError(f"Cloudinary delete failed ({status})")
+            done = answer.get("deleted", {})
+            deleted += len(done) if isinstance(done, dict) else 0
+            if not answer.get("partial"):
+                break
+        return deleted
 
     async def _call(
         self, action: str, resource_type: str, fields: dict[str, str], data: bytes | None
