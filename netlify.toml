@@ -1,13 +1,16 @@
-# Admin panel on Netlify (the agency's website is a separate Netlify site and repository).
-# The API calls go to the services on Render through Netlify: see
-# scripts/netlify/admin-redirects.sh and docs/deploy/render.md.
+# Two Netlify sites are built from this repository (scripts/netlify/build.sh):
+#   - taraborrelli-admin, the admin panel (default);
+#   - taraborrelli-app, the web version of the app (site variable NETLIFY_APP=mobile).
+# The agency's website is a separate Netlify site and repository. The API calls go to the
+# services on Render through Netlify: see scripts/netlify/api-redirects.sh and
+# docs/deploy/render.md.
 [build]
-  command = "npm ci --no-audit --no-fund && npm run build --workspace @taraborrelli/admin && sh scripts/netlify/admin-redirects.sh apps/admin/dist"
-  publish = "apps/admin/dist"
+  command = "sh scripts/netlify/build.sh"
+  publish = "netlify-dist"
 
 [build.environment]
   NODE_VERSION = "22"
-  # The panel wakes the sleeping services up as soon as it opens (apps/admin/src/warmUp.ts).
+  # The panel wakes the sleeping services up as soon as it opens (api-client warmUp.ts).
   VITE_WARM_UP_SERVICES = "true"
 
 [[headers]]

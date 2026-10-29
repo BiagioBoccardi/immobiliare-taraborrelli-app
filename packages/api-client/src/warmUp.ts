@@ -1,10 +1,10 @@
 /**
- * Wakes the API services up as soon as the panel opens.
+ * Wakes the API services up as soon as the admin panel or the web app opens.
  *
  * On Render's free plan each service sleeps after 15 minutes without requests and needs
  * about a minute to start, while Netlify's proxy gives up after 26 seconds. Calling each
- * service's /health right away (and again until it answers) means that by the time staff
- * have typed their password the services are usually awake.
+ * service's /health right away (and again until it answers) means that by the time someone
+ * has typed their password the services are usually awake.
  */
 export const SERVICES = ["auth", "lead", "property"] as const;
 

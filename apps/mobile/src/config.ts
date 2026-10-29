@@ -2,6 +2,9 @@
 
 export const config = {
   apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:5173",
+  // Web version on Netlify: wake the services on Render's free plan as soon as the app
+  // opens (they sleep when idle). Only with apiBaseUrl "", i.e. the API on the same site.
+  warmUpServices: process.env.EXPO_PUBLIC_WARM_UP_SERVICES === "true",
 };
 
 /**
