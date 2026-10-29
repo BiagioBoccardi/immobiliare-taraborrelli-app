@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 
 from fastapi import FastAPI
+from py_common.config import describe_pem
 from py_common.email import build_email_sender
 from py_common.errors import register_error_handlers
 from py_common.events import EventPublisher, RabbitMQConsumer, RabbitMQEventPublisher
@@ -27,9 +28,15 @@ AUTH_PER_MINUTE = 20
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.service_name, settings.log_level)
-    public_key = (
-        public_key_from_private(settings.jwt_private_key) if settings.jwt_private_key else ""
-    )
+    public_key = ""
+    if settings.jwt_private_key:
+        try:
+            public_key = public_key_from_private(settings.jwt_private_key)
+        except ValueError as error:
+            # Says what is wrong with the pasted key without revealing it.
+            raise RuntimeError(
+                f"JWT_PRIVATE_KEY cannot be read: {describe_pem(settings.jwt_private_key)}"
+            ) from error
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

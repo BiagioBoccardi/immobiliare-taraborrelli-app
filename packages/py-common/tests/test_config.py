@@ -1,6 +1,13 @@
+from collections.abc import Callable
+
 import pytest
 
-from py_common.config import BaseServiceSettings, normalize_database_url, normalize_pem
+from py_common.config import (
+    BaseServiceSettings,
+    describe_pem,
+    normalize_database_url,
+    normalize_pem,
+)
 
 NEON = (
     "postgresql://neondb_owner:secret@ep-cool-sun-a1b2c3d4-pooler.eu-central-1.aws.neon.tech"
@@ -71,3 +78,53 @@ def test_settings_normalize_the_public_key() -> None:
 
 def test_normalize_pem_leaves_other_values_alone() -> None:
     assert normalize_pem("non una chiave") == "non una chiave"
+
+
+def _real_private_key() -> str:
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+
+
+def _body(pem: str) -> str:
+    return "".join(line for line in pem.splitlines() if "-----" not in line)
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        lambda pem: f'"{pem}"',  # quotes around the key
+        lambda pem: pem.replace("-----", "——"),  # dashes turned into em dashes
+        lambda pem: pem.replace("-----END PRIVATE KEY-----", ""),  # END line cut off
+        lambda pem: pem.replace("-----END PRIVATE KEY-----", "-----END PRIVATE KEY"),
+        lambda pem: " ".join(pem.splitlines()).replace("-----BEGIN", "----BEGIN"),
+        _body,  # only the base64 body
+        lambda pem: " ".join(_body(pem)[i : i + 64] for i in range(0, len(_body(pem)), 64)),
+    ],
+)
+def test_normalize_pem_with_damaged_framing_rebuilds_a_loadable_key(
+    damage: Callable[[str], str],
+) -> None:
+    from cryptography.hazmat.primitives import serialization
+
+    pem = _real_private_key()
+
+    rebuilt = normalize_pem(damage(pem))
+
+    assert rebuilt == pem
+    serialization.load_pem_private_key(rebuilt.encode(), password=None)
+
+
+def test_describe_pem_does_not_reveal_the_key() -> None:
+    pem = _real_private_key()
+
+    description = describe_pem(pem[:200])
+
+    assert _body(pem)[:20] not in description
+    assert "END line missing" in description
