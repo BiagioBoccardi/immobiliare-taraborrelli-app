@@ -1,6 +1,6 @@
 import pytest
 
-from py_common.config import BaseServiceSettings, normalize_database_url
+from py_common.config import BaseServiceSettings, normalize_database_url, normalize_pem
 
 NEON = (
     "postgresql://neondb_owner:secret@ep-cool-sun-a1b2c3d4-pooler.eu-central-1.aws.neon.tech"
@@ -41,3 +41,33 @@ def test_settings_normalize_the_database_url() -> None:
 
     assert settings.database_url.startswith("postgresql+asyncpg://")
     assert settings.database_url.endswith("?ssl=require")
+
+
+PEM = (
+    "-----BEGIN PUBLIC KEY-----\n"
+    + "\n".join(["A" * 64, "B" * 64, "C" * 20])
+    + "\n-----END PUBLIC KEY-----\n"
+)
+
+
+@pytest.mark.parametrize(
+    "pasted",
+    [
+        PEM,
+        PEM.replace("\n", " "),  # line breaks turned into spaces by a single-line field
+        PEM.replace("\n", "\\n"),  # line breaks written as \n
+        "  " + PEM.replace("\n", "\r\n") + "  ",
+    ],
+)
+def test_normalize_pem_rebuilds_the_key(pasted: str) -> None:
+    assert normalize_pem(pasted) == PEM
+
+
+def test_settings_normalize_the_public_key() -> None:
+    settings = BaseServiceSettings(jwt_public_key=PEM.replace("\n", " "))
+
+    assert settings.jwt_public_key == PEM
+
+
+def test_normalize_pem_leaves_other_values_alone() -> None:
+    assert normalize_pem("non una chiave") == "non una chiave"

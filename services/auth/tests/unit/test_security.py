@@ -53,3 +53,14 @@ def test_issued_token_is_verified_with_derived_public_key(private_key: str) -> N
 
     assert principal.subject == str(user_id)
     assert principal.roles == frozenset({Role.STAFF})
+
+
+def test_settings_accept_a_private_key_pasted_on_one_line(private_key: str) -> None:
+    from app.core.config import Settings
+    from app.core.security import public_key_from_private
+
+    settings = Settings(jwt_private_key=private_key.replace("\n", " "))
+
+    assert public_key_from_private(settings.jwt_private_key).startswith(
+        "-----BEGIN PUBLIC KEY-----"
+    )

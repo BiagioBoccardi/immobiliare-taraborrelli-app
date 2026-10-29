@@ -1,8 +1,24 @@
+import re
 from typing import Literal
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_PEM = re.compile(r"-----BEGIN ([A-Z ]+)-----(.*?)-----END \1-----", re.DOTALL)
+
+
+def normalize_pem(value: str) -> str:
+    """Rebuilds a PEM key pasted into a single-line field: newlines written as \\n, or
+    replaced by spaces, become real line breaks again. Other values are returned unchanged."""
+    text = value.strip().replace("\\n", "\n")
+    match = _PEM.search(text)
+    if match is None:
+        return text
+    label, body = match.group(1), "".join(match.group(2).split())
+    lines = [body[i : i + 64] for i in range(0, len(body), 64)]
+    return "\n".join([f"-----BEGIN {label}-----", *lines, f"-----END {label}-----"]) + "\n"
+
 
 _SSL_MODES_REQUIRING_TLS = {"require", "verify-ca", "verify-full"}
 
@@ -67,6 +83,11 @@ class BaseServiceSettings(BaseSettings):
     @classmethod
     def _normalize_database_url(cls, value: str) -> str:
         return normalize_database_url(value)
+
+    @field_validator("jwt_public_key", mode="after")
+    @classmethod
+    def _normalize_public_key(cls, value: str) -> str:
+        return normalize_pem(value) if value else value
 
 
 class EmailServiceSettings(BaseServiceSettings):
