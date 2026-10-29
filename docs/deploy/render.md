@@ -1,4 +1,4 @@
-# Pubblicazione gratuita: Render, Neon, Brevo e Netlify
+# Pubblicazione gratuita: Render, Neon, Gmail e Netlify
 
 Scelta di ottobre 2026: costo zero garantito, senza carta di credito. Sui piani gratuiti
 usati qui, superare i limiti sospende il servizio invece di addebitare.
@@ -7,7 +7,7 @@ usati qui, superare i limiti sospende il servizio invece di addebitare.
 |---|---|---|
 | Servizi `auth`, `lead`, `property` | Render, regione Frankfurt (`render.yaml`) | 750 ore al mese per tutto l'account; ogni servizio si ferma dopo 15 minuti senza richieste e riparte in circa un minuto |
 | Database (uno per servizio) | Neon, un progetto con i database `auth`, `lead`, `property` | 1 GB per progetto e 100 ore di calcolo al mese |
-| Email (avvisi all'agenzia, codici «password dimenticata») | Brevo, via HTTPS: Render gratuito blocca l'SMTP | 300 email al giorno |
+| Email (avvisi all'agenzia, codici «password dimenticata») | Gmail dell'agenzia tramite uno script Google (`infra/email/gmail-sender.gs`), chiamato via HTTPS: Render gratuito blocca l'SMTP | 100 destinatari al giorno |
 | Pannello di amministrazione | Netlify (`netlify.toml`) | Sito statico |
 | Sito dell'agenzia | Netlify, repository `immobiliare-taraborrelli-fe` | Sito statico |
 
@@ -31,12 +31,24 @@ che il servizio sia pronto, l'utente vede un errore e riprova dopo qualche secon
 3. Da **Connect** scegli un database alla volta e copia l'indirizzo. Lo incolli in Render
    così com'è: i servizi lo adattano da soli (driver, SSL, collegamento diretto).
 
-## 2. Brevo (email)
+## 2. Email (script nella Gmail dell'agenzia)
 
-1. Su https://www.brevo.com crea un account gratuito.
-2. In **Senders, domains & dedicated IPs → Senders** aggiungi
-   `immobiliaretaraborrelli@gmail.com` e confermalo dal link che arriva in quella casella.
-3. In **SMTP & API → API keys** crea una chiave e tienila da parte per Render.
+Le email partono dalla Gmail dell'agenzia tramite uno script Google gratuito: nessun altro
+servizio da registrare. Brevo (`EMAIL_BACKEND=brevo`) resta disponibile come alternativa, ma
+la registrazione richiede la verifica di un numero di cellulare.
+
+1. Con l'account `immobiliaretaraborrelli@gmail.com` apri https://script.google.com e crea
+   un **Nuovo progetto** chiamato `Taraborrelli email`.
+2. Cancella il contenuto di `Codice.gs`, incolla quello di `infra/email/gmail-sender.gs` e
+   salva.
+3. **Impostazioni progetto** (ingranaggio) → **Proprietà script** → **Aggiungi proprietà**:
+   nome `TOKEN`, valore una parola segreta lunga (la stessa andrà su Render).
+4. Torna all'editor, scegli la funzione `authorize` e premi **Esegui**. Google chiede il
+   permesso di inviare email: **Avanzate → Vai a Taraborrelli email → Consenti**. Arriva
+   un'email di prova nella stessa casella.
+5. **Esegui il deployment → Nuovo deployment → App web**: esegui come **Me**, accesso
+   **Chiunque** → **Esegui il deployment**. Copia l'**URL dell'app web**
+   (`https://script.google.com/macros/s/…/exec`).
 
 ## 3. Render (servizi)
 
@@ -46,7 +58,8 @@ che il servizio sia pronto, l'utente vede un errore e riprova dopo qualche secon
    - `DATABASE_URL`: l'indirizzo Neon del database con lo stesso nome del servizio;
    - `JWT_PRIVATE_KEY` (solo `auth`): la chiave privata consegnata a parte, che corrisponde
      alla chiave pubblica scritta in `render.yaml`;
-   - `BREVO_API_KEY` (`auth` e `lead`): la chiave di Brevo;
+   - `GMAIL_SCRIPT_URL` e `GMAIL_SCRIPT_TOKEN` (`auth` e `lead`): l'URL dell'app web dello
+     script e la parola segreta della proprietà `TOKEN`;
    - `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` (almeno 10 caratteri) e
      `INITIAL_ADMIN_NAME` (solo `auth`): il primo amministratore del pannello, vedi sotto;
    - `S3_…` (`property`): per ora lasciali vuoti, vedi «Foto degli immobili».

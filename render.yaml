@@ -33,10 +33,10 @@ envVarGroups:
           PQu//r/UliN2fnM9qxcT//+HBjc1zfRfGP5OqWSfHd5RjA9q+BYiv6VC1Y+ol+V/
           VwIDAQAB
           -----END PUBLIC KEY-----
-      # Render's free plan blocks outgoing SMTP: emails go through Brevo's HTTPS API, from a
-      # sender address verified in Brevo.
+      # Render's free plan blocks outgoing SMTP: emails go through a Google Apps Script web
+      # app that sends from the agency's Gmail (infra/email/gmail-sender.gs).
       - key: EMAIL_BACKEND
-        value: brevo
+        value: gmail_script
       - key: EMAIL_FROM
         value: Immobiliare Taraborrelli <immobiliaretaraborrelli@gmail.com>
 
@@ -58,7 +58,9 @@ services:
         sync: false
       - key: JWT_PRIVATE_KEY # signs the access tokens
         sync: false
-      - key: BREVO_API_KEY
+      - key: GMAIL_SCRIPT_URL # web app address of infra/email/gmail-sender.gs
+        sync: false
+      - key: GMAIL_SCRIPT_TOKEN # the TOKEN script property
         sync: false
       # First administrator, created at startup if none exists. Delete the password here
       # after the first login.
@@ -84,7 +86,9 @@ services:
       - fromGroup: taraborrelli-shared
       - key: DATABASE_URL # Neon address of the "lead" database
         sync: false
-      - key: BREVO_API_KEY
+      - key: GMAIL_SCRIPT_URL # web app address of infra/email/gmail-sender.gs
+        sync: false
+      - key: GMAIL_SCRIPT_TOKEN # the TOKEN script property
         sync: false
       # Notice to the agency for every new request, with a link to the admin panel.
       - key: STAFF_NOTIFICATION_EMAILS

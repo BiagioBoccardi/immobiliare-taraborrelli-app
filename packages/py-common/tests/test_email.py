@@ -11,6 +11,7 @@ from py_common.email import (
     BREVO_API_URL,
     BrevoEmailSender,
     Email,
+    GmailScriptEmailSender,
     OutboxEmailSender,
     SmtpEmailSender,
     build_email_sender,
@@ -82,13 +83,16 @@ async def test_smtp_sender_with_ssl_uses_smtp_ssl(monkeypatch: pytest.MonkeyPatc
 
 
 class RecordingPost:
-    def __init__(self, status: int = 201) -> None:
+    def __init__(self, status: int = 201, answer: bytes = b"") -> None:
         self.status = status
+        self.answer = answer
         self.calls: list[tuple[str, dict[str, str], dict[str, Any], float]] = []
 
-    def __call__(self, url: str, headers: dict[str, str], body: bytes, timeout: float) -> int:
+    def __call__(
+        self, url: str, headers: dict[str, str], body: bytes, timeout: float
+    ) -> tuple[int, bytes]:
         self.calls.append((url, headers, json.loads(body), timeout))
-        return self.status
+        return self.status, self.answer
 
 
 async def test_brevo_sender_posts_the_email_to_the_api() -> None:
@@ -138,3 +142,63 @@ def test_build_email_sender_without_credentials_refuses_to_start() -> None:
         build_email_sender(EmailServiceSettings(email_backend="brevo"))
     with pytest.raises(RuntimeError, match="SMTP_HOST"):
         build_email_sender(EmailServiceSettings(email_backend="smtp"))
+
+
+SCRIPT_URL = "https://script.google.com/macros/s/abc123/exec"
+
+
+async def test_gmail_script_sender_posts_token_and_email() -> None:
+    post = RecordingPost(status=200, answer=b'{"ok": true}')
+    sender = GmailScriptEmailSender(
+        SCRIPT_URL, "segreto", "Agenzia Test <agenzia@example.test>", post=post
+    )
+
+    await sender.send(EMAIL)
+
+    ((url, _headers, body, _timeout),) = post.calls
+    assert url == SCRIPT_URL
+    assert body == {
+        "token": "segreto",
+        "to": "anna@example.test",
+        "subject": "Oggetto",
+        "text": "Testo con accenti: è à.",
+        "senderName": "Agenzia Test",
+    }
+
+
+async def test_gmail_script_sender_with_refusal_in_the_body_raises() -> None:
+    post = RecordingPost(status=200, answer=b'{"ok": false, "error": "unauthorized"}')
+    sender = GmailScriptEmailSender(SCRIPT_URL, "sbagliato", "agenzia@example.test", post=post)
+
+    with pytest.raises(RuntimeError, match="unauthorized"):
+        await sender.send(EMAIL)
+
+
+async def test_gmail_script_sender_with_non_json_answer_raises() -> None:
+    post = RecordingPost(status=200, answer=b"<html>Accedi</html>")
+    sender = GmailScriptEmailSender(SCRIPT_URL, "segreto", "agenzia@example.test", post=post)
+
+    with pytest.raises(RuntimeError):
+        await sender.send(EMAIL)
+
+
+def test_gmail_script_sender_refuses_other_addresses() -> None:
+    with pytest.raises(ValueError):
+        GmailScriptEmailSender("https://example.test/hook", "segreto", "agenzia@example.test")
+
+
+def test_build_email_sender_with_gmail_script() -> None:
+    sender = build_email_sender(
+        EmailServiceSettings(
+            email_backend="gmail_script", gmail_script_url=SCRIPT_URL, gmail_script_token="t"
+        )
+    )
+
+    assert isinstance(sender, GmailScriptEmailSender)
+
+
+def test_build_email_sender_with_gmail_script_without_token_refuses_to_start() -> None:
+    with pytest.raises(RuntimeError, match="GMAIL_SCRIPT"):
+        build_email_sender(
+            EmailServiceSettings(email_backend="gmail_script", gmail_script_url=SCRIPT_URL)
+        )
