@@ -29,3 +29,4 @@ dist/
 .dev/
 services/auth/outbox/
 .dev-local.env
+netlify-dist/

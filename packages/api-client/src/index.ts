@@ -8,6 +8,7 @@ export * from "./common";
 export * from "./http";
 export * from "./lead";
 export * from "./property";
+export * from "./warmUp";
 
 export function createApiClient(options: ClientOptions) {
   const http = new HttpClient(options);

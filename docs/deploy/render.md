@@ -8,12 +8,13 @@ usati qui, superare i limiti sospende il servizio invece di addebitare.
 | Servizi `auth`, `lead`, `property` | Render, regione Frankfurt (`render.yaml`) | 750 ore al mese per tutto l'account; ogni servizio si ferma dopo 15 minuti senza richieste e riparte in circa un minuto |
 | Database (uno per servizio) | Neon, un progetto con i database `auth`, `lead`, `property` | 1 GB per progetto e 100 ore di calcolo al mese |
 | Email (avvisi all'agenzia, codici «password dimenticata») | Gmail dell'agenzia tramite uno script Google (`infra/email/gmail-sender.gs`), chiamato via HTTPS: Render gratuito blocca l'SMTP | 100 destinatari al giorno |
-| Pannello di amministrazione | Netlify (`netlify.toml`) | Sito statico |
+| Pannello di amministrazione | Netlify (`netlify.toml`), sito `taraborrelli-admin` | Sito statico |
+| App per i clienti, versione web | Netlify, sito `taraborrelli-app` dallo stesso repository (`NETLIFY_APP=mobile`) | Sito statico |
 | Sito dell'agenzia | Netlify, repository `immobiliare-taraborrelli-fe` | Sito statico |
 
 **Come si parlano.** Pannello e sito chiamano l'API sul proprio indirizzo Netlify, per
 esempio `/api/v1/lead/...`, e Netlify inoltra ogni richiesta al servizio giusto su Render
-(`scripts/netlify/admin-redirects.sh`). Il gateway Traefik non c'è: sarebbe un quarto
+(`scripts/netlify/api-redirects.sh`). Il gateway Traefik non c'è: sarebbe un quarto
 servizio da svegliare. I limiti anti-abuso li applicano i servizi stessi
 (`RATE_LIMIT_ENABLED=true`).
 
@@ -76,6 +77,17 @@ la registrazione richiede la verifica di un numero di cellulare.
    Environment variables** imposta `AUTH_URL`, `LEAD_URL` e `PROPERTY_URL`, poi ripubblica.
 3. Se il sito ha un indirizzo diverso da `https://taraborrelli-admin.netlify.app`,
    aggiorna `ADMIN_PANEL_URL` del servizio `lead` su Render: serve per il link nelle email.
+
+## 4b. Netlify (app per i clienti, versione web)
+
+La stessa app Expo pubblicata sui telefoni gira anche nel browser.
+
+1. **Add new project → Import an existing project**, stesso repository e stesso ramo del
+   pannello; chiama il sito `taraborrelli-app`.
+2. Prima di pubblicare, in **Environment variables** aggiungi `NETLIFY_APP` = `mobile`
+   (senza, il sito costruirebbe il pannello). Il resto viene da `netlify.toml`.
+3. Se gli indirizzi di Render hanno un suffisso, imposta anche qui `AUTH_URL`, `LEAD_URL` e
+   `PROPERTY_URL`.
 
 ## 5. Primo amministratore
 

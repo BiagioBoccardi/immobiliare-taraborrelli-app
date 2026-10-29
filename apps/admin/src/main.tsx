@@ -1,4 +1,4 @@
-import { createApiClient } from "@taraborrelli/api-client";
+import { createApiClient, warmUpServices } from "@taraborrelli/api-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -10,7 +10,6 @@ import { SessionProvider } from "./auth/SessionContext";
 import { SessionStore } from "./auth/session";
 import { config } from "./config";
 import { applyTheme } from "./theme/applyTheme";
-import { warmUpServices } from "./warmUp";
 import "./theme/styles.css";
 
 applyTheme();
