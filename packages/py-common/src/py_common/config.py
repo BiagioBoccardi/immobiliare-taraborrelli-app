@@ -73,9 +73,11 @@ class EmailServiceSettings(BaseServiceSettings):
     """Settings of the services that send email (see py_common.email)."""
 
     # "outbox" saves the emails as files in email_outbox_dir (local development); "smtp"
-    # sends them through any SMTP provider; "brevo" uses Brevo's HTTPS API (hosts that block
-    # outgoing SMTP, such as Render's free plan).
-    email_backend: Literal["outbox", "smtp", "brevo"] = "outbox"
+    # sends them through any SMTP provider; "brevo" uses Brevo's HTTPS API; "gmail_script"
+    # sends from a Gmail account through a Google Apps Script web app
+    # (infra/email/gmail-sender.gs). The last two work on hosts that block outgoing SMTP,
+    # such as Render's free plan.
+    email_backend: Literal["outbox", "smtp", "brevo", "gmail_script"] = "outbox"
     email_outbox_dir: str = "outbox"
     email_from: str = "Immobiliare Taraborrelli <noreply@immobiliaretaraborrelli.it>"
     smtp_host: str = ""
@@ -84,3 +86,7 @@ class EmailServiceSettings(BaseServiceSettings):
     smtp_password: str = ""
     smtp_ssl: bool = False  # true for port 465; otherwise STARTTLS is used
     brevo_api_key: str = ""
+    # Address of the Apps Script web app (https://script.google.com/macros/s/.../exec) and the
+    # shared secret written in the script.
+    gmail_script_url: str = ""
+    gmail_script_token: str = ""
