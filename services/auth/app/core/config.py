@@ -1,7 +1,7 @@
 from functools import lru_cache
 
-from py_common.config import EmailServiceSettings
-from pydantic import Field
+from py_common.config import EmailServiceSettings, normalize_pem
+from pydantic import Field, field_validator
 
 
 class Settings(EmailServiceSettings):
@@ -27,6 +27,12 @@ class Settings(EmailServiceSettings):
     # When false, events are only logged and lead consents are not consumed.
     events_enabled: bool = True
     events_queue: str = "auth.consents"
+
+    @field_validator("jwt_private_key", mode="after")
+    @classmethod
+    def _normalize_private_key(cls, value: str) -> str:
+        # Hosting dashboards often paste a multi-line key into a single-line field.
+        return normalize_pem(value) if value else value
 
 
 @lru_cache
