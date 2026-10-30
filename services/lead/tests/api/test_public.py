@@ -1,11 +1,22 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.dependencies import get_geocoder
 from app.models.lead import Lead
-from tests.factories import consent_payload, make_lead, owner_request_payload, valuation_payload
+from app.services.geocoding import GeocodingUnavailableError, Place
+from tests.factories import (
+    consent_payload,
+    make_lead,
+    omi_kmz,
+    omi_values_csv,
+    omi_zones_csv,
+    owner_request_payload,
+    valuation_payload,
+)
 
 BASE = "/api/v1/lead"
 
@@ -143,3 +154,88 @@ async def test_create_owner_request_with_missing_intention_returns_422(
     response = await client.post(f"{BASE}/owner-requests", json=payload)
 
     assert response.status_code == 422
+
+
+async def _load_omi(client: AsyncClient, headers: dict[str, str]) -> None:
+    files = [
+        ("quotes", ("valori.csv", omi_values_csv(), "text/csv")),
+        ("zones", ("zone.csv", omi_zones_csv(), "text/csv")),
+        ("perimeters", ("chieti.kmz", omi_kmz(), "application/zip")),
+    ]
+    response = await client.post("/api/v1/lead/omi", files=files, headers=headers)
+    assert response.status_code == 201
+
+
+async def test_create_valuation_with_position_returns_indicative_estimate(
+    client: AsyncClient, staff_headers: dict[str, str]
+) -> None:
+    await _load_omi(client, staff_headers)
+    payload = valuation_payload(latitude=42.35, longitude=14.16, cadastral_category="A2")
+
+    response = await client.post(f"{BASE}/valuations", json=payload)
+
+    body = response.json()
+    assert response.status_code == 201
+    assert body["estimate"]["zone_code"] == "B1"
+    assert body["estimate"]["min_value"] < body["estimate"]["max_value"]
+    assert body["estimate_unavailable"] is None
+
+
+async def test_create_valuation_with_latitude_only_returns_422(client: AsyncClient) -> None:
+    response = await client.post(f"{BASE}/valuations", json=valuation_payload(latitude=42.35))
+
+    assert response.status_code == 422
+
+
+async def test_create_valuation_with_unknown_cadastral_category_returns_422(
+    client: AsyncClient,
+) -> None:
+    response = await client.post(
+        f"{BASE}/valuations", json=valuation_payload(cadastral_category="C1")
+    )
+
+    assert response.status_code == 422
+
+
+class FakeGeocoder:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+        self.queries: list[str] = []
+
+    async def search(self, query: str) -> list[Place]:
+        self.queries.append(query)
+        if self.error:
+            raise self.error
+        return [
+            Place("Via di Prova 1, Chieti", 42.35, 14.16, "Chieti", "Via di Prova", "1", "66100")
+        ]
+
+
+async def test_geocode_returns_matching_places(app: FastAPI, client: AsyncClient) -> None:
+    geocoder = FakeGeocoder()
+    app.dependency_overrides[get_geocoder] = lambda: geocoder
+
+    response = await client.get("/api/v1/lead/geocode", params={"q": "via di prova 1 chieti"})
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body["total"] == 1
+    assert body["items"][0]["label"] == "Via di Prova 1, Chieti"
+    assert body["items"][0]["municipality"] == "Chieti"
+
+
+async def test_geocode_with_too_short_text_returns_422(app: FastAPI, client: AsyncClient) -> None:
+    app.dependency_overrides[get_geocoder] = lambda: FakeGeocoder()
+
+    response = await client.get("/api/v1/lead/geocode", params={"q": "vi"})
+
+    assert response.status_code == 422
+
+
+async def test_geocode_when_service_is_down_returns_503(app: FastAPI, client: AsyncClient) -> None:
+    app.dependency_overrides[get_geocoder] = lambda: FakeGeocoder(GeocodingUnavailableError())
+
+    response = await client.get("/api/v1/lead/geocode", params={"q": "via di prova chieti"})
+
+    assert response.status_code == 503
+    assert response.json()["code"] == "geocoding_unavailable"

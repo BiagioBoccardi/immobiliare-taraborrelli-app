@@ -511,6 +511,15 @@ textarea:focus {
   font-weight: var(--font-weight-medium);
 }
 
+/* Online estimate shown to the owner */
+
+.estimate-range {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-blue);
+}
+
 /* Pagination */
 
 .pagination {

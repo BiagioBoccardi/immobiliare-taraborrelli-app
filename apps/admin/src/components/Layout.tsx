@@ -27,6 +27,7 @@ export function Layout() {
           </NavLink>
           <NavLink to="/leads">{t("nav.leads")}</NavLink>
           <NavLink to="/properties">{t("nav.properties")}</NavLink>
+          <NavLink to="/omi">{t("nav.omi")}</NavLink>
           {user?.role === "admin" ? <NavLink to="/users">{t("nav.users")}</NavLink> : null}
         </nav>
         <div className="sidebar-footer">

@@ -9,6 +9,7 @@ import { ImportPage } from "./pages/ImportPage";
 import { LeadDetailPage } from "./pages/LeadDetailPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { OmiPage } from "./pages/OmiPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PropertiesPage } from "./pages/PropertiesPage";
 import { NewPropertyPage, PropertyEditPage } from "./pages/PropertyEditPage";
@@ -29,6 +30,7 @@ export function App() {
         <Route index element={<DashboardPage />} />
         <Route path="leads" element={<LeadsPage />} />
         <Route path="leads/:id" element={<LeadDetailPage />} />
+        <Route path="omi" element={<OmiPage />} />
         <Route path="properties" element={<PropertiesPage />} />
         <Route path="properties/new" element={<NewPropertyPage />} />
         <Route path="properties/import" element={<ImportPage />} />

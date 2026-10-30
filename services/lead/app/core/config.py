@@ -11,6 +11,13 @@ class Settings(BaseServiceSettings):
     # When false, events are only logged (useful to run the service without RabbitMQ).
     events_enabled: bool = True
     events_queue: str = "lead.user-deletions"
+    # Address search for the online estimate (OpenStreetMap Nominatim, max 1 request/second).
+    geocoder_url: str = "https://nominatim.openstreetmap.org"
+    geocoder_user_agent: str = "ImmobiliareTaraborrelliApp/0.1 (valutazione immobili)"
+    # Contact address sent to Nominatim, as its usage policy asks for regular use.
+    geocoder_email: str | None = None
+    # Area preferred in the results (longitude/latitude of two corners): province of Chieti.
+    geocoder_viewbox: str = "13.85,42.55,14.80,41.65"
 
 
 @lru_cache

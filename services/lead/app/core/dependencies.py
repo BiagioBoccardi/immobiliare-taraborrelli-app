@@ -13,7 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.repositories.lead import SqlLeadRepository
+from app.repositories.omi import SqlOmiRepository
+from app.services.geocoding import Geocoder
 from app.services.lead import LeadService
+from app.services.omi import OmiService
 
 
 def get_settings_dep(request: Request) -> Settings:
@@ -34,16 +37,27 @@ def get_token_verifier(request: Request) -> TokenVerifier:
     return cast(TokenVerifier, request.app.state.token_verifier)
 
 
+def get_omi_service(session: Annotated[AsyncSession, Depends(get_session)]) -> OmiService:
+    return OmiService(SqlOmiRepository(session))
+
+
 def get_lead_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     publisher: Annotated[EventPublisher, Depends(get_publisher)],
     settings: Annotated[Settings, Depends(get_settings_dep)],
+    omi: Annotated[OmiService, Depends(get_omi_service)],
 ) -> LeadService:
     return LeadService(
         SqlLeadRepository(session),
         publisher,
         completion_window=timedelta(days=settings.valuation_completion_window_days),
+        omi=omi,
     )
+
+
+def get_geocoder(request: Request) -> Geocoder:
+    # One instance per process: it keeps the cache and the one-request-per-second pace.
+    return cast(Geocoder, request.app.state.geocoder)
 
 
 require_user, require_staff = build_auth_dependencies(get_token_verifier)

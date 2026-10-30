@@ -44,3 +44,42 @@ class PropertyCondition(StrEnum):
     RENOVATED = "renovated"
     GOOD = "good"
     TO_RENOVATE = "to_renovate"
+
+
+class CadastralCategory(StrEnum):
+    """Cadastral category of a home (A/1 ... A/8), as written in the deed or the "visura"."""
+
+    A1 = "A1"  # signorile
+    A2 = "A2"  # civile
+    A3 = "A3"  # economica
+    A4 = "A4"  # popolare
+    A5 = "A5"  # ultrapopolare
+    A6 = "A6"  # rurale
+    A7 = "A7"  # villino
+    A8 = "A8"  # villa
+    UNKNOWN = "unknown"
+
+
+class BuildingWorks(StrEnum):
+    """Renovation works on the building (or the detached house) in the last ten years."""
+
+    YES = "yes"
+    NO = "no"
+    UNKNOWN = "unknown"
+
+
+class OmiType(StrEnum):
+    """Residential building types of the OMI quotations (Agenzia delle Entrate)."""
+
+    LUXURY = "luxury"  # Abitazioni signorili
+    CIVIL = "civil"  # Abitazioni civili
+    ECONOMIC = "economic"  # Abitazioni di tipo economico
+    VILLA = "villa"  # Ville e villini
+
+
+class OmiState(StrEnum):
+    """Maintenance state the OMI quotation refers to."""
+
+    EXCELLENT = "excellent"  # OTTIMO
+    NORMAL = "normal"  # NORMALE
+    POOR = "poor"  # SCADENTE

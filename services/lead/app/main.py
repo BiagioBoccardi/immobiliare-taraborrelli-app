@@ -8,11 +8,12 @@ from py_common.health import health_router
 from py_common.logging import add_request_id_middleware, configure_logging
 from py_common.security import TokenVerifier
 
-from app.api import public, staff
+from app.api import omi, public, staff
 from app.core.config import Settings, get_settings
 from app.core.database import create_engine, create_session_factory
 from app.events.consumers import USER_DELETED_ROUTING_KEY, UserDeletedHandler
 from app.events.publisher import LoggingEventPublisher
+from app.services.geocoding import NominatimGeocoder
 
 API_PREFIX = "/api/v1/lead"
 
@@ -59,11 +60,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.token_verifier = TokenVerifier(
         settings.jwt_public_key, settings.jwt_algorithm, settings.jwt_audience, settings.jwt_issuer
     )
+    app.state.geocoder = NominatimGeocoder(
+        settings.geocoder_url,
+        settings.geocoder_user_agent,
+        email=settings.geocoder_email,
+        viewbox=settings.geocoder_viewbox,
+    )
     register_error_handlers(app)
     add_request_id_middleware(app)
     app.include_router(health_router())
     app.include_router(public.router, prefix=API_PREFIX)
     app.include_router(staff.router, prefix=API_PREFIX)
+    app.include_router(omi.router, prefix=API_PREFIX)
     return app
 
 

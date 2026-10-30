@@ -3,19 +3,21 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 from py_common.pagination import Page, PageParams, page_params
 from py_common.security import Principal
 
-from app.core.dependencies import get_lead_service, optional_user, require_user
+from app.core.dependencies import get_geocoder, get_lead_service, optional_user, require_user
 from app.schemas.lead import (
     LeadCreatedOut,
     MyRequestOut,
     OwnerRequestCreate,
+    PlaceOut,
     ValuationCreate,
     ValuationCreatedOut,
     ValuationDetails,
 )
+from app.services.geocoding import Geocoder
 from app.services.lead import LeadService
 
 router = APIRouter(tags=["public"])
@@ -39,7 +41,20 @@ async def create_valuation(
         created_at=created.lead.created_at,
         completion_token=created.completion_token,
         completion_expires_at=created.completion_expires_at,
+        estimate=created.estimate,
+        estimate_unavailable=created.estimate_unavailable,
     )
+
+
+@router.get("/geocode", response_model=Page[PlaceOut])
+async def geocode(
+    geocoder: Annotated[Geocoder, Depends(get_geocoder)],
+    q: Annotated[str, Query(min_length=3, max_length=200, description="Address to search")],
+) -> Page[PlaceOut]:
+    """Addresses matching the text, for the online estimate. Data © OpenStreetMap."""
+    places = await geocoder.search(q)
+    items = [PlaceOut.model_validate(place) for place in places]
+    return Page[PlaceOut](items=items, total=len(items), page=1, size=max(len(items), 1))
 
 
 @router.put("/valuations/{lead_id}/details", status_code=status.HTTP_204_NO_CONTENT)

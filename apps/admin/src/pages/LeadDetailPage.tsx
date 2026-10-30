@@ -30,12 +30,62 @@ const STATUSES: LeadStatus[] = [
   "lost",
 ];
 const PRIORITIES: LeadPriority[] = ["high", "medium", "low"];
+// Shown in their own places, not in the list of details.
+const SPECIAL_DETAILS = new Set(["estimate", "latitude", "longitude"]);
+
+interface StoredEstimate {
+  min_value: number;
+  max_value: number;
+  min_per_sqm: number;
+  max_per_sqm: number;
+  municipality: string;
+  zone_code: string;
+  zone_description?: string | null;
+  semester: string;
+  source: string;
+}
+
+function isEstimate(value: unknown): value is StoredEstimate {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as StoredEstimate).min_value === "number" &&
+    typeof (value as StoredEstimate).max_value === "number"
+  );
+}
+
+/** The indicative range the owner saw in the app, from the OMI quotations. */
+function EstimateCard({ estimate }: { estimate: StoredEstimate }) {
+  const zone = estimate.zone_description
+    ? `${estimate.zone_code} (${estimate.zone_description.toLowerCase()})`
+    : estimate.zone_code;
+  return (
+    <section className="card">
+      <h2>{t("estimate.title")}</h2>
+      <p className="estimate-range">
+        {t("estimate.range", {
+          min: formatEuro(estimate.min_value),
+          max: formatEuro(estimate.max_value),
+        })}
+      </p>
+      <p>
+        {t("estimate.perSqm", { min: estimate.min_per_sqm, max: estimate.max_per_sqm })} ·{" "}
+        {t("estimate.zone", { zone, municipality: estimate.municipality })}
+      </p>
+      <p className="muted">
+        {t("estimate.source", { source: estimate.source, semester: estimate.semester })}
+      </p>
+    </section>
+  );
+}
 
 /** Human-readable value for a field of the optional second step of a valuation. */
 function detailValue(key: string, value: unknown): string {
   if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
   if (key === "expected_price" && typeof value === "number") return formatEuro(value);
   if (key === "sell_timeline" && typeof value === "string") return tEnum("sellTimeline", value);
+  if (key === "cadastral_category" && typeof value === "string") return tEnum("cadastral", value);
+  if (key === "building_works" && typeof value === "string") return tEnum("works", value);
   if (key === "parts_condition" && value && typeof value === "object") {
     return Object.entries(value as Record<string, string>)
       .map(([part, condition]) => `${tEnum("part", part)}: ${tEnum("partCondition", condition)}`)
@@ -131,9 +181,17 @@ export function LeadDetailPage() {
   if (lead.error || !lead.data) return <ErrorAlert error={lead.error} />;
   const data = lead.data;
   const phone = internationalPhone(data.phone);
-  const details = Object.entries(data.details ?? {}).filter(
-    ([, value]) => value !== null && value !== "" && value !== false,
+  const allDetails = data.details ?? {};
+  const details = Object.entries(allDetails).filter(
+    ([key, value]) =>
+      !SPECIAL_DETAILS.has(key) && value !== null && value !== "" && value !== false,
   );
+  const estimate = isEstimate(allDetails.estimate) ? allDetails.estimate : null;
+  const { latitude, longitude } = allDetails;
+  const mapUrl =
+    typeof latitude === "number" && typeof longitude === "number"
+      ? `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}`
+      : null;
 
   return (
     <>
@@ -209,9 +267,11 @@ export function LeadDetailPage() {
             </dl>
           </section>
 
+          {estimate ? <EstimateCard estimate={estimate} /> : null}
+
           <section className="card">
             <h2>{t("leads.details")}</h2>
-            {details.length === 0 ? (
+            {details.length === 0 && !mapUrl ? (
               <p className="muted">{t("leads.noDetails")}</p>
             ) : (
               <dl className="facts">
@@ -221,6 +281,16 @@ export function LeadDetailPage() {
                     <dd>{detailValue(key, value)}</dd>
                   </div>
                 ))}
+                {mapUrl ? (
+                  <div className="contents">
+                    <dt>{t("details.position")}</dt>
+                    <dd>
+                      <a href={mapUrl} target="_blank" rel="noreferrer">
+                        {t("details.openMap")}
+                      </a>
+                    </dd>
+                  </div>
+                ) : null}
               </dl>
             )}
             {data.message ? (

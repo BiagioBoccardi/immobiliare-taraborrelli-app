@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+  "/api/v1/lead/geocode": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Geocode
+     * @description Addresses matching the text, for the online estimate. Data © OpenStreetMap.
+     */
+    get: operations["geocode_api_v1_lead_geocode_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/lead/leads": {
     parameters: {
       query?: never;
@@ -54,6 +74,24 @@ export interface paths {
     get: operations["my_requests_api_v1_lead_me_requests_get"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/lead/omi": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Current Omi Data */
+    get: operations["current_omi_data_api_v1_lead_omi_get"];
+    put?: never;
+    /** Import Omi Data */
+    post: operations["import_omi_data_api_v1_lead_omi_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -132,6 +170,36 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** Body_import_omi_data_api_v1_lead_omi_post */
+    Body_import_omi_data_api_v1_lead_omi_post: {
+      /**
+       * Perimeters
+       * @description Zone perimeters (.kmz or .kml), one or more
+       */
+      perimeters: string[];
+      /**
+       * Quotes
+       * @description Quotations file (..._VALORI.csv)
+       */
+      quotes: string;
+      /**
+       * Zones
+       * @description Zones file (..._ZONE.csv)
+       */
+      zones?: string | null;
+    };
+    /**
+     * BuildingWorks
+     * @description Renovation works on the building (or the detached house) in the last ten years.
+     * @enum {string}
+     */
+    BuildingWorks: "yes" | "no" | "unknown";
+    /**
+     * CadastralCategory
+     * @description Cadastral category of a home (A/1 ... A/8), as written in the deed or the "visura".
+     * @enum {string}
+     */
+    CadastralCategory: "A1" | "A2" | "A3" | "A4" | "A5" | "A6" | "A7" | "A8" | "unknown";
     /**
      * ConsentIn
      * @description Consent given when the form is submitted. Contact consent is mandatory (GDPR).
@@ -155,6 +223,33 @@ export interface components {
      * @enum {string}
      */
     EnergyClass: "A4" | "A3" | "A2" | "A1" | "B" | "C" | "D" | "E" | "F" | "G";
+    /**
+     * EstimateOut
+     * @description Indicative range from the OMI quotations. Never a professional valuation.
+     */
+    EstimateOut: {
+      /** Max Per Sqm */
+      max_per_sqm: number;
+      /** Max Value */
+      max_value: number;
+      /** Min Per Sqm */
+      min_per_sqm: number;
+      /** Min Value */
+      min_value: number;
+      /** Municipality */
+      municipality: string;
+      /** Semester */
+      semester: string;
+      /**
+       * Source
+       * @default OMI - Agenzia delle Entrate
+       */
+      source?: string;
+      /** Zone Code */
+      zone_code: string;
+      /** Zone Description */
+      zone_description: string | null;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -280,6 +375,62 @@ export interface components {
       status: components["schemas"]["LeadStatus"];
     };
     /**
+     * OmiImportOut
+     * @description The OMI data in use: semester and coverage.
+     */
+    OmiImportOut: {
+      /**
+       * Imported At
+       * Format: date-time
+       */
+      imported_at: string;
+      /** Municipalities */
+      municipalities: string[];
+      /** Quotes */
+      quotes: number;
+      /** Semester */
+      semester: string;
+      /** Zones */
+      zones: number;
+    };
+    /** OmiImportResult */
+    OmiImportResult: {
+      /**
+       * Imported At
+       * Format: date-time
+       */
+      imported_at: string;
+      /** Municipalities */
+      municipalities: string[];
+      /** Quotes */
+      quotes: number;
+      /** Semester */
+      semester: string;
+      /** Warnings */
+      warnings: components["schemas"]["OmiWarning"][];
+      /** Zones */
+      zones: number;
+    };
+    /** OmiWarning */
+    OmiWarning: {
+      /**
+       * Code
+       * @enum {string}
+       */
+      code:
+        | "zone_without_perimeter"
+        | "perimeter_without_quotes"
+        | "semester_mismatch"
+        | "rows_skipped";
+      /** Count */
+      count: number;
+      /**
+       * Examples
+       * @default []
+       */
+      examples?: string[];
+    };
+    /**
      * OwnerIntention
      * @description How determined the owner is. Drives the lead priority.
      * @enum {string}
@@ -333,6 +484,17 @@ export interface components {
       /** Total */
       total: number;
     };
+    /** Page[PlaceOut] */
+    Page_PlaceOut_: {
+      /** Items */
+      items: components["schemas"]["PlaceOut"][];
+      /** Page */
+      page: number;
+      /** Size */
+      size: number;
+      /** Total */
+      total: number;
+    };
     /**
      * PartCondition
      * @enum {string}
@@ -344,6 +506,26 @@ export interface components {
       kitchen?: components["schemas"]["PartCondition"] | null;
       systems?: components["schemas"]["PartCondition"] | null;
       windows?: components["schemas"]["PartCondition"] | null;
+    };
+    /**
+     * PlaceOut
+     * @description An address found by the search (OpenStreetMap).
+     */
+    PlaceOut: {
+      /** House Number */
+      house_number: string | null;
+      /** Label */
+      label: string;
+      /** Latitude */
+      latitude: number;
+      /** Longitude */
+      longitude: number;
+      /** Municipality */
+      municipality: string | null;
+      /** Postcode */
+      postcode: string | null;
+      /** Road */
+      road: string | null;
     };
     /**
      * PropertyCondition
@@ -379,11 +561,23 @@ export interface components {
      * @description First step of "Quanto vale la tua casa?": only the essential data.
      */
     ValuationCreate: {
+      /** Address */
+      address?: string | null;
+      building_works?: components["schemas"]["BuildingWorks"] | null;
+      cadastral_category?: components["schemas"]["CadastralCategory"] | null;
       condition: components["schemas"]["PropertyCondition"];
       consent: components["schemas"]["ConsentIn"];
+      /** Floor */
+      floor?: number | null;
       /** Full Name */
       full_name: string;
+      /** Has Elevator */
+      has_elevator?: boolean | null;
       intention: components["schemas"]["OwnerIntention"];
+      /** Latitude */
+      latitude?: number | null;
+      /** Longitude */
+      longitude?: number | null;
       /** Municipality */
       municipality: string;
       /** Phone */
@@ -414,6 +608,10 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+      estimate?: components["schemas"]["EstimateOut"] | null;
+      /** Estimate Unavailable */
+      estimate_unavailable?:
+        ("no_location" | "type_not_supported" | "outside_zones" | "no_quotes") | null;
       /**
        * Id
        * Format: uuid
@@ -464,6 +662,38 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  geocode_api_v1_lead_geocode_get: {
+    parameters: {
+      query: {
+        /** @description Address to search */
+        q: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_PlaceOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   list_leads_api_v1_lead_leads_get: {
     parameters: {
       query?: {
@@ -614,6 +844,59 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["Page_MyRequestOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  current_omi_data_api_v1_lead_omi_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OmiImportOut"];
+        };
+      };
+    };
+  };
+  import_omi_data_api_v1_lead_omi_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_import_omi_data_api_v1_lead_omi_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OmiImportResult"];
         };
       };
       /** @description Validation Error */

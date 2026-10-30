@@ -1,6 +1,70 @@
 {
   "components": {
     "schemas": {
+      "Body_import_omi_data_api_v1_lead_omi_post": {
+        "properties": {
+          "perimeters": {
+            "description": "Zone perimeters (.kmz or .kml), one or more",
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Perimeters",
+            "type": "array"
+          },
+          "quotes": {
+            "contentMediaType": "application/octet-stream",
+            "description": "Quotations file (..._VALORI.csv)",
+            "title": "Quotes",
+            "type": "string"
+          },
+          "zones": {
+            "anyOf": [
+              {
+                "contentMediaType": "application/octet-stream",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Zones file (..._ZONE.csv)",
+            "title": "Zones"
+          }
+        },
+        "required": [
+          "quotes",
+          "perimeters"
+        ],
+        "title": "Body_import_omi_data_api_v1_lead_omi_post",
+        "type": "object"
+      },
+      "BuildingWorks": {
+        "description": "Renovation works on the building (or the detached house) in the last ten years.",
+        "enum": [
+          "yes",
+          "no",
+          "unknown"
+        ],
+        "title": "BuildingWorks",
+        "type": "string"
+      },
+      "CadastralCategory": {
+        "description": "Cadastral category of a home (A/1 ... A/8), as written in the deed or the \"visura\".",
+        "enum": [
+          "A1",
+          "A2",
+          "A3",
+          "A4",
+          "A5",
+          "A6",
+          "A7",
+          "A8",
+          "unknown"
+        ],
+        "title": "CadastralCategory",
+        "type": "string"
+      },
       "ConsentIn": {
         "description": "Consent given when the form is submitted. Contact consent is mandatory (GDPR).",
         "properties": {
@@ -43,6 +107,67 @@
         ],
         "title": "EnergyClass",
         "type": "string"
+      },
+      "EstimateOut": {
+        "description": "Indicative range from the OMI quotations. Never a professional valuation.",
+        "properties": {
+          "max_per_sqm": {
+            "title": "Max Per Sqm",
+            "type": "integer"
+          },
+          "max_value": {
+            "title": "Max Value",
+            "type": "integer"
+          },
+          "min_per_sqm": {
+            "title": "Min Per Sqm",
+            "type": "integer"
+          },
+          "min_value": {
+            "title": "Min Value",
+            "type": "integer"
+          },
+          "municipality": {
+            "title": "Municipality",
+            "type": "string"
+          },
+          "semester": {
+            "title": "Semester",
+            "type": "string"
+          },
+          "source": {
+            "default": "OMI - Agenzia delle Entrate",
+            "title": "Source",
+            "type": "string"
+          },
+          "zone_code": {
+            "title": "Zone Code",
+            "type": "string"
+          },
+          "zone_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Description"
+          }
+        },
+        "required": [
+          "min_value",
+          "max_value",
+          "min_per_sqm",
+          "max_per_sqm",
+          "municipality",
+          "zone_code",
+          "zone_description",
+          "semester"
+        ],
+        "title": "EstimateOut",
+        "type": "object"
       },
       "HTTPValidationError": {
         "properties": {
@@ -380,6 +505,121 @@
         "title": "MyRequestOut",
         "type": "object"
       },
+      "OmiImportOut": {
+        "description": "The OMI data in use: semester and coverage.",
+        "properties": {
+          "imported_at": {
+            "format": "date-time",
+            "title": "Imported At",
+            "type": "string"
+          },
+          "municipalities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Municipalities",
+            "type": "array"
+          },
+          "quotes": {
+            "title": "Quotes",
+            "type": "integer"
+          },
+          "semester": {
+            "title": "Semester",
+            "type": "string"
+          },
+          "zones": {
+            "title": "Zones",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "semester",
+          "quotes",
+          "zones",
+          "municipalities",
+          "imported_at"
+        ],
+        "title": "OmiImportOut",
+        "type": "object"
+      },
+      "OmiImportResult": {
+        "properties": {
+          "imported_at": {
+            "format": "date-time",
+            "title": "Imported At",
+            "type": "string"
+          },
+          "municipalities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Municipalities",
+            "type": "array"
+          },
+          "quotes": {
+            "title": "Quotes",
+            "type": "integer"
+          },
+          "semester": {
+            "title": "Semester",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/OmiWarning"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "zones": {
+            "title": "Zones",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "semester",
+          "quotes",
+          "zones",
+          "municipalities",
+          "imported_at",
+          "warnings"
+        ],
+        "title": "OmiImportResult",
+        "type": "object"
+      },
+      "OmiWarning": {
+        "properties": {
+          "code": {
+            "enum": [
+              "zone_without_perimeter",
+              "perimeter_without_quotes",
+              "semester_mismatch",
+              "rows_skipped"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "examples": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Examples",
+            "type": "array"
+          }
+        },
+        "required": [
+          "code",
+          "count"
+        ],
+        "title": "OmiWarning",
+        "type": "object"
+      },
       "OwnerIntention": {
         "description": "How determined the owner is. Drives the lead priority.",
         "enum": [
@@ -541,6 +781,37 @@
         "title": "Page[MyRequestOut]",
         "type": "object"
       },
+      "Page_PlaceOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size"
+        ],
+        "title": "Page[PlaceOut]",
+        "type": "object"
+      },
       "PartCondition": {
         "enum": [
           "to_renovate",
@@ -596,6 +867,78 @@
           }
         },
         "title": "PartsCondition",
+        "type": "object"
+      },
+      "PlaceOut": {
+        "description": "An address found by the search (OpenStreetMap).",
+        "properties": {
+          "house_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "House Number"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          },
+          "municipality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Municipality"
+          },
+          "postcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Postcode"
+          },
+          "road": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Road"
+          }
+        },
+        "required": [
+          "label",
+          "latitude",
+          "longitude",
+          "municipality",
+          "road",
+          "house_number",
+          "postcode"
+        ],
+        "title": "PlaceOut",
         "type": "object"
       },
       "PropertyCondition": {
@@ -676,11 +1019,56 @@
         "additionalProperties": false,
         "description": "First step of \"Quanto vale la tua casa?\": only the essential data.",
         "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "building_works": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BuildingWorks"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cadastral_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CadastralCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "condition": {
             "$ref": "#/components/schemas/PropertyCondition"
           },
           "consent": {
             "$ref": "#/components/schemas/ConsentIn"
+          },
+          "floor": {
+            "anyOf": [
+              {
+                "maximum": 60.0,
+                "minimum": -2.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor"
           },
           "full_name": {
             "maxLength": 120,
@@ -688,8 +1076,45 @@
             "title": "Full Name",
             "type": "string"
           },
+          "has_elevator": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Has Elevator"
+          },
           "intention": {
             "$ref": "#/components/schemas/OwnerIntention"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
           },
           "municipality": {
             "maxLength": 80,
@@ -749,6 +1174,33 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EstimateOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "estimate_unavailable": {
+            "anyOf": [
+              {
+                "enum": [
+                  "no_location",
+                  "type_not_supported",
+                  "outside_zones",
+                  "no_quotes"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate Unavailable"
           },
           "id": {
             "format": "uuid",
@@ -948,6 +1400,53 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/lead/geocode": {
+      "get": {
+        "description": "Addresses matching the text, for the online estimate. Data \u00a9 OpenStreetMap.",
+        "operationId": "geocode_api_v1_lead_geocode_get",
+        "parameters": [
+          {
+            "description": "Address to search",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "description": "Address to search",
+              "maxLength": 200,
+              "minLength": 3,
+              "title": "Q",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_PlaceOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Geocode",
+        "tags": [
+          "public"
+        ]
+      }
+    },
     "/api/v1/lead/leads": {
       "get": {
         "operationId": "list_leads_api_v1_lead_leads_get",
@@ -1269,6 +1768,76 @@
         "summary": "My Requests",
         "tags": [
           "public"
+        ]
+      }
+    },
+    "/api/v1/lead/omi": {
+      "get": {
+        "operationId": "current_omi_data_api_v1_lead_omi_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OmiImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Current Omi Data",
+        "tags": [
+          "staff"
+        ]
+      },
+      "post": {
+        "operationId": "import_omi_data_api_v1_lead_omi_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_omi_data_api_v1_lead_omi_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OmiImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Omi Data",
+        "tags": [
+          "staff"
         ]
       }
     },

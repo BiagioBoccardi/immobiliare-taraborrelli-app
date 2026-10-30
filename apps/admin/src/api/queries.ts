@@ -1,14 +1,16 @@
-import type {
-  AdminProperty,
-  AdminPropertyFilters,
-  LeadFilters,
-  LeadUpdate,
-  PropertyCreate,
-  PropertyStatus,
-  PropertyUpdate,
-  Role,
-  StaffCreate,
-  UserUpdate,
+import {
+  ApiError,
+  type AdminProperty,
+  type AdminPropertyFilters,
+  type LeadFilters,
+  type LeadUpdate,
+  type PropertyCreate,
+  type PropertyStatus,
+  type PropertyUpdate,
+  type Role,
+  type StaffCreate,
+  type UserUpdate,
+  type OmiFiles,
 } from "@taraborrelli/api-client";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -20,7 +22,35 @@ export const keys = {
   properties: (filters: AdminPropertyFilters) => ["properties", filters] as const,
   property: (id: string) => ["property", id] as const,
   users: (role: Role | undefined, page: number) => ["users", role, page] as const,
+  omi: ["omi"] as const,
 };
+
+// OMI quotations for the online estimate ----------------------------------------------
+
+/** The OMI data in use, or null when nothing has been loaded yet. */
+export function useCurrentOmi() {
+  const api = useApi();
+  return useQuery({
+    queryKey: keys.omi,
+    queryFn: async () => {
+      try {
+        return await api.lead.currentOmi();
+      } catch (error) {
+        if (error instanceof ApiError && error.code === "omi_not_loaded") return null;
+        throw error;
+      }
+    },
+  });
+}
+
+export function useImportOmi() {
+  const api = useApi();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (files: OmiFiles) => api.lead.importOmi(files),
+    onSuccess: (result) => client.setQueryData(keys.omi, result),
+  });
+}
 
 // Leads ----------------------------------------------------------------------------------
 

@@ -121,6 +121,10 @@ export function fakeApi(): FakeApi {
       "getLead",
       "updateLead",
       "deleteLead",
+      "geocode",
+      "myRequests",
+      "currentOmi",
+      "importOmi",
     ]),
     property: group([
       "search",

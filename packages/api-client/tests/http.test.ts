@@ -344,3 +344,34 @@ describe("bulk property actions", () => {
     expect(calls[0]?.init.body).toBe(JSON.stringify({ status: "draft" }));
   });
 });
+
+describe("online estimate", () => {
+  it("searches an address without the account token", async () => {
+    const page = { items: [], total: 0, page: 1, size: 1 };
+    const { calls, impl } = fakeFetch(jsonResponse(200, page));
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: impl, auth: hooks() });
+
+    await api.lead.geocode("via arniense 12 chieti");
+
+    expect(calls[0]?.url).toBe(
+      "http://api.test/api/v1/lead/geocode?q=via%20arniense%2012%20chieti",
+    );
+    expect(calls[0]?.init.headers).not.toHaveProperty("Authorization");
+  });
+
+  it("uploads the OMI files as multipart form data", async () => {
+    const result = { semester: "2026/1", quotes: 1, zones: 1, municipalities: [], warnings: [] };
+    const { calls, impl } = fakeFetch(jsonResponse(201, result));
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: impl, auth: hooks() });
+
+    await api.lead.importOmi({
+      quotes: new Blob(["a"]),
+      perimeters: [new Blob(["b"]), new Blob(["c"])],
+    });
+
+    const body = calls[0]?.init.body as FormData;
+    expect(calls[0]?.url).toBe("http://api.test/api/v1/lead/omi");
+    expect(body.getAll("perimeters")).toHaveLength(2);
+    expect(body.has("zones")).toBe(false);
+  });
+});

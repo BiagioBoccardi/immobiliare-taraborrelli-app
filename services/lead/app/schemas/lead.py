@@ -6,6 +6,8 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.models.enums import (
+    BuildingWorks,
+    CadastralCategory,
     LeadKind,
     LeadPriority,
     LeadStatus,
@@ -16,6 +18,7 @@ from app.models.enums import (
 from app.schemas.common import EmailText, Municipality, PersonName, Phone, PolicyVersion
 
 Notes = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
+Address = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
 
 
 class ConsentIn(BaseModel):
@@ -40,6 +43,21 @@ class ValuationCreate(BaseModel):
     condition: PropertyCondition
     intention: OwnerIntention
     consent: ConsentIn
+    # Optional answers of the online estimate ("simulatore"): with the address position the
+    # response contains an indicative estimate from the OMI quotations of the zone.
+    address: Address | None = None
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    cadastral_category: CadastralCategory | None = None
+    building_works: BuildingWorks | None = None
+    floor: int | None = Field(default=None, ge=-2, le=60)
+    has_elevator: bool | None = None
+
+    @model_validator(mode="after")
+    def _both_coordinates(self) -> "ValuationCreate":
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("latitude and longitude must be sent together")
+        return self
 
 
 class SellTimeline(StrEnum):
@@ -84,7 +102,7 @@ class ValuationDetails(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    address: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+    address: Address | None = None
     email: EmailText | None = None
     bathrooms: int | None = Field(default=None, ge=0, le=20)
     floor: int | None = Field(default=None, ge=-2, le=60)
@@ -129,11 +147,49 @@ class LeadCreatedOut(BaseModel):
     created_at: datetime
 
 
+EstimateUnavailable = Literal[
+    "no_location",  # the address position was not sent
+    "type_not_supported",  # commercial, land...: no residential quotation applies
+    "outside_zones",  # no OMI zone loaded for that place
+    "no_quotes",  # the zone has no quotation for this kind of home
+]
+
+
+class EstimateOut(BaseModel):
+    """Indicative range from the OMI quotations. Never a professional valuation."""
+
+    min_value: int
+    max_value: int
+    min_per_sqm: int
+    max_per_sqm: int
+    municipality: str
+    zone_code: str
+    zone_description: str | None
+    semester: str
+    source: str = "OMI - Agenzia delle Entrate"
+
+
 class ValuationCreatedOut(LeadCreatedOut):
     completion_token: str = Field(
         description="One-time secret required to add the optional details. Shown only once."
     )
     completion_expires_at: datetime
+    estimate: EstimateOut | None = None
+    estimate_unavailable: EstimateUnavailable | None = None
+
+
+class PlaceOut(BaseModel):
+    """An address found by the search (OpenStreetMap)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    label: str
+    latitude: float
+    longitude: float
+    municipality: str | None
+    road: str | None
+    house_number: str | None
+    postcode: str | None
 
 
 class LeadOut(BaseModel):

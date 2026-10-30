@@ -14,10 +14,12 @@ from py_common.events.lead import (
 )
 from py_common.pagination import Page, PageParams
 
-from app.models.enums import LeadKind, LeadStatus
+from app.models.enums import BuildingWorks, CadastralCategory, LeadKind, LeadStatus
 from app.models.lead import Lead
 from app.repositories.lead import LeadRepository
 from app.schemas.lead import (
+    EstimateOut,
+    EstimateUnavailable,
     LeadFilters,
     LeadOut,
     LeadUpdate,
@@ -26,6 +28,8 @@ from app.schemas.lead import (
     ValuationCreate,
     ValuationDetails,
 )
+from app.services.estimate import SUPPORTED_TYPES, EstimateInput, estimate_value
+from app.services.omi import OmiService
 from app.services.priority import priority_for
 from app.services.tokens import hash_token, new_token, token_matches
 
@@ -43,6 +47,8 @@ class CreatedValuation:
     lead: Lead
     completion_token: str
     completion_expires_at: datetime
+    estimate: EstimateOut | None = None
+    estimate_unavailable: EstimateUnavailable | None = None
 
 
 class LeadService:
@@ -52,17 +58,39 @@ class LeadService:
         publisher: EventPublisher,
         completion_window: timedelta,
         clock: Callable[[], datetime] = utcnow,
+        omi: OmiService | None = None,
     ) -> None:
         self._repo = repository
         self._publisher = publisher
         self._completion_window = completion_window
         self._clock = clock
+        self._omi = omi
 
     async def create_valuation(
         self, data: ValuationCreate, user_id: uuid.UUID | None = None
     ) -> CreatedValuation:
         now = self._clock()
         token = new_token()
+        estimate, unavailable = await self._estimate(data)
+        details = data.model_dump(
+            mode="json",
+            exclude_none=True,
+            include={
+                "address",
+                "latitude",
+                "longitude",
+                "cadastral_category",
+                "building_works",
+                "floor",
+                "has_elevator",
+            },
+        )
+        if estimate is not None:
+            # Kept with the lead: the agent sees what the owner was shown.
+            details["estimate"] = {
+                **estimate.model_dump(mode="json"),
+                "computed_at": now.isoformat(),
+            }
         lead = Lead(
             id=uuid.uuid4(),
             kind=LeadKind.VALUATION,
@@ -77,7 +105,7 @@ class LeadService:
             surface_sqm=data.surface_sqm,
             rooms=data.rooms,
             condition=data.condition,
-            details={},
+            details=details,
             completion_token_hash=hash_token(token),
             contact_consent_at=now,
             privacy_policy_version=data.consent.privacy_policy_version,
@@ -96,7 +124,46 @@ class LeadService:
             )
         )
         await self._emit_consent(lead)
-        return CreatedValuation(lead, token, now + self._completion_window)
+        return CreatedValuation(lead, token, now + self._completion_window, estimate, unavailable)
+
+    async def _estimate(
+        self, data: ValuationCreate
+    ) -> tuple[EstimateOut | None, EstimateUnavailable | None]:
+        """Indicative range from the OMI zone of the address, when it can be computed."""
+        if self._omi is None or data.latitude is None or data.longitude is None:
+            return None, "no_location"
+        if data.property_type not in SUPPORTED_TYPES:
+            return None, "type_not_supported"
+        zone = await self._omi.find_zone(data.longitude, data.latitude)
+        if zone is None:
+            return None, "outside_zones"
+        value = estimate_value(
+            EstimateInput(
+                property_type=data.property_type,
+                surface_sqm=data.surface_sqm,
+                condition=data.condition,
+                cadastral_category=data.cadastral_category or CadastralCategory.UNKNOWN,
+                building_works=data.building_works or BuildingWorks.UNKNOWN,
+                floor=data.floor,
+                has_elevator=data.has_elevator,
+            ),
+            zone.quotes,
+        )
+        if value is None:
+            return None, "no_quotes"
+        return (
+            EstimateOut(
+                min_value=value.min_value,
+                max_value=value.max_value,
+                min_per_sqm=value.min_per_sqm,
+                max_per_sqm=value.max_per_sqm,
+                municipality=zone.municipality,
+                zone_code=zone.zone_code,
+                zone_description=zone.zone_description,
+                semester=zone.semester,
+            ),
+            None,
+        )
 
     async def complete_valuation(
         self, lead_id: uuid.UUID, token: str, details: ValuationDetails

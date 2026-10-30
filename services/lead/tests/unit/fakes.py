@@ -6,6 +6,7 @@ from typing import Any
 from py_common.events import Event
 
 from app.models.lead import Lead
+from app.models.omi import OmiImport, OmiQuote, OmiZone
 from app.schemas.lead import LeadFilters
 
 
@@ -54,3 +55,34 @@ class FakeLeadRepository:
 class FailingPublisher:
     async def publish(self, event: Event[Any]) -> None:
         raise ConnectionError("broker down")
+
+
+class FakeOmiRepository:
+    def __init__(self) -> None:
+        self.imports: list[OmiImport] = []
+        self.quotes: list[OmiQuote] = []
+        self.zones: list[OmiZone] = []
+
+    async def replace_all(
+        self, record: OmiImport, quotes: Sequence[OmiQuote], zones: Sequence[OmiZone]
+    ) -> None:
+        self.imports.append(record)
+        self.quotes = list(quotes)
+        self.zones = list(zones)
+
+    async def latest_import(self) -> OmiImport | None:
+        return self.imports[-1] if self.imports else None
+
+    async def zones_around(self, longitude: float, latitude: float) -> Sequence[OmiZone]:
+        return [
+            z
+            for z in self.zones
+            if z.min_lon <= longitude <= z.max_lon and z.min_lat <= latitude <= z.max_lat
+        ]
+
+    async def quotes_of_zone(self, municipality_code: str, zone_code: str) -> Sequence[OmiQuote]:
+        return [
+            q
+            for q in self.quotes
+            if q.municipality_code == municipality_code and q.zone_code == zone_code
+        ]
