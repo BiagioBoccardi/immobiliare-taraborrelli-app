@@ -21,6 +21,10 @@ class Settings(EmailServiceSettings):
     geocoder_email: str | None = None
     # Area preferred in the results (longitude/latitude of two corners): province of Chieti.
     geocoder_viewbox: str = "13.85,42.55,14.80,41.65"
+    # Property service, read for the €/m² of the agency's listings (estimate without OMI).
+    property_service_url: str = "http://localhost:8003"
+    # Generous: on Render's free plan a sleeping service takes a while to answer.
+    property_service_timeout: float = 10.0
 
     # Notice to the agency for every new request. Empty list: no email is sent.
     # STAFF_NOTIFICATION_EMAILS is a comma-separated list of addresses.

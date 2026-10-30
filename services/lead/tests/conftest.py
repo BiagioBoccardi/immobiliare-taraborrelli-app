@@ -15,8 +15,9 @@ from py_common.events import InMemoryEventPublisher
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from app.core.config import Settings
-from app.core.dependencies import get_publisher, get_session
+from app.core.dependencies import get_listing_prices, get_publisher, get_session
 from app.main import create_app
+from tests.unit.fakes import FakeListingPrices
 
 SERVICE_ROOT = Path(__file__).resolve().parents[1]
 CONTAINER_DIRS = ("integration", "api", "events")
@@ -134,6 +135,8 @@ def app(settings: Settings, db_session: AsyncSession, publisher: InMemoryEventPu
 
     application.dependency_overrides[get_session] = _session
     application.dependency_overrides[get_publisher] = lambda: publisher
+    # The property service is never called: no agency listing unless a test sets one.
+    application.dependency_overrides[get_listing_prices] = lambda: FakeListingPrices()
     return application
 
 

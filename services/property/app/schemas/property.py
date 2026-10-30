@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -299,3 +299,15 @@ class AdminFilters(BaseModel):
     status: PropertyStatus | None = None
     contract: Contract | None = None
     q: Annotated[str, StringConstraints(strip_whitespace=True, max_length=80)] | None = None
+
+
+class PriceStatsOut(BaseModel):
+    """€/m² of the agency's sale listings (published, reserved and sold) for a place and kind."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    scope: Literal["municipality_type", "municipality", "agency_type", "agency"]
+    listings: int
+    low_per_sqm: int
+    median_per_sqm: int
+    high_per_sqm: int

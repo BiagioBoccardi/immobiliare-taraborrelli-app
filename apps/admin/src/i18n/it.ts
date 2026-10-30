@@ -445,6 +445,11 @@ export const it = {
   "estimate.range": "{min} – {max}",
   "estimate.perSqm": "{min} – {max} €/m²",
   "estimate.zone": "Zona OMI {zone} · {municipality}",
+  "estimate.listingsPlace":
+    "Confronto con {count} immobili in vendita dell'agenzia a {municipality}",
+  "estimate.listingsAgency": "Confronto con {count} immobili in vendita di tutta l'agenzia",
+  "estimate.sourceListings":
+    "Nessuna quotazione OMI per questo indirizzo: stima calcolata dai prezzi degli immobili in vendita dell'agenzia, ridotti dell'8% perché prezzi richiesti. Orientativa, non è una valutazione professionale.",
   "estimate.source":
     "Fonte: {source}, semestre {semester}. Stima orientativa calcolata in automatico: non è una valutazione professionale.",
   "enum.cadastral.A1": "A/1 – signorile",
@@ -464,7 +469,7 @@ export const it = {
     "I valori al metro quadro dell'Agenzia delle Entrate usati dalla stima online dell'app.",
   "omi.current": "Dati in uso",
   "omi.none":
-    "Nessuna quotazione caricata: la stima online dell'app non può ancora mostrare un valore. Le richieste di valutazione arrivano comunque.",
+    "Nessuna quotazione caricata: per ora la stima online dell'app si basa sui prezzi degli immobili in vendita dell'agenzia. Con le quotazioni OMI diventa più precisa, zona per zona.",
   "omi.semester": "Semestre",
   "omi.importedAt": "Caricate il",
   "omi.zones": "Zone con perimetro",

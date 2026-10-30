@@ -355,9 +355,18 @@ function StepContent({
 
 /** Range on a bar with minimum and maximum (reference 05-stima-a-intervallo). */
 function EstimateRange({ estimate }: { estimate: Estimate }) {
+  const omi = estimate.basis !== "agency_listings";
   const zone = estimate.zone_description
     ? `${estimate.zone_code} (${estimate.zone_description.toLowerCase()})`
-    : estimate.zone_code;
+    : (estimate.zone_code ?? "");
+  const inMunicipality =
+    estimate.listings_scope === "municipality" || estimate.listings_scope === "municipality_type";
+  const basis = omi
+    ? t("estimate.resultZone", { zone, municipality: estimate.municipality })
+    : t(inMunicipality ? "estimate.resultListingsPlace" : "estimate.resultListingsAgency", {
+        count: estimate.listings ?? 0,
+        municipality: estimate.municipality,
+      });
   return (
     <Card style={styles.result}>
       <Text style={styles.resultLabel}>{t("estimate.resultTitle")}</Text>
@@ -387,12 +396,14 @@ function EstimateRange({ estimate }: { estimate: Estimate }) {
           min: formatNumber(estimate.min_per_sqm),
           max: formatNumber(estimate.max_per_sqm),
         })}{" "}
-        · {t("estimate.resultZone", { zone, municipality: estimate.municipality })}
+        · {basis}
       </Body>
       <View style={styles.notice}>
         <Ionicons name="information-circle-outline" size={20} color={colors.brandBlue} />
         <Text style={styles.noticeText}>
-          {t("estimate.disclaimer", { semester: estimate.semester })}
+          {omi
+            ? t("estimate.disclaimer", { semester: estimate.semester ?? "" })
+            : t("estimate.disclaimerListings")}
         </Text>
       </View>
     </Card>

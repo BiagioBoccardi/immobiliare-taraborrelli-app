@@ -35,14 +35,17 @@ const PRIORITIES: LeadPriority[] = ["high", "medium", "low"];
 const SPECIAL_DETAILS = new Set(["estimate", "latitude", "longitude"]);
 
 interface StoredEstimate {
+  basis?: "omi" | "agency_listings";
   min_value: number;
   max_value: number;
   min_per_sqm: number;
   max_per_sqm: number;
   municipality: string;
-  zone_code: string;
+  zone_code?: string | null;
   zone_description?: string | null;
-  semester: string;
+  semester?: string | null;
+  listings?: number | null;
+  listings_scope?: string | null;
   source: string;
 }
 
@@ -55,11 +58,23 @@ function isEstimate(value: unknown): value is StoredEstimate {
   );
 }
 
-/** The indicative range the owner saw in the app, from the OMI quotations. */
-function EstimateCard({ estimate }: { estimate: StoredEstimate }) {
+/** Where the range comes from: the OMI zone or the agency's own listings. */
+function estimateBasis(estimate: StoredEstimate): string {
+  if (estimate.basis === "agency_listings") {
+    const inMunicipality = estimate.listings_scope?.startsWith("municipality") ?? false;
+    return t(inMunicipality ? "estimate.listingsPlace" : "estimate.listingsAgency", {
+      count: estimate.listings ?? 0,
+      municipality: estimate.municipality,
+    });
+  }
   const zone = estimate.zone_description
-    ? `${estimate.zone_code} (${estimate.zone_description.toLowerCase()})`
-    : estimate.zone_code;
+    ? `${estimate.zone_code ?? ""} (${estimate.zone_description.toLowerCase()})`
+    : (estimate.zone_code ?? "");
+  return t("estimate.zone", { zone, municipality: estimate.municipality });
+}
+
+/** The indicative range the owner saw in the app. */
+function EstimateCard({ estimate }: { estimate: StoredEstimate }) {
   return (
     <section className="card">
       <h2>{t("estimate.title")}</h2>
@@ -74,10 +89,12 @@ function EstimateCard({ estimate }: { estimate: StoredEstimate }) {
           min: formatNumber(estimate.min_per_sqm),
           max: formatNumber(estimate.max_per_sqm),
         })}{" "}
-        · {t("estimate.zone", { zone, municipality: estimate.municipality })}
+        · {estimateBasis(estimate)}
       </p>
       <p className="muted">
-        {t("estimate.source", { source: estimate.source, semester: estimate.semester })}
+        {estimate.basis === "agency_listings"
+          ? t("estimate.sourceListings")
+          : t("estimate.source", { source: estimate.source, semester: estimate.semester ?? "" })}
       </p>
     </section>
   );

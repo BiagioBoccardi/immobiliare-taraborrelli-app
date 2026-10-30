@@ -182,7 +182,7 @@ export const it = {
 
   "estimate.entryTitle": "Quanto vale la tua casa?",
   "estimate.entryBody":
-    "Scoprilo in un minuto con la stima online gratuita, basata sui valori ufficiali della tua zona.",
+    "Scoprilo in un minuto con la stima online gratuita, basata sui valori della tua zona.",
   "estimate.entryButton": "Calcola la stima",
   "estimate.step": "Passo {current} di {total}",
   "estimate.next": "Avanti",
@@ -242,10 +242,14 @@ export const it = {
   "estimate.resultRange": "Tra {min} e {max}",
   "estimate.resultPerSqm": "{min} – {max} €/m²",
   "estimate.resultZone": "Zona OMI {zone}, {municipality}",
+  "estimate.resultListingsPlace": "confronto con {count} immobili in vendita a {municipality}",
+  "estimate.resultListingsAgency": "confronto con {count} immobili in vendita della nostra agenzia",
   "estimate.minLabel": "Minimo",
   "estimate.maxLabel": "Massimo",
   "estimate.disclaimer":
     "È una stima orientativa calcolata in automatico dalle quotazioni OMI dell'Agenzia delle Entrate (semestre {semester}): non è una valutazione professionale. Il valore reale dipende da dettagli che solo un sopralluogo può verificare.",
+  "estimate.disclaimerListings":
+    "È una stima orientativa calcolata in automatico dai prezzi degli immobili in vendita della nostra agenzia, ridotti perché sono prezzi richiesti: non è una valutazione professionale. Il valore reale dipende da dettagli che solo un sopralluogo può verificare.",
   "estimate.professionalTitle": "Vuoi sapere quanto vale davvero?",
   "estimate.professional1": "Valutazione professionale gratuita e senza impegno",
   "estimate.professional2": "Sopralluogo di un agente che conosce la tua zona",
@@ -253,14 +257,10 @@ export const it = {
   "estimate.received":
     "Abbiamo ricevuto la tua richiesta: un nostro agente ti contatterà per fissare la valutazione gratuita.",
   "estimate.unavailableTitle": "Richiesta ricevuta",
-  "estimate.unavailable.outside_zones":
-    "Per questa zona non abbiamo ancora i valori di riferimento, quindi non possiamo mostrarti una stima automatica.",
-  "estimate.unavailable.no_quotes":
-    "Per questo tipo di casa nella tua zona non ci sono valori di riferimento sufficienti per una stima automatica.",
+  "estimate.unavailable.no_data":
+    "Per questa zona non abbiamo ancora valori di riferimento sufficienti, quindi non possiamo mostrarti una stima automatica.",
   "estimate.unavailable.type_not_supported":
     "Per questo tipo di immobile la stima automatica non è disponibile.",
-  "estimate.unavailable.no_location":
-    "Non siamo riusciti a usare la posizione dell'indirizzo per la stima automatica.",
   "estimate.call": "Chiamaci ora",
   "estimate.whatsapp": "Scrivici su WhatsApp",
   "estimate.whatsappMessage":

@@ -44,6 +44,9 @@ const CREATED: ValuationCreated = {
   completion_token: "secret",
   completion_expires_at: "2026-11-06T09:00:00Z",
   estimate: {
+    basis: "omi",
+    listings: null,
+    listings_scope: null,
     min_value: 110000,
     max_value: 150000,
     min_per_sqm: 1100,
@@ -232,7 +235,7 @@ describe("estimate wizard", () => {
     mockedApi.lead.createValuation.mockResolvedValue({
       ...CREATED,
       estimate: null,
-      estimate_unavailable: "outside_zones",
+      estimate_unavailable: "no_data",
     });
     await renderWithProviders(<EstimateWizard />);
 
@@ -258,8 +261,58 @@ describe("estimate wizard", () => {
     await fireEvent.press(screen.getByText("Calcola la stima"));
 
     expect(await screen.findByText("Richiesta ricevuta")).toBeTruthy();
-    expect(screen.getByText(/non abbiamo ancora i valori di riferimento/)).toBeTruthy();
+    expect(screen.getByText(/non abbiamo ancora valori di riferimento sufficienti/)).toBeTruthy();
     await fireEvent.press(screen.getByText("Chiamaci ora"));
     expect(openURL).toHaveBeenCalledWith(expect.stringMatching(/^tel:/));
+  });
+});
+
+describe("estimate from the agency listings", () => {
+  it("names the listings it compares with instead of the OMI zone", async () => {
+    mockedApi.lead.geocode.mockResolvedValue({ items: [PLACE], total: 1, page: 1, size: 1 });
+    mockedApi.lead.createValuation.mockResolvedValue({
+      ...CREATED,
+      estimate: {
+        basis: "agency_listings",
+        min_value: 87000,
+        max_value: 123000,
+        min_per_sqm: 920,
+        max_per_sqm: 1288,
+        municipality: "Chieti",
+        zone_code: null,
+        zone_description: null,
+        semester: null,
+        listings: 5,
+        listings_scope: "municipality_type",
+        source: "Immobili in vendita di Immobiliare Taraborrelli",
+      },
+    });
+    await renderWithProviders(<EstimateWizard />);
+
+    await fireEvent.changeText(screen.getByLabelText("Indirizzo"), "via di prova 1 chieti");
+    await fireEvent.press(screen.getByText("Cerca"));
+    await fireEvent.press(await screen.findByText("Via di Prova 1, Chieti"));
+    await next();
+    await choose("Villa");
+    await next();
+    await choose("Non lo so");
+    await next();
+    await fireEvent.changeText(screen.getByLabelText("Superficie (m²)"), "95");
+    await fireEvent.changeText(screen.getByLabelText("Locali"), "4");
+    await next();
+    await choose("Buono, abitabile");
+    await next();
+    await choose("No");
+    await next();
+    await choose("Ho già deciso");
+    await next();
+    await fireEvent.changeText(screen.getByLabelText("Telefono"), "333 111 2222");
+    await choose("Ho letto l'informativa privacy e accetto di essere ricontattato");
+    await fireEvent.press(screen.getByText("Calcola la stima"));
+
+    expect(await screen.findByText("Tra 87.000 € e 123.000 €")).toBeTruthy();
+    expect(screen.getByText(/confronto con 5 immobili in vendita a Chieti/)).toBeTruthy();
+    expect(screen.getByText(/prezzi degli immobili in vendita della nostra agenzia/)).toBeTruthy();
+    expect(screen.queryByText(/Zona OMI/)).toBeNull();
   });
 });

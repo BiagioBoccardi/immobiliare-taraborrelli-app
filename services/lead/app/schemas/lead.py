@@ -166,25 +166,36 @@ class LeadCreatedOut(BaseModel):
 
 
 EstimateUnavailable = Literal[
-    "no_location",  # the address position was not sent
-    "type_not_supported",  # commercial, land...: no residential quotation applies
-    "outside_zones",  # no OMI zone loaded for that place
-    "no_quotes",  # the zone has no quotation for this kind of home
+    "type_not_supported",  # commercial, land...: only homes are estimated
+    "no_data",  # no OMI quotation for the place and no agency listing to compare with
 ]
+EstimateBasis = Literal[
+    "omi",  # OMI quotations of the zone (Agenzia delle Entrate)
+    "agency_listings",  # €/m² of the agency's own sale listings
+]
+ListingScope = Literal["municipality_type", "municipality", "agency_type", "agency"]
+
+OMI_SOURCE = "OMI - Agenzia delle Entrate"
+LISTINGS_SOURCE = "Immobili in vendita di Immobiliare Taraborrelli"
 
 
 class EstimateOut(BaseModel):
-    """Indicative range from the OMI quotations. Never a professional valuation."""
+    """Indicative range, never a professional valuation."""
 
+    basis: EstimateBasis = "omi"
     min_value: int
     max_value: int
     min_per_sqm: int
     max_per_sqm: int
     municipality: str
-    zone_code: str
-    zone_description: str | None
-    semester: str
-    source: str = "OMI - Agenzia delle Entrate"
+    # OMI basis: zone and semester of the quotations.
+    zone_code: str | None = None
+    zone_description: str | None = None
+    semester: str | None = None
+    # Listings basis: how many listings and where they are (same municipality or agency).
+    listings: int | None = None
+    listings_scope: ListingScope | None = None
+    source: str = OMI_SOURCE
 
 
 class ValuationCreatedOut(LeadCreatedOut):

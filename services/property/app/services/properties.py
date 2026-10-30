@@ -18,6 +18,7 @@ from app.models.enums import (
     PUBLIC_STATUSES,
     STATUS_TRANSITIONS,
     PropertyStatus,
+    PropertyType,
 )
 from app.models.property import Photo, Property
 from app.repositories.properties import PropertyRepository
@@ -34,6 +35,7 @@ from app.schemas.property import (
     AdminPropertyOut,
     PhotoOrder,
     PhotoUpdate,
+    PriceStatsOut,
     PropertyCard,
     PropertyCreate,
     PropertyDetail,
@@ -51,6 +53,7 @@ from app.services.importer import (
     plan_rows,
 )
 from app.services.presenter import Presenter
+from app.services.price_stats import price_stats
 from app.services.spreadsheet import Cell, read_spreadsheet, write_spreadsheet
 from app.storage.base import MediaStorage
 from app.storage.images import detect_image_format
@@ -126,6 +129,15 @@ class PropertyService:
             page=params.page,
             size=params.size,
         )
+
+    async def price_stats(
+        self, municipality: str | None, property_type: PropertyType | None
+    ) -> PriceStatsOut:
+        """€/m² of the agency's listings, the base of the estimate when OMI data is missing."""
+        stats = price_stats(await self._repo.sale_price_samples(), municipality, property_type)
+        if stats is None:
+            raise NotFoundError("No sale listing with price and surface", code="no_listings")
+        return PriceStatsOut.model_validate(stats)
 
     async def get_public(self, property_id: uuid.UUID) -> PropertyDetail:
         item = await self._repo.get(property_id)

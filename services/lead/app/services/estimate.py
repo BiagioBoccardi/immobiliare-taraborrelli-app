@@ -1,8 +1,12 @@
-"""Automatic estimate of a home from the OMI quotations of its zone.
+"""Automatic estimate of a home, always indicative: a range that leads to the free
+professional valuation.
 
-Always indicative: it is shown as a range and leads to the free professional valuation.
-The cadastral category chooses the OMI building type, the condition chooses the OMI
-maintenance state, and the works on the building and the floor adjust the range.
+- From the OMI quotations of its zone, when loaded: the cadastral category chooses the OMI
+  building type and the condition the OMI maintenance state.
+- Otherwise from the €/m² of the agency's own sale listings (property service), lowered a
+  little because they are asking prices, and adjusted for the condition.
+
+In both cases the works on the building and the floor adjust the range.
 """
 
 from collections.abc import Sequence
@@ -18,6 +22,7 @@ from app.models.enums import (
     PropertyType,
 )
 from app.models.omi import OmiQuote
+from app.services.listing_prices import ListingStats
 
 SUPPORTED_TYPES = {
     PropertyType.APARTMENT,
@@ -55,6 +60,16 @@ STATE_BY_CONDITION: dict[PropertyCondition, tuple[OmiState, float]] = {
 # Typical ratio between states, used when the zone has no quotation for the wanted state.
 STATE_LEVEL = {OmiState.POOR: 0.80, OmiState.NORMAL: 1.0, OmiState.EXCELLENT: 1.15}
 
+# Listings are asking prices: homes are usually sold for a little less.
+ASKING_PRICE_DISCOUNT = 0.92
+# The agency's listings are mostly in good condition: the owner's answer moves from there.
+LISTING_CONDITION_FACTOR = {
+    PropertyCondition.TO_RENOVATE: 0.80,
+    PropertyCondition.GOOD: 1.0,
+    PropertyCondition.RENOVATED: 1.10,
+    PropertyCondition.NEW: 1.15,
+}
+
 WORKS_FACTOR = {
     # Apartments: works on the building (facade, roof, insulation, common systems).
     True: {BuildingWorks.YES: 1.03, BuildingWorks.NO: 0.98, BuildingWorks.UNKNOWN: 1.0},
@@ -80,9 +95,9 @@ class Estimate:
     max_value: int
     min_per_sqm: int
     max_per_sqm: int
-    omi_type: OmiType
-    omi_state: OmiState
     factor: float
+    omi_type: OmiType | None = None
+    omi_state: OmiState | None = None
 
 
 def floor_factor(data: EstimateInput) -> float:
@@ -119,6 +134,34 @@ def _quote_for(quotes: Sequence[OmiQuote], data: EstimateInput) -> tuple[OmiQuot
     return None
 
 
+def _adjustments(data: EstimateInput) -> float:
+    return WORKS_FACTOR[data.property_type in FLAT_TYPES][data.building_works] * floor_factor(data)
+
+
+def _range(
+    low_per_sqm: float, high_per_sqm: float, factor: float, surface_sqm: int
+) -> tuple[int, int, int, int]:
+    low, high = low_per_sqm * factor, high_per_sqm * factor
+    # Rounded to the thousand, outwards: a range, never a precise price.
+    return (
+        floor(low * surface_sqm / 1000) * 1000,
+        ceil(high * surface_sqm / 1000) * 1000,
+        round(low),
+        round(high),
+    )
+
+
+def estimate_from_listings(data: EstimateInput, stats: ListingStats) -> Estimate | None:
+    """The indicative range from the agency's listings, when no OMI quotation is available."""
+    if data.property_type not in SUPPORTED_TYPES:
+        return None
+    factor = ASKING_PRICE_DISCOUNT * LISTING_CONDITION_FACTOR[data.condition] * _adjustments(data)
+    min_value, max_value, min_per_sqm, max_per_sqm = _range(
+        stats.low_per_sqm, stats.high_per_sqm, factor, data.surface_sqm
+    )
+    return Estimate(min_value, max_value, min_per_sqm, max_per_sqm, round(factor, 4))
+
+
 def estimate_value(data: EstimateInput, quotes: Sequence[OmiQuote]) -> Estimate | None:
     """The indicative value range, or None when the zone has no suitable quotation."""
     if data.property_type not in SUPPORTED_TYPES:
@@ -127,20 +170,16 @@ def estimate_value(data: EstimateInput, quotes: Sequence[OmiQuote]) -> Estimate 
     if found is None:
         return None
     quote, state_factor = found
-    factor = (
-        state_factor
-        * WORKS_FACTOR[data.property_type in FLAT_TYPES][data.building_works]
-        * floor_factor(data)
+    factor = state_factor * _adjustments(data)
+    min_value, max_value, min_per_sqm, max_per_sqm = _range(
+        quote.sale_min, quote.sale_max, factor, data.surface_sqm
     )
-    min_per_sqm = quote.sale_min * factor
-    max_per_sqm = quote.sale_max * factor
     return Estimate(
-        # Rounded to the thousand, outwards: a range, never a precise price.
-        min_value=floor(min_per_sqm * data.surface_sqm / 1000) * 1000,
-        max_value=ceil(max_per_sqm * data.surface_sqm / 1000) * 1000,
-        min_per_sqm=round(min_per_sqm),
-        max_per_sqm=round(max_per_sqm),
+        min_value,
+        max_value,
+        min_per_sqm,
+        max_per_sqm,
+        round(factor, 4),
         omi_type=quote.omi_type,
         omi_state=quote.state,
-        factor=round(factor, 4),
     )

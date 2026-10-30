@@ -141,3 +141,36 @@ describe("estimate in the lead detail", () => {
     expect(screen.queryByText("latitude")).not.toBeInTheDocument();
   });
 });
+
+describe("estimate from the agency listings in the lead detail", () => {
+  it("says it comes from the agency's listings", async () => {
+    const api = fakeApi();
+    api.lead.getLead.mockResolvedValue(
+      makeLead({
+        details: {
+          estimate: {
+            basis: "agency_listings",
+            min_value: 87000,
+            max_value: 123000,
+            min_per_sqm: 920,
+            max_per_sqm: 1288,
+            municipality: "Chieti",
+            zone_code: null,
+            zone_description: null,
+            semester: null,
+            listings: 5,
+            listings_scope: "municipality_type",
+            source: "Immobili in vendita di Immobiliare Taraborrelli",
+          },
+        },
+      }),
+    );
+    renderApp(api, await signedInStore(api), "/leads/lead-1");
+
+    expect(await screen.findByText(/87\.000\s€ – 123\.000\s€/)).toBeVisible();
+    expect(
+      screen.getByText(/Confronto con 5 immobili in vendita dell'agenzia a Chieti/),
+    ).toBeVisible();
+    expect(screen.getByText(/Nessuna quotazione OMI per questo indirizzo/)).toBeVisible();
+  });
+});

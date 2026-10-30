@@ -7,10 +7,11 @@ from py_common.ratelimit import RateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.core.dependencies import get_geocoder
+from app.core.dependencies import get_geocoder, get_listing_prices
 from app.main import create_app
 from app.models.lead import Lead
 from app.services.geocoding import GeocodingUnavailableError, Place
+from app.services.listing_prices import ListingStats
 from tests.factories import (
     callback_request_payload,
     consent_payload,
@@ -21,7 +22,7 @@ from tests.factories import (
     owner_request_payload,
     valuation_payload,
 )
-from tests.unit.fakes import RecordingNotifier
+from tests.unit.fakes import FakeListingPrices, RecordingNotifier
 
 BASE = "/api/v1/lead"
 
@@ -366,3 +367,18 @@ def test_create_app_enables_the_forms_limit_only_when_configured(settings: Setti
 
     assert off.state.forms_limiter is None
     assert isinstance(on.state.forms_limiter, RateLimiter)
+
+
+async def test_create_valuation_without_omi_returns_estimate_from_agency_listings(
+    app: FastAPI, client: AsyncClient
+) -> None:
+    stats = ListingStats("municipality", 6, 1000, 1150, 1300)
+    app.dependency_overrides[get_listing_prices] = lambda: FakeListingPrices(stats)
+
+    response = await client.post(f"{BASE}/valuations", json=valuation_payload(surface_sqm=100))
+
+    body = response.json()
+    assert response.status_code == 201
+    assert body["estimate"]["basis"] == "agency_listings"
+    assert body["estimate"]["listings"] == 6
+    assert body["estimate"]["min_value"] == 92_000

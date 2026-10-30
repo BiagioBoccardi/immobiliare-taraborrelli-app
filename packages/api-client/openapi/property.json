@@ -1092,6 +1092,46 @@
         "title": "PhotoUpdate",
         "type": "object"
       },
+      "PriceStatsOut": {
+        "description": "\u20ac/m\u00b2 of the agency's sale listings (published, reserved and sold) for a place and kind.",
+        "properties": {
+          "high_per_sqm": {
+            "title": "High Per Sqm",
+            "type": "integer"
+          },
+          "listings": {
+            "title": "Listings",
+            "type": "integer"
+          },
+          "low_per_sqm": {
+            "title": "Low Per Sqm",
+            "type": "integer"
+          },
+          "median_per_sqm": {
+            "title": "Median Per Sqm",
+            "type": "integer"
+          },
+          "scope": {
+            "enum": [
+              "municipality_type",
+              "municipality",
+              "agency_type",
+              "agency"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "listings",
+          "low_per_sqm",
+          "median_per_sqm",
+          "high_per_sqm"
+        ],
+        "title": "PriceStatsOut",
+        "type": "object"
+      },
       "PropertyCard": {
         "description": "List item for the catalog, carousels and map.",
         "properties": {
@@ -3480,6 +3520,73 @@
         "summary": "Change Status",
         "tags": [
           "admin"
+        ]
+      }
+    },
+    "/api/v1/property/price-stats": {
+      "get": {
+        "description": "\u20ac/m\u00b2 range of the agency's sale listings, used by the indicative online estimate.",
+        "operationId": "get_price_stats_api_v1_property_price_stats_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "municipality",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Municipality"
+            }
+          },
+          {
+            "in": "query",
+            "name": "property_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PropertyType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Property Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceStatsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Price Stats",
+        "tags": [
+          "catalog"
         ]
       }
     },

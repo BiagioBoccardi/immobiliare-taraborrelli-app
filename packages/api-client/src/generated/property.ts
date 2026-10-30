@@ -283,6 +283,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/property/price-stats": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Price Stats
+     * @description €/m² range of the agency's sale listings, used by the indicative online estimate.
+     */
+    get: operations["get_price_stats_api_v1_property_price_stats_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/property/properties": {
     parameters: {
       query?: never;
@@ -688,6 +708,25 @@ export interface components {
       caption?: string | null;
       /** Show When Sold */
       show_when_sold?: boolean | null;
+    };
+    /**
+     * PriceStatsOut
+     * @description €/m² of the agency's sale listings (published, reserved and sold) for a place and kind.
+     */
+    PriceStatsOut: {
+      /** High Per Sqm */
+      high_per_sqm: number;
+      /** Listings */
+      listings: number;
+      /** Low Per Sqm */
+      low_per_sqm: number;
+      /** Median Per Sqm */
+      median_per_sqm: number;
+      /**
+       * Scope
+       * @enum {string}
+       */
+      scope: "municipality_type" | "municipality" | "agency_type" | "agency";
     };
     /**
      * PropertyCard
@@ -1654,6 +1693,38 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AdminPropertyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_price_stats_api_v1_property_price_stats_get: {
+    parameters: {
+      query?: {
+        municipality?: string | null;
+        property_type?: components["schemas"]["PropertyType"] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PriceStatsOut"];
         };
       };
       /** @description Validation Error */

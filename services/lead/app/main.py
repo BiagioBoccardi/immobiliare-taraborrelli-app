@@ -16,6 +16,7 @@ from app.core.database import create_engine, create_session_factory
 from app.events.consumers import USER_DELETED_ROUTING_KEY, UserDeletedHandler
 from app.events.publisher import LoggingEventPublisher
 from app.services.geocoding import NominatimGeocoder
+from app.services.listing_prices import HttpListingPrices
 from app.services.notifications import EmailStaffNotifier, NoStaffNotifier, StaffNotifier
 
 API_PREFIX = "/api/v1/lead"
@@ -78,6 +79,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.token_verifier = TokenVerifier(
         settings.jwt_public_key, settings.jwt_algorithm, settings.jwt_audience, settings.jwt_issuer
+    )
+    app.state.listing_prices = HttpListingPrices(
+        settings.property_service_url, timeout=settings.property_service_timeout
     )
     app.state.geocoder = NominatimGeocoder(
         settings.geocoder_url,

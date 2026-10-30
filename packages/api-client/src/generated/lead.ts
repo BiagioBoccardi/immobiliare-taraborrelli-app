@@ -263,9 +263,19 @@ export interface components {
     EnergyClass: "A4" | "A3" | "A2" | "A1" | "B" | "C" | "D" | "E" | "F" | "G";
     /**
      * EstimateOut
-     * @description Indicative range from the OMI quotations. Never a professional valuation.
+     * @description Indicative range, never a professional valuation.
      */
     EstimateOut: {
+      /**
+       * Basis
+       * @default omi
+       * @enum {string}
+       */
+      basis?: "omi" | "agency_listings";
+      /** Listings */
+      listings?: number | null;
+      /** Listings Scope */
+      listings_scope?: ("municipality_type" | "municipality" | "agency_type" | "agency") | null;
       /** Max Per Sqm */
       max_per_sqm: number;
       /** Max Value */
@@ -277,16 +287,16 @@ export interface components {
       /** Municipality */
       municipality: string;
       /** Semester */
-      semester: string;
+      semester?: string | null;
       /**
        * Source
        * @default OMI - Agenzia delle Entrate
        */
       source?: string;
       /** Zone Code */
-      zone_code: string;
+      zone_code?: string | null;
       /** Zone Description */
-      zone_description: string | null;
+      zone_description?: string | null;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -654,8 +664,7 @@ export interface components {
       created_at: string;
       estimate?: components["schemas"]["EstimateOut"] | null;
       /** Estimate Unavailable */
-      estimate_unavailable?:
-        ("no_location" | "type_not_supported" | "outside_zones" | "no_quotes") | null;
+      estimate_unavailable?: ("type_not_supported" | "no_data") | null;
       /**
        * Id
        * Format: uuid

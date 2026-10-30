@@ -19,6 +19,8 @@ from app.models.enums import BuildingWorks, CadastralCategory, LeadKind, LeadPri
 from app.models.lead import Lead
 from app.repositories.lead import LeadRepository
 from app.schemas.lead import (
+    LISTINGS_SOURCE,
+    OMI_SOURCE,
     CallbackRequestCreate,
     EstimateOut,
     EstimateUnavailable,
@@ -30,7 +32,13 @@ from app.schemas.lead import (
     ValuationCreate,
     ValuationDetails,
 )
-from app.services.estimate import SUPPORTED_TYPES, EstimateInput, estimate_value
+from app.services.estimate import (
+    SUPPORTED_TYPES,
+    EstimateInput,
+    estimate_from_listings,
+    estimate_value,
+)
+from app.services.listing_prices import ListingPrices
 from app.services.notifications import NoStaffNotifier, StaffNotifier
 from app.services.omi import OmiService
 from app.services.priority import priority_for
@@ -62,6 +70,7 @@ class LeadService:
         completion_window: timedelta,
         clock: Callable[[], datetime] = utcnow,
         omi: OmiService | None = None,
+        listings: ListingPrices | None = None,
         notifier: StaffNotifier | None = None,
     ) -> None:
         self._repo = repository
@@ -69,6 +78,7 @@ class LeadService:
         self._completion_window = completion_window
         self._clock = clock
         self._omi = omi
+        self._listings = listings
         self._notifier = notifier or NoStaffNotifier()
 
     async def create_valuation(
@@ -135,40 +145,67 @@ class LeadService:
     async def _estimate(
         self, data: ValuationCreate
     ) -> tuple[EstimateOut | None, EstimateUnavailable | None]:
-        """Indicative range from the OMI zone of the address, when it can be computed."""
-        if self._omi is None or data.latitude is None or data.longitude is None:
-            return None, "no_location"
+        """Indicative range: OMI zone of the address first, then the agency's listings."""
         if data.property_type not in SUPPORTED_TYPES:
             return None, "type_not_supported"
-        zone = await self._omi.find_zone(data.longitude, data.latitude)
-        if zone is None:
-            return None, "outside_zones"
-        value = estimate_value(
-            EstimateInput(
-                property_type=data.property_type,
-                surface_sqm=data.surface_sqm,
-                condition=data.condition,
-                cadastral_category=data.cadastral_category or CadastralCategory.UNKNOWN,
-                building_works=data.building_works or BuildingWorks.UNKNOWN,
-                floor=data.floor,
-                has_elevator=data.has_elevator,
-            ),
-            zone.quotes,
+        home = EstimateInput(
+            property_type=data.property_type,
+            surface_sqm=data.surface_sqm,
+            condition=data.condition,
+            cadastral_category=data.cadastral_category or CadastralCategory.UNKNOWN,
+            building_works=data.building_works or BuildingWorks.UNKNOWN,
+            floor=data.floor,
+            has_elevator=data.has_elevator,
         )
-        if value is None:
-            return None, "no_quotes"
-        return (
-            EstimateOut(
-                min_value=value.min_value,
-                max_value=value.max_value,
-                min_per_sqm=value.min_per_sqm,
-                max_per_sqm=value.max_per_sqm,
-                municipality=zone.municipality,
-                zone_code=zone.zone_code,
-                zone_description=zone.zone_description,
-                semester=zone.semester,
-            ),
-            None,
+        from_omi = await self._estimate_from_omi(data, home)
+        if from_omi is not None:
+            return from_omi, None
+        from_listings = await self._estimate_from_listings(data, home)
+        if from_listings is not None:
+            return from_listings, None
+        return None, "no_data"
+
+    async def _estimate_from_omi(
+        self, data: ValuationCreate, home: EstimateInput
+    ) -> EstimateOut | None:
+        if self._omi is None or data.latitude is None or data.longitude is None:
+            return None
+        zone = await self._omi.find_zone(data.longitude, data.latitude)
+        value = estimate_value(home, zone.quotes) if zone is not None else None
+        if zone is None or value is None:
+            return None
+        return EstimateOut(
+            basis="omi",
+            min_value=value.min_value,
+            max_value=value.max_value,
+            min_per_sqm=value.min_per_sqm,
+            max_per_sqm=value.max_per_sqm,
+            municipality=zone.municipality,
+            zone_code=zone.zone_code,
+            zone_description=zone.zone_description,
+            semester=zone.semester,
+            source=OMI_SOURCE,
+        )
+
+    async def _estimate_from_listings(
+        self, data: ValuationCreate, home: EstimateInput
+    ) -> EstimateOut | None:
+        if self._listings is None:
+            return None
+        stats = await self._listings.stats(data.municipality, data.property_type.value)
+        value = estimate_from_listings(home, stats) if stats is not None else None
+        if stats is None or value is None:
+            return None
+        return EstimateOut(
+            basis="agency_listings",
+            min_value=value.min_value,
+            max_value=value.max_value,
+            min_per_sqm=value.min_per_sqm,
+            max_per_sqm=value.max_per_sqm,
+            municipality=data.municipality,
+            listings=stats.listings,
+            listings_scope=stats.scope,
+            source=LISTINGS_SOURCE,
         )
 
     async def complete_valuation(

@@ -99,6 +99,9 @@ services:
       # the online estimate "Quanto vale la tua casa?").
       - key: GEOCODER_EMAIL
         value: immobiliaretaraborrelli@gmail.com
+      # €/m² of the agency's listings, for the estimate when no OMI quotation covers the address.
+      - key: PROPERTY_SERVICE_URL
+        value: https://taraborrelli-property.onrender.com
 
   - type: web
     name: taraborrelli-property

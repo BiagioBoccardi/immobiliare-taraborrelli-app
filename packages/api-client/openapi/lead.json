@@ -166,8 +166,45 @@
         "type": "string"
       },
       "EstimateOut": {
-        "description": "Indicative range from the OMI quotations. Never a professional valuation.",
+        "description": "Indicative range, never a professional valuation.",
         "properties": {
+          "basis": {
+            "default": "omi",
+            "enum": [
+              "omi",
+              "agency_listings"
+            ],
+            "title": "Basis",
+            "type": "string"
+          },
+          "listings": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listings"
+          },
+          "listings_scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "municipality_type",
+                  "municipality",
+                  "agency_type",
+                  "agency"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listings Scope"
+          },
           "max_per_sqm": {
             "title": "Max Per Sqm",
             "type": "integer"
@@ -189,8 +226,15 @@
             "type": "string"
           },
           "semester": {
-            "title": "Semester",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Semester"
           },
           "source": {
             "default": "OMI - Agenzia delle Entrate",
@@ -198,8 +242,15 @@
             "type": "string"
           },
           "zone_code": {
-            "title": "Zone Code",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Code"
           },
           "zone_description": {
             "anyOf": [
@@ -218,10 +269,7 @@
           "max_value",
           "min_per_sqm",
           "max_per_sqm",
-          "municipality",
-          "zone_code",
-          "zone_description",
-          "semester"
+          "municipality"
         ],
         "title": "EstimateOut",
         "type": "object"
@@ -1293,10 +1341,8 @@
             "anyOf": [
               {
                 "enum": [
-                  "no_location",
                   "type_not_supported",
-                  "outside_zones",
-                  "no_quotes"
+                  "no_data"
                 ],
                 "type": "string"
               },

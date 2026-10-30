@@ -17,6 +17,7 @@ from app.repositories.lead import SqlLeadRepository
 from app.repositories.omi import SqlOmiRepository
 from app.services.geocoding import Geocoder
 from app.services.lead import LeadService
+from app.services.listing_prices import ListingPrices
 from app.services.notifications import StaffNotifier
 from app.services.omi import OmiService
 
@@ -47,18 +48,24 @@ def get_staff_notifier(request: Request) -> StaffNotifier:
     return cast(StaffNotifier, request.app.state.staff_notifier)
 
 
+def get_listing_prices(request: Request) -> ListingPrices:
+    return cast(ListingPrices, request.app.state.listing_prices)
+
+
 def get_lead_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     publisher: Annotated[EventPublisher, Depends(get_publisher)],
     settings: Annotated[Settings, Depends(get_settings_dep)],
     omi: Annotated[OmiService, Depends(get_omi_service)],
     notifier: Annotated[StaffNotifier, Depends(get_staff_notifier)],
+    listings: Annotated[ListingPrices, Depends(get_listing_prices)],
 ) -> LeadService:
     return LeadService(
         SqlLeadRepository(session),
         publisher,
         completion_window=timedelta(days=settings.valuation_completion_window_days),
         omi=omi,
+        listings=listings,
         notifier=notifier,
     )
 

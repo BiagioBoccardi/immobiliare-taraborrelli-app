@@ -19,7 +19,13 @@ from app.models.enums import (
     SortOrder,
     TenantType,
 )
-from app.schemas.property import PropertyCard, PropertyDetail, SearchFilters, SoldCard
+from app.schemas.property import (
+    PriceStatsOut,
+    PropertyCard,
+    PropertyDetail,
+    SearchFilters,
+    SoldCard,
+)
 from app.services.properties import PropertyService
 
 router = APIRouter(tags=["catalog"])
@@ -107,3 +113,13 @@ async def get_property(property_id: uuid.UUID, service: Service) -> PropertyDeta
 @router.get("/sold", response_model=Page[SoldCard])
 async def list_sold(service: Service, params: Paging) -> Page[SoldCard]:
     return await service.list_sold(params)
+
+
+@router.get("/price-stats", response_model=PriceStatsOut)
+async def get_price_stats(
+    service: Service,
+    municipality: Annotated[str | None, Query(max_length=80)] = None,
+    property_type: PropertyType | None = None,
+) -> PriceStatsOut:
+    """€/m² range of the agency's sale listings, used by the indicative online estimate."""
+    return await service.price_stats(municipality, property_type)

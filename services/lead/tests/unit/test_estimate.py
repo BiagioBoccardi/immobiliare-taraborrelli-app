@@ -9,7 +9,13 @@ from app.models.enums import (
     PropertyType,
 )
 from app.models.omi import OmiQuote
-from app.services.estimate import EstimateInput, estimate_value, floor_factor
+from app.services.estimate import (
+    EstimateInput,
+    estimate_from_listings,
+    estimate_value,
+    floor_factor,
+)
+from app.services.listing_prices import ListingStats
 
 
 def _quote(omi_type: OmiType, state: OmiState, low: float, high: float) -> OmiQuote:
@@ -132,3 +138,35 @@ def test_floor_factor_for_apartments(
 
 def test_floor_factor_ignores_floor_of_houses() -> None:
     assert floor_factor(_input(property_type=PropertyType.HOUSE, floor=0)) == 1.0
+
+
+LISTINGS = ListingStats(
+    scope="municipality", listings=8, low_per_sqm=1000, median_per_sqm=1200, high_per_sqm=1500
+)
+
+
+def test_estimate_from_listings_lowers_asking_prices() -> None:
+    estimate = estimate_from_listings(_input(), LISTINGS)
+
+    assert estimate is not None
+    assert (estimate.min_per_sqm, estimate.max_per_sqm) == (920, 1380)
+    assert (estimate.min_value, estimate.max_value) == (92_000, 138_000)
+    assert estimate.omi_type is None
+
+
+def test_estimate_from_listings_of_home_to_renovate_is_lower() -> None:
+    estimate = estimate_from_listings(_input(condition=PropertyCondition.TO_RENOVATE), LISTINGS)
+
+    assert estimate is not None and estimate.factor == round(0.92 * 0.8, 4)
+
+
+def test_estimate_from_listings_applies_works_and_floor() -> None:
+    data = _input(building_works=BuildingWorks.YES, floor=0)
+
+    estimate = estimate_from_listings(data, LISTINGS)
+
+    assert estimate is not None and estimate.factor == round(0.92 * 1.03 * 0.95, 4)
+
+
+def test_estimate_from_listings_of_land_returns_none() -> None:
+    assert estimate_from_listings(_input(property_type=PropertyType.LAND), LISTINGS) is None

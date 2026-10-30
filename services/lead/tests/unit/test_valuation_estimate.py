@@ -4,16 +4,23 @@ from py_common.events import InMemoryEventPublisher
 
 from app.schemas.lead import ValuationCreate
 from app.services.lead import LeadService
+from app.services.listing_prices import ListingStats
 from app.services.omi import OmiService, UploadedFile
 from tests.factories import omi_kml, omi_values_csv, omi_zones_csv, valuation_payload
-from tests.unit.fakes import FakeLeadRepository, FakeOmiRepository
+from tests.unit.fakes import FakeLeadRepository, FakeListingPrices, FakeOmiRepository
 
 NOW = datetime(2026, 10, 30, 9, 0, tzinfo=UTC)
 # Inside the fictional zone B1 of the test files.
 IN_ZONE = {"latitude": 42.35, "longitude": 14.16, "address": "Via di Prova 1, Chieti"}
+OUTSIDE = {"latitude": 41.0, "longitude": 13.0}
+LISTINGS = ListingStats(
+    scope="municipality_type", listings=5, low_per_sqm=1000, median_per_sqm=1200, high_per_sqm=1400
+)
 
 
-async def _service() -> tuple[LeadService, FakeLeadRepository]:
+async def _service(
+    listings: FakeListingPrices | None = None,
+) -> tuple[LeadService, FakeLeadRepository]:
     omi = OmiService(FakeOmiRepository(), clock=lambda: NOW)
     await omi.import_files(
         UploadedFile("valori.csv", omi_values_csv()),
@@ -22,7 +29,12 @@ async def _service() -> tuple[LeadService, FakeLeadRepository]:
     )
     repo = FakeLeadRepository()
     service = LeadService(
-        repo, InMemoryEventPublisher(), timedelta(days=7), clock=lambda: NOW, omi=omi
+        repo,
+        InMemoryEventPublisher(),
+        timedelta(days=7),
+        clock=lambda: NOW,
+        omi=omi,
+        listings=listings or FakeListingPrices(),
     )
     return service, repo
 
@@ -64,23 +76,61 @@ async def test_create_valuation_keeps_answers_and_estimate_in_the_lead() -> None
     assert details["estimate"]["source"] == "OMI - Agenzia delle Entrate"
 
 
-async def test_create_valuation_without_position_has_no_estimate() -> None:
+async def test_create_valuation_without_omi_nor_listings_has_no_estimate() -> None:
     service, repo = await _service()
 
     created = await service.create_valuation(ValuationCreate.model_validate(valuation_payload()))
 
-    assert (created.estimate, created.estimate_unavailable) == (None, "no_location")
+    assert (created.estimate, created.estimate_unavailable) == (None, "no_data")
     assert repo.leads[created.lead.id].details == {}
 
 
 async def test_create_valuation_outside_the_zones_is_still_a_lead() -> None:
     service, repo = await _service()
-    data = ValuationCreate.model_validate(valuation_payload(latitude=41.0, longitude=13.0))
+    data = ValuationCreate.model_validate(valuation_payload(**OUTSIDE))
 
     created = await service.create_valuation(data)
 
-    assert created.estimate_unavailable == "outside_zones"
+    assert created.estimate_unavailable == "no_data"
     assert created.lead.id in repo.leads
+
+
+async def test_create_valuation_outside_the_zones_uses_the_agency_listings() -> None:
+    listings = FakeListingPrices(LISTINGS)
+    service, repo = await _service(listings)
+    data = ValuationCreate.model_validate(valuation_payload(surface_sqm=95, **OUTSIDE))
+
+    created = await service.create_valuation(data)
+
+    estimate = created.estimate
+    assert estimate is not None
+    assert estimate.basis == "agency_listings"
+    # Asking prices lowered by 8%: 1000-1400 €/m² become 920-1288 €/m².
+    assert (estimate.min_per_sqm, estimate.max_per_sqm) == (920, 1288)
+    assert (estimate.min_value, estimate.max_value) == (87_000, 123_000)
+    assert (estimate.listings, estimate.listings_scope) == (5, "municipality_type")
+    assert estimate.source == "Immobili in vendita di Immobiliare Taraborrelli"
+    assert listings.calls == [("Chieti", "apartment")]
+    assert repo.leads[created.lead.id].details["estimate"]["basis"] == "agency_listings"
+
+
+async def test_create_valuation_without_position_uses_the_agency_listings() -> None:
+    service, _ = await _service(FakeListingPrices(LISTINGS))
+
+    created = await service.create_valuation(ValuationCreate.model_validate(valuation_payload()))
+
+    assert created.estimate is not None and created.estimate.basis == "agency_listings"
+
+
+async def test_create_valuation_in_an_omi_zone_does_not_ask_the_listings() -> None:
+    listings = FakeListingPrices(LISTINGS)
+    service, _ = await _service(listings)
+    data = ValuationCreate.model_validate(valuation_payload(**IN_ZONE))
+
+    created = await service.create_valuation(data)
+
+    assert created.estimate is not None and created.estimate.basis == "omi"
+    assert listings.calls == []
 
 
 async def test_create_valuation_of_land_is_not_estimated() -> None:
@@ -122,4 +172,4 @@ async def test_create_valuation_without_quotation_for_the_type_reports_it() -> N
 
     created = await service.create_valuation(data)
 
-    assert (created.estimate, created.estimate_unavailable) == (None, "no_quotes")
+    assert (created.estimate, created.estimate_unavailable) == (None, "no_data")

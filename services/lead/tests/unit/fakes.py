@@ -8,6 +8,7 @@ from py_common.events import Event
 from app.models.lead import Lead
 from app.models.omi import OmiImport, OmiQuote, OmiZone
 from app.schemas.lead import LeadFilters
+from app.services.listing_prices import ListingStats
 
 
 class FakeLeadRepository:
@@ -109,3 +110,15 @@ class RecordingEmailSender:
 
     async def send(self, email: Any) -> None:
         self.sent.append(email)
+
+
+class FakeListingPrices:
+    """€/m² of the agency's listings without calling the property service."""
+
+    def __init__(self, stats: ListingStats | None = None) -> None:
+        self.result = stats
+        self.calls: list[tuple[str, str]] = []
+
+    async def stats(self, municipality: str, property_type: str) -> ListingStats | None:
+        self.calls.append((municipality, property_type))
+        return self.result

@@ -1,9 +1,10 @@
 import uuid
 from collections.abc import Collection
 
-from app.models.enums import PropertyStatus
+from app.models.enums import PUBLIC_STATUSES, Contract, PropertyStatus
 from app.models.property import Property
 from app.schemas.property import AdminFilters, SearchFilters
+from app.services.price_stats import Sample
 
 
 class InMemoryStorage:
@@ -67,6 +68,15 @@ class FakePropertyRepository:
     async def list_sold(self, offset: int, limit: int) -> tuple[list[Property], int]:
         found = [i for i in self.items.values() if i.status is PropertyStatus.SOLD]
         return found[offset : offset + limit], len(found)
+
+    async def sale_price_samples(self) -> list[Sample]:
+        return [
+            Sample(i.municipality, i.property_type, i.price, i.surface_sqm or 0)
+            for i in self.items.values()
+            if i.contract is Contract.SALE
+            and i.status in {*PUBLIC_STATUSES, PropertyStatus.SOLD}
+            and (i.surface_sqm or 0) > 0
+        ]
 
     async def delete(self, item: Property) -> None:
         del self.items[item.id]

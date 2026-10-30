@@ -5,9 +5,10 @@ from typing import Any, Protocol
 from sqlalchemy import Select, String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import PUBLIC_STATUSES, PropertyStatus, SortOrder
+from app.models.enums import PUBLIC_STATUSES, Contract, PropertyStatus, SortOrder
 from app.models.property import Property
 from app.schemas.property import AdminFilters, SearchFilters
+from app.services.price_stats import Sample
 
 
 def _search_query(filters: SearchFilters) -> Select[Property]:
@@ -81,6 +82,8 @@ class PropertyRepository(Protocol):
 
     async def list_sold(self, offset: int, limit: int) -> tuple[list[Property], int]: ...
 
+    async def sale_price_samples(self) -> list[Sample]: ...
+
     async def delete(self, item: Property) -> None: ...
 
     async def commit(self) -> None: ...
@@ -148,6 +151,20 @@ class SqlPropertyRepository:
         query = select(Property).where(Property.status == PropertyStatus.SOLD)
         ordering = (Property.closed_at.desc().nulls_last(), Property.id)
         return await self._page(query, ordering, offset, limit)
+
+    async def sale_price_samples(self) -> list[Sample]:
+        """Price and surface of the sale listings shown or sold by the agency."""
+        rows = await self._session.execute(
+            select(
+                Property.municipality, Property.property_type, Property.price, Property.surface_sqm
+            ).where(
+                Property.contract == Contract.SALE,
+                Property.status.in_([*PUBLIC_STATUSES, PropertyStatus.SOLD]),
+                Property.surface_sqm > 0,
+                Property.price > 0,
+            )
+        )
+        return [Sample(m, t, price, surface or 0) for m, t, price, surface in rows.all()]
 
     async def delete(self, item: Property) -> None:
         await self._session.delete(item)

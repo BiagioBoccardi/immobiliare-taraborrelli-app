@@ -163,6 +163,8 @@ services:
       dockerfile: services/lead/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://lead:${LEAD_DB_PASSWORD:-lead}@lead-db:5432/lead
+      # €/m² of the agency's listings, for the estimate when no OMI quotation covers the address.
+      PROPERTY_SERVICE_URL: http://property:8000
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-taraborrelli}:${RABBITMQ_PASSWORD:-taraborrelli}@rabbitmq:5672/
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?run infra/scripts/generate-jwt-keys.sh}
     depends_on:
