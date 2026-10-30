@@ -95,6 +95,10 @@ services:
         value: immobiliaretaraborrelli@gmail.com
       - key: ADMIN_PANEL_URL
         value: https://taraborrelli-admin.netlify.app
+      # Contact sent to OpenStreetMap Nominatim, as its usage policy asks (address search of
+      # the online estimate "Quanto vale la tua casa?").
+      - key: GEOCODER_EMAIL
+        value: immobiliaretaraborrelli@gmail.com
 
   - type: web
     name: taraborrelli-property
