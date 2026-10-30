@@ -17,6 +17,7 @@ import {
   formatDate,
   formatDateTime,
   formatEuro,
+  formatNumber,
   fromLocalInput,
   internationalPhone,
   toLocalInput,
@@ -69,8 +70,11 @@ function EstimateCard({ estimate }: { estimate: StoredEstimate }) {
         })}
       </p>
       <p>
-        {t("estimate.perSqm", { min: estimate.min_per_sqm, max: estimate.max_per_sqm })} ·{" "}
-        {t("estimate.zone", { zone, municipality: estimate.municipality })}
+        {t("estimate.perSqm", {
+          min: formatNumber(estimate.min_per_sqm),
+          max: formatNumber(estimate.max_per_sqm),
+        })}{" "}
+        · {t("estimate.zone", { zone, municipality: estimate.municipality })}
       </p>
       <p className="muted">
         {t("estimate.source", { source: estimate.source, semester: estimate.semester })}

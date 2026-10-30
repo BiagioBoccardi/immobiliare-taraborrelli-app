@@ -63,6 +63,7 @@ export default function RootLayout() {
                   <Stack.Screen name="immobile/[id]" />
                   <Stack.Screen name="filtri" options={{ presentation: "modal" }} />
                   <Stack.Screen name="contatti" options={{ presentation: "modal" }} />
+                  <Stack.Screen name="stima" />
                 </Stack>
               </AppShell>
             </SearchProvider>

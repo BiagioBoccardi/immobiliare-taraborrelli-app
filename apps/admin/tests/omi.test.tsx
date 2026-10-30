@@ -130,6 +130,7 @@ describe("estimate in the lead detail", () => {
 
     expect(await screen.findByText("Stima online mostrata al proprietario")).toBeVisible();
     expect(screen.getByText(/110\.000\s€ – 150\.000\s€/)).toBeVisible();
+    expect(screen.getByText(/1\.100 – 1\.500 €\/m²/)).toBeVisible();
     expect(screen.getByText(/Zona OMI B1 \(centro storico\) · Chieti/)).toBeVisible();
     expect(screen.getByText(/non è una valutazione professionale/)).toBeVisible();
     expect(screen.getByText("A/2 – civile")).toBeVisible();

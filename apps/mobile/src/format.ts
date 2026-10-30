@@ -1,10 +1,15 @@
 import { t } from "./i18n";
 
+/** Whole numbers in the Italian format: `1.576`. */
+export function formatNumber(value: number): string {
+  const digits = String(Math.round(Math.abs(value)));
+  return `${value < 0 ? "-" : ""}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+}
+
 /** Prices in the Italian format: `120.000 €`. */
 export function formatEuro(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
-  const digits = String(Math.round(Math.abs(value)));
-  return `${value < 0 ? "-" : ""}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")} €`;
+  return `${formatNumber(value)} €`;
 }
 
 export function formatPrice(price: number, contract: "sale" | "rent"): string {

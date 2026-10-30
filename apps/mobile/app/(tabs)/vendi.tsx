@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { OwnerIntention } from "@taraborrelli/api-client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { router } from "expo-router";
 import { useState } from "react";
 import {
   Linking,
@@ -124,6 +125,23 @@ export default function Sell() {
 
   return (
     <Screen width="narrow">
+      {/* The online estimate is the quickest way for an owner to get in touch. */}
+      <Card style={styles.estimate}>
+        <View style={styles.estimateRow}>
+          <Ionicons name="calculator-outline" size={32} color={colors.white} />
+          <Heading size="xl" style={styles.estimateTitle}>
+            {t("estimate.entryTitle")}
+          </Heading>
+        </View>
+        <Body style={styles.estimateBody}>{t("estimate.entryBody")}</Body>
+        <Button
+          label={t("estimate.entryButton")}
+          variant="light"
+          icon="arrow-forward"
+          onPress={() => router.push("/stima")}
+        />
+      </Card>
+
       <View style={styles.intro}>
         <Heading size="xxl">{t("sell.title")}</Heading>
         <Body>{t("sell.subtitle")}</Body>
@@ -245,6 +263,10 @@ export default function Sell() {
 }
 
 const styles = StyleSheet.create({
+  estimate: { gap: spacing.md, padding: spacing.xl, backgroundColor: colors.brandBlue },
+  estimateRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  estimateTitle: { flex: 1, color: colors.white },
+  estimateBody: { color: colors.brandLightBlueSoft },
   intro: { gap: spacing.md },
   benefit: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   form: { gap: spacing.lg, padding: spacing.xl },

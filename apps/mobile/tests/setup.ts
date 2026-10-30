@@ -12,3 +12,20 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn().mockResolvedValue(undefined),
   deleteItemAsync: jest.fn().mockResolvedValue(undefined),
 }));
+
+// Native maps are not available in tests: a plain view with the pin's coordinates.
+jest.mock("react-native-maps", () => {
+  const { View } = require("react-native");
+  const MapView = ({
+    children,
+    accessibilityLabel,
+  }: {
+    children: unknown;
+    accessibilityLabel: string;
+  }) => require("react").createElement(View, { accessibilityLabel, testID: "map" }, children);
+  const Marker = (props: {
+    coordinate: { latitude: number; longitude: number };
+    onDragEnd: (e: unknown) => void;
+  }) => require("react").createElement(View, { testID: "map-pin", ...props });
+  return { __esModule: true, default: MapView, Marker };
+});

@@ -4,9 +4,14 @@
  */
 export function formatEuro(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
+  return `${formatNumber(value)} €`;
+}
+
+/** Whole numbers in the Italian format: `1.576`. */
+export function formatNumber(value: number): string {
   const sign = value < 0 ? "-" : "";
   const digits = String(Math.round(Math.abs(value)));
-  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")} €`;
+  return `${sign}${digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
 }
 
 const dateFormat = new Intl.DateTimeFormat("it-IT", {
