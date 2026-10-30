@@ -231,6 +231,16 @@ export function useDeletePhoto(id: string) {
   return usePropertyMutation(id, (photoId: string) => api.property.deletePhoto(id, photoId));
 }
 
+export function useUploadThreeDModel(id: string) {
+  const api = useApi();
+  return usePropertyMutation(id, (file: File) => api.property.uploadThreeDModel(id, file));
+}
+
+export function useDeleteThreeDModel(id: string) {
+  const api = useApi();
+  return usePropertyMutation(id, () => api.property.deleteThreeDModel(id));
+}
+
 export function useDeleteProperty() {
   const api = useApi();
   const client = useQueryClient();

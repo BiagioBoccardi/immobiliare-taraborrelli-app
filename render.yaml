@@ -1,0 +1,129 @@
+# Render Blueprint: the three backend services on Render's free plan (Frankfurt), next to the
+# Neon database (AWS eu-central-1). Guide: docs/deploy/render.md.
+#
+# Values marked "sync: false" are secrets: Render asks for them when the Blueprint is
+# created and they never end up in the repository. On the free plan each service sleeps
+# after 15 minutes without requests and needs about a minute to wake up.
+
+envVarGroups:
+  - name: taraborrelli-shared
+    envVars:
+      # Uvicorn listens on 8000 (Dockerfiles); Render routes to the port in PORT.
+      - key: PORT
+        value: "8000"
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      # No RabbitMQ on the free plan: events are only logged (see docs/deploy/render.md).
+      - key: EVENTS_ENABLED
+        value: "false"
+      # No Traefik gateway in front: the services limit requests themselves.
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      # Public key matching the JWT_PRIVATE_KEY of the auth service. Not a secret.
+      - key: JWT_PUBLIC_KEY
+        value: |
+          -----BEGIN PUBLIC KEY-----
+          MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAryG3kXB1+wSlk7jIuRe8
+          oitHQHy7ZqNbxf0bj3mQjEqTxdONtSC1GeNzjti4fMOixOZPKz0umSln1TIjyHSC
+          AGAjH8/cr2S7QbKk4vxdMjM0XMfTyFqPJum4+mkJT/bAkJmsRpvrx41BQLJufYiJ
+          UaKT29NRRYiBvxiTNgLP5XKFzYOaKHwRPvlYGYgbmvNwPgx8b/ImABFhF61Ihi6d
+          6RFdJqkllBRkefPvDl87ugUShqOtkxstBZBXItOMakKxelbP/SOqX222jeJ6CSk9
+          PQu//r/UliN2fnM9qxcT//+HBjc1zfRfGP5OqWSfHd5RjA9q+BYiv6VC1Y+ol+V/
+          VwIDAQAB
+          -----END PUBLIC KEY-----
+      # Render's free plan blocks outgoing SMTP: emails go through a Google Apps Script web
+      # app that sends from the agency's Gmail (infra/email/gmail-sender.gs).
+      - key: EMAIL_BACKEND
+        value: gmail_script
+      - key: EMAIL_FROM
+        value: Immobiliare Taraborrelli <immobiliaretaraborrelli@gmail.com>
+
+services:
+  - type: web
+    name: taraborrelli-auth
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./services/auth/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths: [services/auth/**, packages/py-common/**]
+    envVars:
+      - fromGroup: taraborrelli-shared
+      - key: DATABASE_URL # Neon address of the "auth" database, pasted as Neon shows it
+        sync: false
+      - key: JWT_PRIVATE_KEY # signs the access tokens
+        sync: false
+      - key: GMAIL_SCRIPT_URL # web app address of infra/email/gmail-sender.gs
+        sync: false
+      - key: GMAIL_SCRIPT_TOKEN # the TOKEN script property
+        sync: false
+      # First administrator, created at startup if none exists. Delete the password here
+      # after the first login.
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: INITIAL_ADMIN_NAME
+        sync: false
+
+  - type: web
+    name: taraborrelli-lead
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./services/lead/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths: [services/lead/**, packages/py-common/**]
+    envVars:
+      - fromGroup: taraborrelli-shared
+      - key: DATABASE_URL # Neon address of the "lead" database
+        sync: false
+      - key: GMAIL_SCRIPT_URL # web app address of infra/email/gmail-sender.gs
+        sync: false
+      - key: GMAIL_SCRIPT_TOKEN # the TOKEN script property
+        sync: false
+      # Notice to the agency for every new request, with a link to the admin panel.
+      - key: STAFF_NOTIFICATION_EMAILS
+        value: immobiliaretaraborrelli@gmail.com
+      - key: ADMIN_PANEL_URL
+        value: https://taraborrelli-admin.netlify.app
+
+  - type: web
+    name: taraborrelli-property
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./services/property/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    buildFilter:
+      paths: [services/property/**, packages/py-common/**]
+    envVars:
+      - fromGroup: taraborrelli-shared
+      - key: DATABASE_URL # Neon address of the "property" database
+        sync: false
+      # Listing photos: S3-compatible storage, to be chosen (docs/deploy/render.md). Until
+      # then the catalog works but photos cannot be uploaded.
+      # Listing photos on Cloudinary (free plan, no payment card): the API environment
+      # variable from the Cloudinary console. When set, the S3_ values are not used.
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        value: property-media
+      - key: MEDIA_PUBLIC_BASE_URL
+        sync: false

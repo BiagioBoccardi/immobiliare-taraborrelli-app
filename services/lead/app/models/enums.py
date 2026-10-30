@@ -5,6 +5,7 @@ class LeadKind(StrEnum):
     VALUATION = "valuation"
     SELL = "sell"
     RENT = "rent"
+    CALLBACK = "callback"  # "Richiedi di essere ricontattato" on the agency's website
 
 
 class LeadStatus(StrEnum):
@@ -37,6 +38,15 @@ class PropertyType(StrEnum):
     COMMERCIAL = "commercial"
     LAND = "land"
     OTHER = "other"
+
+
+class PreferredTime(StrEnum):
+    """When the person asking to be called back prefers to receive the call."""
+
+    MORNING = "morning"  # 9:00 - 12:00
+    AFTERNOON = "afternoon"  # 12:00 - 17:00
+    EVENING = "evening"  # 17:00 - 20:00
+    ANY = "any"
 
 
 class PropertyCondition(StrEnum):

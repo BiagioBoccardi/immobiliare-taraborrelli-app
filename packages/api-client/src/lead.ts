@@ -13,6 +13,8 @@ export type ValuationCreate = Schemas["ValuationCreate"];
 export type ValuationCreated = Schemas["ValuationCreatedOut"];
 export type ValuationDetails = Schemas["ValuationDetails"];
 export type OwnerRequestCreate = Schemas["OwnerRequestCreate"];
+export type CallbackRequestCreate = Schemas["CallbackRequestCreate"];
+export type PreferredTime = Schemas["PreferredTime"];
 export type LeadCreated = Schemas["LeadCreatedOut"];
 export type MyRequest = Schemas["MyRequestOut"];
 export type CadastralCategory = Schemas["CadastralCategory"];
@@ -63,6 +65,9 @@ export function leadApi(http: HttpClient) {
     // never while typing: the service allows about one search per second.
     geocode: (q: string) =>
       http.request<Page<Place>>("GET", `${BASE}/geocode`, { query: { q }, auth: false }),
+    // "Richiedi di essere ricontattato" on the agency's website.
+    createCallbackRequest: (data: CallbackRequestCreate) =>
+      http.request<LeadCreated>("POST", `${BASE}/callback-requests`, { json: data }),
     myRequests: (query: PageQuery) =>
       http.request<Page<MyRequest>>("GET", `${BASE}/me/requests`, { query: { ...query } }),
 

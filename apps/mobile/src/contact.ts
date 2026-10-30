@@ -5,7 +5,7 @@ import { whatsappUrl } from "./format";
 
 /** Quick contact with the agency (CLAUDE.md, section 13): phone, WhatsApp, email. */
 export const contact = {
-  call: () => Linking.openURL(`tel:${agency.phone}`),
+  call: (number: string = agency.phone) => Linking.openURL(`tel:${number}`),
   whatsapp: (message: string) => Linking.openURL(whatsappUrl(agency.whatsapp, message)),
   email: (subject: string) =>
     Linking.openURL(`mailto:${agency.email}?subject=${encodeURIComponent(subject)}`),

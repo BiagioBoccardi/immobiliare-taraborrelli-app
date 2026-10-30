@@ -3,12 +3,16 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import FastAPI
 from httpx import AsyncClient
+from py_common.ratelimit import RateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings
 from app.core.dependencies import get_geocoder
+from app.main import create_app
 from app.models.lead import Lead
 from app.services.geocoding import GeocodingUnavailableError, Place
 from tests.factories import (
+    callback_request_payload,
     consent_payload,
     make_lead,
     omi_kmz,
@@ -17,6 +21,7 @@ from tests.factories import (
     owner_request_payload,
     valuation_payload,
 )
+from tests.unit.fakes import RecordingNotifier
 
 BASE = "/api/v1/lead"
 
@@ -239,3 +244,125 @@ async def test_geocode_when_service_is_down_returns_503(app: FastAPI, client: As
 
     assert response.status_code == 503
     assert response.json()["code"] == "geocoding_unavailable"
+
+
+async def test_create_callback_request_returns_201_and_stores_lead(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    response = await client.post(f"{BASE}/callback-requests", json=callback_request_payload())
+
+    body = response.json()
+    assert response.status_code == 201
+    assert body["kind"] == "callback"
+    lead = await db_session.get(Lead, uuid.UUID(body["id"]))
+    assert lead is not None
+    assert lead.details["preferred_time"] == "morning"
+
+
+async def test_create_callback_request_without_privacy_consent_returns_422(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload(consent=consent_payload(privacy_accepted=False))
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+
+
+async def test_create_callback_request_without_consent_field_returns_422(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload()
+    del payload["consent"]
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+
+
+async def test_create_callback_request_with_unknown_time_slot_returns_422(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload(preferred_time="notte")
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+
+
+async def test_create_callback_request_with_long_message_returns_422(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload(message="a" * 501)
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+
+
+async def test_create_callback_request_validation_error_does_not_echo_contacts(
+    client: AsyncClient,
+) -> None:
+    payload = callback_request_payload(email="luca.neri-at-example", phone="not-a-phone")
+
+    response = await client.post(f"{BASE}/callback-requests", json=payload)
+
+    assert response.status_code == 422
+    assert "luca.neri" not in response.text
+    assert "not-a-phone" not in response.text
+
+
+async def test_create_callback_request_notifies_the_agency(
+    app: FastAPI, client: AsyncClient
+) -> None:
+    notifier = RecordingNotifier()
+    app.state.staff_notifier = notifier
+
+    response = await client.post(f"{BASE}/callback-requests", json=callback_request_payload())
+
+    assert response.status_code == 201
+    assert [str(lead.id) for lead in notifier.notified] == [response.json()["id"]]
+
+
+async def test_create_callback_request_over_the_rate_limit_returns_429(
+    app: FastAPI, client: AsyncClient
+) -> None:
+    app.state.forms_limiter = RateLimiter(limit=2, window_seconds=60)
+    visitor = {"x-nf-client-connection-ip": "203.0.113.7"}
+    for _ in range(2):
+        await client.post(
+            f"{BASE}/callback-requests", json=callback_request_payload(), headers=visitor
+        )
+
+    response = await client.post(
+        f"{BASE}/callback-requests", json=callback_request_payload(), headers=visitor
+    )
+
+    assert response.status_code == 429
+    assert response.json()["code"] == "rate_limited"
+
+
+async def test_rate_limit_does_not_block_other_visitors(app: FastAPI, client: AsyncClient) -> None:
+    app.state.forms_limiter = RateLimiter(limit=1, window_seconds=60)
+    await client.post(
+        f"{BASE}/owner-requests",
+        json=owner_request_payload(),
+        headers={"x-nf-client-connection-ip": "203.0.113.7"},
+    )
+
+    response = await client.post(
+        f"{BASE}/owner-requests",
+        json=owner_request_payload(),
+        headers={"x-nf-client-connection-ip": "198.51.100.9"},
+    )
+
+    assert response.status_code == 201
+
+
+def test_create_app_enables_the_forms_limit_only_when_configured(settings: Settings) -> None:
+    off = create_app(settings)
+    on = create_app(settings.model_copy(update={"rate_limit_enabled": True}))
+
+    assert off.state.forms_limiter is None
+    assert isinstance(on.state.forms_limiter, RateLimiter)

@@ -1,4 +1,8 @@
-"""Public endpoints used by the app and the web valuation page (rate limited at the gateway)."""
+"""Public endpoints used by the app and the websites.
+
+The forms are rate limited by the gateway, or by the service itself where there is no
+gateway (RATE_LIMIT_ENABLED).
+"""
 
 import uuid
 from typing import Annotated
@@ -7,8 +11,15 @@ from fastapi import APIRouter, Depends, Header, Query, Response, status
 from py_common.pagination import Page, PageParams, page_params
 from py_common.security import Principal
 
-from app.core.dependencies import get_geocoder, get_lead_service, optional_user, require_user
+from app.core.dependencies import (
+    forms_rate_limit,
+    get_geocoder,
+    get_lead_service,
+    optional_user,
+    require_user,
+)
 from app.schemas.lead import (
+    CallbackRequestCreate,
     LeadCreatedOut,
     MyRequestOut,
     OwnerRequestCreate,
@@ -30,7 +41,12 @@ def _user_id(principal: Principal | None) -> uuid.UUID | None:
     return uuid.UUID(principal.subject) if principal else None
 
 
-@router.post("/valuations", status_code=status.HTTP_201_CREATED, response_model=ValuationCreatedOut)
+@router.post(
+    "/valuations",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ValuationCreatedOut,
+    dependencies=[Depends(forms_rate_limit)],
+)
 async def create_valuation(
     data: ValuationCreate, service: Service, principal: OptionalUser
 ) -> ValuationCreatedOut:
@@ -57,7 +73,11 @@ async def geocode(
     return Page[PlaceOut](items=items, total=len(items), page=1, size=max(len(items), 1))
 
 
-@router.put("/valuations/{lead_id}/details", status_code=status.HTTP_204_NO_CONTENT)
+@router.put(
+    "/valuations/{lead_id}/details",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(forms_rate_limit)],
+)
 async def complete_valuation(
     lead_id: uuid.UUID,
     details: ValuationDetails,
@@ -68,11 +88,30 @@ async def complete_valuation(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/owner-requests", status_code=status.HTTP_201_CREATED, response_model=LeadCreatedOut)
+@router.post(
+    "/owner-requests",
+    status_code=status.HTTP_201_CREATED,
+    response_model=LeadCreatedOut,
+    dependencies=[Depends(forms_rate_limit)],
+)
 async def create_owner_request(
     data: OwnerRequestCreate, service: Service, principal: OptionalUser
 ) -> LeadCreatedOut:
     lead = await service.create_owner_request(data, _user_id(principal))
+    return LeadCreatedOut(id=lead.id, kind=lead.kind, created_at=lead.created_at)
+
+
+@router.post(
+    "/callback-requests",
+    status_code=status.HTTP_201_CREATED,
+    response_model=LeadCreatedOut,
+    dependencies=[Depends(forms_rate_limit)],
+)
+async def create_callback_request(
+    data: CallbackRequestCreate, service: Service, principal: OptionalUser
+) -> LeadCreatedOut:
+    """ "Richiedi di essere ricontattato" from the agency's website."""
+    lead = await service.create_callback_request(data, _user_id(principal))
     return LeadCreatedOut(id=lead.id, kind=lead.kind, created_at=lead.created_at)
 
 

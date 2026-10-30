@@ -53,6 +53,12 @@ class ConflictError(AppError):
     message = "Conflict"
 
 
+class TooManyRequestsError(AppError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "rate_limited"
+    message = "Too many requests, try again later"
+
+
 def error_body(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"code": code, "message": message, "details": details or {}}
 

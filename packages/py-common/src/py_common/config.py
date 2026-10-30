@@ -1,5 +1,91 @@
-from pydantic import Field
+import re
+from typing import Literal
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Dashes as typed by phones and word processors are accepted in place of "-".
+_DASH = "-\u2010\u2011\u2012\u2013\u2014\u2015\u2212"
+_PEM = re.compile(r"-----BEGIN ([A-Z ]+)-----(.*?)-----END \1-----", re.DOTALL)
+_MARKER = re.compile(rf"[{_DASH}]*\s*(?:BEGIN|END)\s+[A-Z ]*?KEY\s*[{_DASH}]*")
+_BASE64 = re.compile(r"[A-Za-z0-9+/]+={0,2}")
+# A key body is far longer than this; shorter values are left as they are.
+_MIN_KEY_BODY = 100
+
+
+def _pem(label: str, body: str) -> str:
+    lines = [body[i : i + 64] for i in range(0, len(body), 64)]
+    return "\n".join([f"-----BEGIN {label}-----", *lines, f"-----END {label}-----"]) + "\n"
+
+
+def normalize_pem(value: str) -> str:
+    """Rebuilds a PEM key pasted into a single-line field, so it can be pasted as it is:
+
+    - newlines written as \\n, or replaced by spaces, become real line breaks again;
+    - quotes around the key, typographic dashes and a missing or damaged BEGIN/END line
+      are repaired, as long as the base64 body is intact;
+    - the base64 body alone is accepted too.
+
+    Other values are returned unchanged."""
+    text = value.strip().strip("\"'").replace("\\n", "\n")
+    match = _PEM.search(text)
+    if match is not None:
+        return _pem(match.group(1), "".join(match.group(2).split()))
+    body = "".join(_MARKER.sub(" ", text).split()).strip("\"'")
+    if len(body) < _MIN_KEY_BODY or _BASE64.fullmatch(body) is None:
+        return text
+    upper = text.upper()
+    if "PUBLIC" in upper:
+        label = "PUBLIC KEY"
+    elif "RSA" in upper:
+        label = "RSA PRIVATE KEY"
+    else:
+        label = "PRIVATE KEY"
+    return _pem(label, body)
+
+
+def describe_pem(value: str) -> str:
+    """Says what is wrong with a key that cannot be read, without revealing the key."""
+    body = "".join(_MARKER.sub(" ", value).split())
+    invalid = sorted({c for c in body if not (c.isascii() and (c.isalnum() or c in "+/="))})
+    return (
+        f"length {len(value)}, BEGIN line {'found' if 'BEGIN' in value else 'missing'}, "
+        f"END line {'found' if 'END' in value else 'missing'}, "
+        f"key body {len(body)} characters, "
+        f"unexpected characters {[hex(ord(c)) for c in invalid][:10] or 'none'}"
+    )
+
+
+_SSL_MODES_REQUIRING_TLS = {"require", "verify-ca", "verify-full"}
+
+
+def normalize_database_url(url: str) -> str:
+    """Turns a PostgreSQL address as given by hosting providers (Neon, Render, ...) into the
+    form SQLAlchemy's async driver expects, so it can be pasted as it is:
+
+    - postgres:// or postgresql:// becomes postgresql+asyncpg://
+    - sslmode=require (libpq) becomes ssl=require (asyncpg); libpq-only options are dropped
+    - Neon's pooled host (-pooler) becomes the direct host: the transaction pooler does not
+      work with asyncpg's prepared statements
+    """
+    parts = urlsplit(url.strip())
+    scheme = parts.scheme
+    if scheme in {"postgres", "postgresql"}:
+        scheme = "postgresql+asyncpg"
+    if scheme != "postgresql+asyncpg":
+        return url
+    netloc = parts.netloc.replace("-pooler.", ".", 1)
+    query: list[tuple[str, str]] = []
+    for key, value in parse_qsl(parts.query, keep_blank_values=True):
+        if key == "sslmode":
+            if value in _SSL_MODES_REQUIRING_TLS:
+                query.append(("ssl", "require"))
+        elif key in {"channel_binding", "options", "target_session_attrs"}:
+            continue
+        else:
+            query.append((key, value))
+    return urlunsplit((scheme, netloc, parts.path, urlencode(query), parts.fragment))
 
 
 class BaseServiceSettings(BaseSettings):
@@ -25,3 +111,40 @@ class BaseServiceSettings(BaseSettings):
     jwt_algorithm: str = "RS256"
     jwt_audience: str = "taraborrelli"
     jwt_issuer: str = "taraborrelli-auth"
+
+    # Rate limiting inside the service, for hosts without the Traefik gateway (Render).
+    # Off by default: with docker compose the gateway already limits the requests.
+    rate_limit_enabled: bool = False
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        return normalize_database_url(value)
+
+    @field_validator("jwt_public_key", mode="after")
+    @classmethod
+    def _normalize_public_key(cls, value: str) -> str:
+        return normalize_pem(value) if value else value
+
+
+class EmailServiceSettings(BaseServiceSettings):
+    """Settings of the services that send email (see py_common.email)."""
+
+    # "outbox" saves the emails as files in email_outbox_dir (local development); "smtp"
+    # sends them through any SMTP provider; "brevo" uses Brevo's HTTPS API; "gmail_script"
+    # sends from a Gmail account through a Google Apps Script web app
+    # (infra/email/gmail-sender.gs). The last two work on hosts that block outgoing SMTP,
+    # such as Render's free plan.
+    email_backend: Literal["outbox", "smtp", "brevo", "gmail_script"] = "outbox"
+    email_outbox_dir: str = "outbox"
+    email_from: str = "Immobiliare Taraborrelli <noreply@immobiliaretaraborrelli.it>"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_ssl: bool = False  # true for port 465; otherwise STARTTLS is used
+    brevo_api_key: str = ""
+    # Address of the Apps Script web app (https://script.google.com/macros/s/.../exec) and the
+    # shared secret written in the script.
+    gmail_script_url: str = ""
+    gmail_script_token: str = ""

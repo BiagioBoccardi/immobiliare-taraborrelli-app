@@ -8,10 +8,12 @@ Create the first administrator (password read from the terminal, never from argu
 import argparse
 import asyncio
 import getpass
+import logging
 import sys
 
 from py_common.errors import ConflictError
 from pydantic import TypeAdapter, ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import get_settings
 from app.core.database import create_engine, create_session_factory
@@ -19,6 +21,8 @@ from app.core.security import PasswordHasher
 from app.repositories.unit_of_work import SqlUnitOfWork
 from app.schemas.common import Email, Password, PersonName
 from app.services.users import UserAdminService
+
+logger = logging.getLogger(__name__)
 
 
 async def create_admin(email: str, password: str, full_name: str, database_url: str) -> str:
@@ -30,6 +34,37 @@ async def create_admin(email: str, password: str, full_name: str, database_url: 
             return str(user.id)
     finally:
         await engine.dispose()
+
+
+async def ensure_initial_admin(
+    session_factory: async_sessionmaker[AsyncSession], email: str, password: str, full_name: str
+) -> bool:
+    """Creates the first administrator at startup if none exists. Returns True if created.
+
+    Invalid values are reported in the log without stopping the service.
+    """
+    checks = (
+        ("INITIAL_ADMIN_EMAIL", Email, email),
+        ("INITIAL_ADMIN_NAME", PersonName, full_name),
+        ("INITIAL_ADMIN_PASSWORD (at least 10 characters)", Password, password),
+    )
+    for variable, field_type, value in checks:
+        try:
+            TypeAdapter(field_type).validate_python(value)
+        except ValidationError:
+            # Names the variable to fix, never its value.
+            logger.error("initial administrator not created: invalid %s", variable)
+            return False
+    valid_email = TypeAdapter(Email).validate_python(email)
+    valid_name = TypeAdapter(PersonName).validate_python(full_name)
+    async with session_factory() as session:
+        service = UserAdminService(SqlUnitOfWork(session), PasswordHasher())
+        try:
+            await service.create_initial_admin(valid_email, password, valid_name)
+        except ConflictError:
+            return False
+    logger.info("initial administrator created")
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:

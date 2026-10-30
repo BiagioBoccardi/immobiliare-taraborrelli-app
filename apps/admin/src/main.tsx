@@ -1,4 +1,4 @@
-import { createApiClient } from "@taraborrelli/api-client";
+import { createApiClient, warmUpServices } from "@taraborrelli/api-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -13,6 +13,9 @@ import { applyTheme } from "./theme/applyTheme";
 import "./theme/styles.css";
 
 applyTheme();
+
+// Hosted on Render's free plan, where the services sleep when idle (see warmUp.ts).
+if (import.meta.env.VITE_WARM_UP_SERVICES === "true") void warmUpServices();
 
 const session = new SessionStore(window.sessionStorage);
 const api = createApiClient({

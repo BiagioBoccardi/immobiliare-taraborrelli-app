@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+  "/api/v1/lead/callback-requests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Callback Request
+     * @description "Richiedi di essere ricontattato" from the agency's website.
+     */
+    post: operations["create_callback_request_api_v1_lead_callback_requests_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/lead/geocode": {
     parameters: {
       query?: never;
@@ -201,6 +221,24 @@ export interface components {
      */
     CadastralCategory: "A1" | "A2" | "A3" | "A4" | "A5" | "A6" | "A7" | "A8" | "unknown";
     /**
+     * CallbackRequestCreate
+     * @description "Richiedi di essere ricontattato" on the agency's website: contact details only.
+     */
+    CallbackRequestCreate: {
+      consent: components["schemas"]["ConsentIn"];
+      /** Email */
+      email: string;
+      /** First Name */
+      first_name: string;
+      /** Last Name */
+      last_name: string;
+      /** Message */
+      message?: string | null;
+      /** Phone */
+      phone: string;
+      preferred_time: components["schemas"]["PreferredTime"];
+    };
+    /**
      * ConsentIn
      * @description Consent given when the form is submitted. Contact consent is mandatory (GDPR).
      */
@@ -273,7 +311,7 @@ export interface components {
      * LeadKind
      * @enum {string}
      */
-    LeadKind: "valuation" | "sell" | "rent";
+    LeadKind: "valuation" | "sell" | "rent" | "callback";
     /** LeadOut */
     LeadOut: {
       condition: components["schemas"]["PropertyCondition"] | null;
@@ -300,14 +338,14 @@ export interface components {
        * Format: uuid
        */
       id: string;
-      intention: components["schemas"]["OwnerIntention"];
+      intention: components["schemas"]["OwnerIntention"] | null;
       kind: components["schemas"]["LeadKind"];
       /** Marketing Consent */
       marketing_consent: boolean;
       /** Message */
       message: string | null;
       /** Municipality */
-      municipality: string;
+      municipality: string | null;
       /** Next Contact At */
       next_contact_at: string | null;
       /** Phone */
@@ -315,7 +353,7 @@ export interface components {
       priority: components["schemas"]["LeadPriority"];
       /** Privacy Policy Version */
       privacy_policy_version: string;
-      property_type: components["schemas"]["PropertyType"];
+      property_type: components["schemas"]["PropertyType"] | null;
       /** Rooms */
       rooms: number | null;
       /** Staff Notes */
@@ -370,8 +408,8 @@ export interface components {
       id: string;
       kind: components["schemas"]["LeadKind"];
       /** Municipality */
-      municipality: string;
-      property_type: components["schemas"]["PropertyType"];
+      municipality: string | null;
+      property_type: components["schemas"]["PropertyType"] | null;
       status: components["schemas"]["LeadStatus"];
     };
     /**
@@ -528,6 +566,12 @@ export interface components {
       road: string | null;
     };
     /**
+     * PreferredTime
+     * @description When the person asking to be called back prefers to receive the call.
+     * @enum {string}
+     */
+    PreferredTime: "morning" | "afternoon" | "evening" | "any";
+    /**
      * PropertyCondition
      * @enum {string}
      */
@@ -662,6 +706,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  create_callback_request_api_v1_lead_callback_requests_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CallbackRequestCreate"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeadCreatedOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   geocode_api_v1_lead_geocode_get: {
     parameters: {
       query: {

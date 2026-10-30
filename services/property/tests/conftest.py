@@ -131,6 +131,7 @@ def settings(rsa_keys: tuple[str, str]) -> Settings:
         log_level="WARNING",
         max_photo_bytes=1024,
         max_photos_per_property=3,
+        max_model_bytes=2048,
     )
 
 

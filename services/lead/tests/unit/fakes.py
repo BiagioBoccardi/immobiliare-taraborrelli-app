@@ -86,3 +86,26 @@ class FakeOmiRepository:
             for q in self.quotes
             if q.municipality_code == municipality_code and q.zone_code == zone_code
         ]
+
+
+class RecordingNotifier:
+    """Remembers the leads the agency was notified about."""
+
+    def __init__(self) -> None:
+        self.notified: list[Lead] = []
+
+    async def new_lead(self, lead: Lead) -> None:
+        self.notified.append(lead)
+
+
+class FailingNotifier:
+    async def new_lead(self, lead: Lead) -> None:
+        raise ConnectionError("SMTP server unreachable")
+
+
+class RecordingEmailSender:
+    def __init__(self) -> None:
+        self.sent: list[Any] = []
+
+    async def send(self, email: Any) -> None:
+        self.sent.append(email)

@@ -4,8 +4,10 @@ from datetime import timedelta
 from typing import Annotated, cast
 
 from fastapi import Depends, Request
+from py_common.email import EmailSender
 from py_common.errors import ForbiddenError
 from py_common.events import EventPublisher
+from py_common.ratelimit import RateLimiter, rate_limit_dependency
 from py_common.security import Principal, Role, TokenVerifier, build_auth_dependencies
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -14,7 +16,6 @@ from app.core.security import AccessTokenIssuer, PasswordHasher
 from app.repositories.unit_of_work import SqlUnitOfWork
 from app.services.auth import AuthService
 from app.services.consents import ConsentService
-from app.services.email import EmailSender
 from app.services.password_reset import PasswordResetService
 from app.services.users import UserAdminService
 
@@ -97,3 +98,11 @@ async def require_admin(principal: Annotated[Principal, Depends(require_user)]) 
 
 def current_user_id(principal: Annotated[Principal, Depends(require_user)]) -> uuid.UUID:
     return uuid.UUID(principal.subject)
+
+
+def _auth_limiter(request: Request) -> RateLimiter | None:
+    return cast(RateLimiter | None, request.app.state.auth_limiter)
+
+
+# Login, registration, refresh and password reset: slows down password guessing.
+auth_rate_limit = rate_limit_dependency(_auth_limiter)

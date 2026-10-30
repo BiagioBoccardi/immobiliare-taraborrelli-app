@@ -130,6 +130,33 @@ describe("leads", () => {
     );
   });
 
+  it("shows a callback request from the website without the property section", async () => {
+    const api = fakeApi();
+    const lead = makeLead({
+      kind: "callback",
+      full_name: "Luca Neri",
+      email: "luca.neri@example.com",
+      intention: null,
+      municipality: null,
+      property_type: null,
+      details: { preferred_time: "morning", source: "website" },
+      message: "Cerco un bilocale a Chieti Scalo.",
+    });
+    api.lead.getLead.mockResolvedValue(lead);
+    const store = await signedInStore(api);
+    renderApp(api, store, "/leads/lead-1");
+
+    expect(await screen.findByText(/Richiesta di ricontatto/)).toBeVisible();
+    expect(screen.getByText("Mattina (9:00 – 12:00)")).toBeVisible();
+    expect(screen.getByText("Sito web")).toBeVisible();
+    expect(screen.getByText("Cerco un bilocale a Chieti Scalo.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Scrivi email" })).toHaveAttribute(
+      "href",
+      "mailto:luca.neri@example.com",
+    );
+    expect(screen.queryByRole("heading", { name: "Immobile" })).toBeNull();
+  });
+
   it("deletes a lead only after confirmation", async () => {
     const api = fakeApi();
     api.lead.getLead.mockResolvedValue(makeLead());
@@ -267,6 +294,59 @@ describe("properties", () => {
       "facciata.jpg",
       "cucina.png",
     ]);
+  });
+
+  it("uploads a 3D model", async () => {
+    const api = fakeApi();
+    const property = makeProperty();
+    api.property.get.mockResolvedValue(property);
+    api.property.uploadThreeDModel.mockResolvedValue({
+      ...property,
+      three_d_model: { url: "https://media.test/casa.glb", size_bytes: 3 * 1024 * 1024 },
+    });
+    const store = await signedInStore(api);
+    renderApp(api, store, "/properties/prop-1");
+    const input = await screen.findByLabelText("Carica modello 3D");
+
+    await userEvent.upload(input, new File(["glTF"], "casa.glb", { type: "model/gltf-binary" }), {
+      applyAccept: false,
+    });
+
+    await waitFor(() => expect(api.property.uploadThreeDModel).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Modello caricato (3 MB)")).toBeVisible();
+  });
+
+  it("rejects a 3D model that is not a .glb file before uploading", async () => {
+    const api = fakeApi();
+    api.property.get.mockResolvedValue(makeProperty());
+    const store = await signedInStore(api);
+    renderApp(api, store, "/properties/prop-1");
+    const input = await screen.findByLabelText("Carica modello 3D");
+
+    await userEvent.upload(input, new File(["obj"], "casa.obj", { type: "text/plain" }), {
+      applyAccept: false,
+    });
+
+    expect(await screen.findByText("casa.obj: serve un file .glb.")).toBeVisible();
+    expect(api.property.uploadThreeDModel).not.toHaveBeenCalled();
+  });
+
+  it("deletes the 3D model after confirmation", async () => {
+    const api = fakeApi();
+    const property = makeProperty({
+      three_d_model: { url: "https://media.test/casa.glb", size_bytes: 1024 * 1024 },
+    });
+    api.property.get.mockResolvedValue(property);
+    api.property.deleteThreeDModel.mockResolvedValue({ ...property, three_d_model: null });
+    const store = await signedInStore(api);
+    renderApp(api, store, "/properties/prop-1");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Elimina modello" }));
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Elimina" }));
+
+    await waitFor(() => expect(api.property.deleteThreeDModel).toHaveBeenCalledWith("prop-1"));
+    expect(await screen.findByText("Nessun modello 3D per questo immobile.")).toBeVisible();
   });
 
   it("moves a photo to become the cover", async () => {

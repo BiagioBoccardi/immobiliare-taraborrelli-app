@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { warmUpServices } from "@taraborrelli/api-client";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -7,6 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { session } from "../src/api";
 import { headingFontFile } from "../src/assets";
+import { config } from "../src/config";
 import { AppShell } from "../src/components/AppShell";
 import { FavoritesProvider } from "../src/favorites";
 import { SearchProvider } from "../src/search";
@@ -32,6 +34,10 @@ export default function RootLayout() {
   useFonts({
     [fonts.heading]: headingFontFile,
   });
+
+  useEffect(() => {
+    if (config.warmUpServices) void warmUpServices();
+  }, []);
 
   useEffect(() => {
     void session.restore();
@@ -61,6 +67,8 @@ export default function RootLayout() {
                   <Stack.Screen name="registrati" options={{ animation: "fade" }} />
                   <Stack.Screen name="password-dimenticata" options={{ animation: "fade" }} />
                   <Stack.Screen name="immobile/[id]" />
+                  <Stack.Screen name="modello-3d/[id]" />
+                  <Stack.Screen name="mutuo" />
                   <Stack.Screen name="filtri" options={{ presentation: "modal" }} />
                   <Stack.Screen name="contatti" options={{ presentation: "modal" }} />
                   <Stack.Screen name="stima" />

@@ -31,7 +31,11 @@ def _enum[E: type](enum_cls: E, name: str) -> Enum:
 
 
 class Lead(Base):
-    """An owner who contacted the agency. A valuation request is a lead, not a mandate."""
+    """Someone who contacted the agency. A valuation request is a lead, not a mandate.
+
+    Valuations and owner requests describe a property; callback requests from the website
+    only carry contact details, a preferred time for the call and an optional message.
+    """
 
     __tablename__ = "leads"
 
@@ -41,7 +45,10 @@ class Lead(Base):
         _enum(LeadStatus, "lead_status"), default=LeadStatus.NEW, index=True
     )
     priority: Mapped[LeadPriority] = mapped_column(_enum(LeadPriority, "lead_priority"), index=True)
-    intention: Mapped[OwnerIntention] = mapped_column(_enum(OwnerIntention, "owner_intention"))
+    # Empty for callback requests, which do not describe a property.
+    intention: Mapped[OwnerIntention | None] = mapped_column(
+        _enum(OwnerIntention, "owner_intention")
+    )
 
     # App account that sent the request, when the owner was logged in.
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
@@ -50,8 +57,8 @@ class Lead(Base):
     phone: Mapped[str] = mapped_column(String(20), index=True)
     email: Mapped[str | None] = mapped_column(String(254))
 
-    municipality: Mapped[str] = mapped_column(String(80))
-    property_type: Mapped[PropertyType] = mapped_column(_enum(PropertyType, "property_type"))
+    municipality: Mapped[str | None] = mapped_column(String(80))
+    property_type: Mapped[PropertyType | None] = mapped_column(_enum(PropertyType, "property_type"))
     surface_sqm: Mapped[int | None] = mapped_column(Integer)
     rooms: Mapped[int | None] = mapped_column(Integer)
     condition: Mapped[PropertyCondition | None] = mapped_column(

@@ -6,7 +6,7 @@ from httpx import AsyncClient
 
 from app.models.enums import PropertyStatus
 from app.models.property import Property
-from tests.factories import JPEG_BYTES, PNG_BYTES, property_payload, rental_payload
+from tests.factories import GLB_BYTES, JPEG_BYTES, PNG_BYTES, property_payload, rental_payload
 from tests.unit.fakes import InMemoryStorage
 
 Store = Callable[..., Awaitable[Property]]
@@ -292,3 +292,220 @@ async def test_delete_published_returns_204(
     response = await client.delete(f"{BASE}/{item.id}", headers=staff_headers)
 
     assert response.status_code == 204
+
+
+# 3D model -------------------------------------------------------------------------------
+
+
+async def test_upload_three_d_model_shows_it_in_public_detail(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str]
+) -> None:
+    item = await store()
+
+    response = await client.put(
+        f"{BASE}/{item.id}/model-3d",
+        files={"file": ("casa.glb", GLB_BYTES, "model/gltf-binary")},
+        headers=staff_headers,
+    )
+
+    public = await client.get(f"/api/v1/property/properties/{item.id}")
+    assert response.status_code == 200
+    assert response.json()["three_d_model"]["size_bytes"] == len(GLB_BYTES)
+    assert public.json()["three_d_model"]["url"].endswith(".glb")
+
+
+async def test_upload_three_d_model_with_other_file_returns_400(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str], storage: InMemoryStorage
+) -> None:
+    item = await store(photos=0, status=PropertyStatus.DRAFT)
+
+    response = await client.put(
+        f"{BASE}/{item.id}/model-3d",
+        files={"file": ("casa.glb", JPEG_BYTES, "model/gltf-binary")},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_model"
+    assert storage.objects == {}
+
+
+async def test_upload_three_d_model_too_large_returns_400(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str]
+) -> None:
+    item = await store(photos=0, status=PropertyStatus.DRAFT)
+
+    response = await client.put(
+        f"{BASE}/{item.id}/model-3d",
+        files={"file": ("casa.glb", b"\x00" * 5000, "model/gltf-binary")},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "model_too_large"
+
+
+async def test_upload_three_d_model_without_file_returns_422(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str]
+) -> None:
+    item = await store()
+
+    response = await client.put(f"{BASE}/{item.id}/model-3d", headers=staff_headers)
+
+    assert response.status_code == 422
+
+
+async def test_upload_three_d_model_without_token_returns_401(
+    client: AsyncClient, store: Store
+) -> None:
+    item = await store()
+
+    response = await client.put(
+        f"{BASE}/{item.id}/model-3d", files={"file": ("casa.glb", GLB_BYTES, "model/gltf-binary")}
+    )
+
+    assert response.status_code == 401
+
+
+async def test_upload_three_d_model_with_user_role_returns_403(
+    client: AsyncClient, store: Store, user_headers: dict[str, str]
+) -> None:
+    item = await store()
+
+    response = await client.put(
+        f"{BASE}/{item.id}/model-3d",
+        files={"file": ("casa.glb", GLB_BYTES, "model/gltf-binary")},
+        headers=user_headers,
+    )
+
+    assert response.status_code == 403
+
+
+async def test_upload_three_d_model_to_unknown_property_returns_404(
+    client: AsyncClient, staff_headers: dict[str, str]
+) -> None:
+    response = await client.put(
+        f"{BASE}/{uuid.uuid4()}/model-3d",
+        files={"file": ("casa.glb", GLB_BYTES, "model/gltf-binary")},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 404
+
+
+async def test_delete_three_d_model_returns_property_without_model(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str], storage: InMemoryStorage
+) -> None:
+    item = await store()
+    await client.put(
+        f"{BASE}/{item.id}/model-3d",
+        files={"file": ("casa.glb", GLB_BYTES, "model/gltf-binary")},
+        headers=staff_headers,
+    )
+
+    response = await client.delete(f"{BASE}/{item.id}/model-3d", headers=staff_headers)
+
+    assert response.status_code == 200
+    assert response.json()["three_d_model"] is None
+    assert storage.objects == {}
+
+
+async def test_delete_three_d_model_when_missing_returns_404(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str]
+) -> None:
+    item = await store()
+
+    response = await client.delete(f"{BASE}/{item.id}/model-3d", headers=staff_headers)
+
+    assert response.status_code == 404
+
+
+# 3D version of the rooms in the photos --------------------------------------------------
+
+
+async def test_upload_photo_three_d_shows_it_in_public_detail(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str]
+) -> None:
+    item = await store(photos=2)
+
+    response = await client.put(
+        f"{BASE}/{item.id}/photos/{item.photos[0].id}/model-3d",
+        files={"file": ("stanza.glb", GLB_BYTES, "model/gltf-binary")},
+        headers=staff_headers,
+    )
+
+    public = await client.get(f"/api/v1/property/properties/{item.id}")
+    assert response.status_code == 200
+    assert public.json()["photos"][0]["three_d_url"].endswith(".glb")
+    assert public.json()["photos"][1]["three_d_url"] is None
+
+
+async def test_upload_photo_three_d_with_other_file_returns_400(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str]
+) -> None:
+    item = await store(photos=1)
+
+    response = await client.put(
+        f"{BASE}/{item.id}/photos/{item.photos[0].id}/model-3d",
+        files={"file": ("stanza.glb", PNG_BYTES, "model/gltf-binary")},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_model"
+
+
+async def test_upload_photo_three_d_without_token_returns_401(
+    client: AsyncClient, store: Store
+) -> None:
+    item = await store(photos=1)
+
+    response = await client.put(
+        f"{BASE}/{item.id}/photos/{item.photos[0].id}/model-3d",
+        files={"file": ("stanza.glb", GLB_BYTES, "model/gltf-binary")},
+    )
+
+    assert response.status_code == 401
+
+
+async def test_upload_photo_three_d_with_user_role_returns_403(
+    client: AsyncClient, store: Store, user_headers: dict[str, str]
+) -> None:
+    item = await store(photos=1)
+
+    response = await client.put(
+        f"{BASE}/{item.id}/photos/{item.photos[0].id}/model-3d",
+        files={"file": ("stanza.glb", GLB_BYTES, "model/gltf-binary")},
+        headers=user_headers,
+    )
+
+    assert response.status_code == 403
+
+
+async def test_upload_photo_three_d_of_unknown_photo_returns_404(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str]
+) -> None:
+    item = await store(photos=1)
+
+    response = await client.put(
+        f"{BASE}/{item.id}/photos/{uuid.uuid4()}/model-3d",
+        files={"file": ("stanza.glb", GLB_BYTES, "model/gltf-binary")},
+        headers=staff_headers,
+    )
+
+    assert response.status_code == 404
+
+
+async def test_delete_photo_three_d_returns_photo_without_3d(
+    client: AsyncClient, store: Store, staff_headers: dict[str, str]
+) -> None:
+    item = await store(photos=1)
+    url = f"{BASE}/{item.id}/photos/{item.photos[0].id}/model-3d"
+    await client.put(
+        url, files={"file": ("stanza.glb", GLB_BYTES, "model/gltf-binary")}, headers=staff_headers
+    )
+
+    response = await client.delete(url, headers=staff_headers)
+
+    assert response.status_code == 200
+    assert response.json()["photos"][0]["three_d_url"] is None

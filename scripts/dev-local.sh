@@ -17,7 +17,8 @@
 # disabled. The database lives in a Docker volume and the photos in .dev/media, so imported
 # properties and uploaded photos survive restarts and git pull.
 # The first start (or the first after "reset") creates a test administrator, a test user,
-# two sample owner requests and five fictional sample properties.
+# two sample owner requests and five fictional sample properties. The agency's notice for
+# every new request is saved in .dev/outbox (read it with "scripts/dev-local.sh email").
 #
 # Requirements: Docker, uv, Node.js 20+, Python 3 and openssl (cloudflared for --tunnel). On Windows use WSL2.
 # Ports: 5173 (admin), 8081 (app), 8001-8003 (services), 9100 (photos), 8090 (tunnel proxy),
@@ -114,9 +115,26 @@ down() {
   info "Ambiente di prova fermato (i dati restano per il prossimo avvio)."
 }
 
+# Photos of the trial when it still used MinIO: copied once into .dev/media at the next start.
+OLD_MINIO_VOLUME="taraborrelli-dev-s3data"
+
+# Copies the photos left in the old MinIO volume, once (a marker file remembers it).
+import_old_photos() {
+  local marker="$STATE/media/.minio-imported"
+  [ -f "$marker" ] && return
+  docker volume inspect "$OLD_MINIO_VOLUME" >/dev/null 2>&1 || return 0
+  info "Recupero delle foto caricate con la versione precedente (MinIO)…"
+  if "$ROOT/scripts/import-minio-photos.sh" >>"$STATE/logs/import-photos.log" 2>&1; then
+    mkdir -p "$STATE/media" && touch "$marker"
+    info "$(grep -E 'Foto copiate' "$STATE/logs/import-photos.log" | tail -1)"
+  else
+    info "Attenzione: foto della versione precedente non recuperate, vedi $STATE/logs/import-photos.log (riprovo al prossimo avvio)."
+  fi
+}
+
 reset() {
   down
-  docker volume rm "$DB_VOLUME" >/dev/null 2>&1 || true
+  docker volume rm "$DB_VOLUME" "$OLD_MINIO_VOLUME" >/dev/null 2>&1 || true
   rm -rf "$STATE/media" "$STATE/jwt-private.pem" "$STATE/jwt-public.pem"
   info "Dati di prova eliminati: il prossimo avvio riparte da zero."
 }
@@ -217,6 +235,7 @@ up() {
     openssl pkey -in "$STATE/jwt-private.pem" -pubout -out "$STATE/jwt-public.pem"
   fi
 
+  import_old_photos
   info "Archivio foto (porta $S3_PORT, cartella .dev/media)…"
   # With --lan the phone loads the photos directly from here.
   local s3_bind=127.0.0.1
@@ -243,6 +262,8 @@ up() {
         JWT_PUBLIC_KEY="$(cat "$STATE/jwt-public.pem")" \
         S3_ENDPOINT_URL="http://localhost:$S3_PORT" S3_ACCESS_KEY=dev S3_SECRET_KEY=dev \
         S3_CREATE_BUCKET=true MEDIA_PUBLIC_BASE_URL="$MEDIA_BASE" \
+        STAFF_NOTIFICATION_EMAILS=agenzia@taraborrelli.test ADMIN_PANEL_URL=http://localhost:5173 \
+        EMAIL_BACKEND=outbox EMAIL_OUTBOX_DIR="$STATE/outbox" \
         uv run --quiet uvicorn app.main:app --port "$port"
     fi
     wait_for "http://localhost:$port/health" "$service"

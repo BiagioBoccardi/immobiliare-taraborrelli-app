@@ -10,7 +10,7 @@ from typing import Literal
 
 from py_common.events.base import EventPayload
 
-LeadKind = Literal["valuation", "sell", "rent"]
+LeadKind = Literal["valuation", "sell", "rent", "callback"]
 LeadPriority = Literal["low", "medium", "high"]
 
 
@@ -35,6 +35,17 @@ class OwnerRequestReceivedV1(EventPayload):
     priority: LeadPriority
     municipality: str
     property_type: str
+
+
+class CallbackRequestedV1(EventPayload):
+    """Someone asked to be called back from the agency's website."""
+
+    event_type = "lead.callback_requested"
+    version = 1
+
+    lead_id: uuid.UUID
+    priority: LeadPriority
+    preferred_time: Literal["morning", "afternoon", "evening", "any"]
 
 
 class LeadConsentGivenV1(EventPayload):

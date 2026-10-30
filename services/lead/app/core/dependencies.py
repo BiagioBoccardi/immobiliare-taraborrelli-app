@@ -4,6 +4,7 @@ from typing import Annotated, cast
 
 from fastapi import Depends, Request
 from py_common.events import EventPublisher
+from py_common.ratelimit import RateLimiter, rate_limit_dependency
 from py_common.security import (
     TokenVerifier,
     build_auth_dependencies,
@@ -16,6 +17,7 @@ from app.repositories.lead import SqlLeadRepository
 from app.repositories.omi import SqlOmiRepository
 from app.services.geocoding import Geocoder
 from app.services.lead import LeadService
+from app.services.notifications import StaffNotifier
 from app.services.omi import OmiService
 
 
@@ -41,17 +43,23 @@ def get_omi_service(session: Annotated[AsyncSession, Depends(get_session)]) -> O
     return OmiService(SqlOmiRepository(session))
 
 
+def get_staff_notifier(request: Request) -> StaffNotifier:
+    return cast(StaffNotifier, request.app.state.staff_notifier)
+
+
 def get_lead_service(
     session: Annotated[AsyncSession, Depends(get_session)],
     publisher: Annotated[EventPublisher, Depends(get_publisher)],
     settings: Annotated[Settings, Depends(get_settings_dep)],
     omi: Annotated[OmiService, Depends(get_omi_service)],
+    notifier: Annotated[StaffNotifier, Depends(get_staff_notifier)],
 ) -> LeadService:
     return LeadService(
         SqlLeadRepository(session),
         publisher,
         completion_window=timedelta(days=settings.valuation_completion_window_days),
         omi=omi,
+        notifier=notifier,
     )
 
 
@@ -62,3 +70,11 @@ def get_geocoder(request: Request) -> Geocoder:
 
 require_user, require_staff = build_auth_dependencies(get_token_verifier)
 optional_user = build_optional_user_dependency(get_token_verifier)
+
+
+def _forms_limiter(request: Request) -> RateLimiter | None:
+    return cast(RateLimiter | None, request.app.state.forms_limiter)
+
+
+# Public forms: a person sends a few requests, not dozens (same limit as the gateway).
+forms_rate_limit = rate_limit_dependency(_forms_limiter)

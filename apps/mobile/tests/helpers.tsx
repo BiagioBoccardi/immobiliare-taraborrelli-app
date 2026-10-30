@@ -148,6 +148,7 @@ export function makeDetail(overrides: Partial<PropertyDetail> = {}): PropertyDet
     tenant_types: [],
     accommodation: null,
     photos: [{ id: "f1", url: "https://media.test/f1.jpg", caption: null }],
+    three_d_model: null,
     ...overrides,
   };
 }

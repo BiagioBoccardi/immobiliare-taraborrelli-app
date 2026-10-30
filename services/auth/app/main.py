@@ -3,44 +3,40 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 
 from fastapi import FastAPI
+from py_common.config import describe_pem
+from py_common.email import build_email_sender
 from py_common.errors import register_error_handlers
 from py_common.events import EventPublisher, RabbitMQConsumer, RabbitMQEventPublisher
 from py_common.health import health_router
 from py_common.logging import add_request_id_middleware, configure_logging
+from py_common.ratelimit import RateLimiter
 from py_common.security import TokenVerifier
 
 from app.api import auth, me, users
+from app.cli import ensure_initial_admin
 from app.core.config import Settings, get_settings
 from app.core.database import create_engine, create_session_factory
 from app.core.security import AccessTokenIssuer, PasswordHasher, public_key_from_private
 from app.events.consumers import LEAD_CONSENT_ROUTING_KEY, LeadConsentHandler
 from app.events.publisher import LoggingEventPublisher
-from app.services.email import EmailSender, OutboxEmailSender, SmtpEmailSender
 
 API_PREFIX = "/api/v1/auth"
-
-
-def build_email_sender(settings: Settings) -> EmailSender:
-    if settings.email_backend == "smtp":
-        if not settings.smtp_host:
-            raise RuntimeError("SMTP_HOST is required when EMAIL_BACKEND=smtp")
-        return SmtpEmailSender(
-            settings.smtp_host,
-            settings.smtp_port,
-            settings.smtp_username,
-            settings.smtp_password,
-            settings.email_from,
-            use_ssl=settings.smtp_ssl,
-        )
-    return OutboxEmailSender(settings.email_outbox_dir, settings.email_from)
+# Requests per visitor per minute on login and similar routes, when rate limiting is on.
+AUTH_PER_MINUTE = 20
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.service_name, settings.log_level)
-    public_key = (
-        public_key_from_private(settings.jwt_private_key) if settings.jwt_private_key else ""
-    )
+    public_key = ""
+    if settings.jwt_private_key:
+        try:
+            public_key = public_key_from_private(settings.jwt_private_key)
+        except ValueError as error:
+            # Says what is wrong with the pasted key without revealing it.
+            raise RuntimeError(
+                f"JWT_PRIVATE_KEY cannot be read: {describe_pem(settings.jwt_private_key)}"
+            ) from error
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -49,6 +45,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_engine(settings.database_url)
         session_factory = create_session_factory(engine)
         app.state.session_factory = session_factory
+        if settings.initial_admin_email and settings.initial_admin_password:
+            await ensure_initial_admin(
+                session_factory,
+                settings.initial_admin_email,
+                settings.initial_admin_password,
+                settings.initial_admin_name,
+            )
         publisher: EventPublisher = LoggingEventPublisher()
         consumer: RabbitMQConsumer | None = None
         if settings.events_enabled:
@@ -81,6 +84,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.password_hasher = PasswordHasher()
     app.state.email_sender = build_email_sender(settings)
+    app.state.auth_limiter = (
+        RateLimiter(AUTH_PER_MINUTE, 60) if settings.rate_limit_enabled else None
+    )
     app.state.token_issuer = AccessTokenIssuer(
         settings.jwt_private_key,
         settings.jwt_algorithm,

@@ -1,7 +1,7 @@
 """add omi quotations
 
 Revision ID: 467d6a3a8318
-Revises: 6b344c9582a9
+Revises: c4a1e7d2b9f3
 Create Date: 2026-10-30 12:27:04.093787
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = '467d6a3a8318'
-down_revision: str | None = '6b344c9582a9'
+down_revision: str | None = 'c4a1e7d2b9f3'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

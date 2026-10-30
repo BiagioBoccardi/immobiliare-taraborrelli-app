@@ -1,4 +1,5 @@
-"""Public authentication endpoints (rate limited at the gateway)."""
+"""Public authentication endpoints (rate limited by the gateway, or by the service itself
+where there is no gateway: RATE_LIMIT_ENABLED)."""
 
 from typing import Annotated, cast
 
@@ -6,7 +7,7 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import PlainTextResponse
 from py_common.security import TokenVerifier
 
-from app.core.dependencies import get_auth_service, get_password_reset_service
+from app.core.dependencies import auth_rate_limit, get_auth_service, get_password_reset_service
 from app.schemas.auth import (
     ForgotPasswordIn,
     LoginIn,
@@ -19,23 +20,29 @@ from app.services.auth import AuthService
 from app.services.password_reset import PasswordResetService
 
 router = APIRouter(tags=["auth"])
+Limited = [Depends(auth_rate_limit)]
 
 Service = Annotated[AuthService, Depends(get_auth_service)]
 ResetService = Annotated[PasswordResetService, Depends(get_password_reset_service)]
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=TokenPair)
+@router.post(
+    "/register",
+    status_code=status.HTTP_201_CREATED,
+    response_model=TokenPair,
+    dependencies=Limited,
+)
 async def register(data: RegisterIn, service: Service) -> TokenPair:
     _, tokens = await service.register(data)
     return tokens
 
 
-@router.post("/login", response_model=TokenPair)
+@router.post("/login", response_model=TokenPair, dependencies=Limited)
 async def login(data: LoginIn, service: Service) -> TokenPair:
     return await service.login(data.email, data.password)
 
 
-@router.post("/refresh", response_model=TokenPair)
+@router.post("/refresh", response_model=TokenPair, dependencies=Limited)
 async def refresh(data: RefreshIn, service: Service) -> TokenPair:
     return await service.refresh(data.refresh_token)
 
@@ -46,14 +53,14 @@ async def logout(data: RefreshIn, service: Service) -> Response:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/password/forgot", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/password/forgot", status_code=status.HTTP_202_ACCEPTED, dependencies=Limited)
 async def forgot_password(data: ForgotPasswordIn, service: ResetService) -> Response:
     """Emails a code to reset the password. Same answer whether or not the email exists."""
     await service.request(data.email)
     return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
-@router.post("/password/reset", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/password/reset", status_code=status.HTTP_204_NO_CONTENT, dependencies=Limited)
 async def reset_password(data: ResetPasswordIn, service: ResetService) -> Response:
     await service.reset(data.email, data.code, data.new_password)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

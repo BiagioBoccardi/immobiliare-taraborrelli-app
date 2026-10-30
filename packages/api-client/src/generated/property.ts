@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+  "/api/v1/property/admin/media/transfer-cleanup": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Transfer Cleanup */
+    post: operations["transfer_cleanup_api_v1_property_admin_media_transfer_cleanup_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/property/admin/media/transfer-signature": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Transfer Signature */
+    post: operations["transfer_signature_api_v1_property_admin_media_transfer_signature_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/property/admin/properties": {
     parameters: {
       query?: never;
@@ -138,6 +172,27 @@ export interface paths {
     patch: operations["update_property_api_v1_property_admin_properties__property_id__patch"];
     trace?: never;
   };
+  "/api/v1/property/admin/properties/{property_id}/model-3d": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Upload Three D Model
+     * @description Uploads the 3D model of the property (.glb), replacing the previous one.
+     */
+    put: operations["upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put"];
+    post?: never;
+    /** Delete Three D Model */
+    delete: operations["delete_three_d_model_api_v1_property_admin_properties__property_id__model_3d_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/property/admin/properties/{property_id}/photos": {
     parameters: {
       query?: never;
@@ -188,6 +243,27 @@ export interface paths {
     head?: never;
     /** Update Photo */
     patch: operations["update_photo_api_v1_property_admin_properties__property_id__photos__photo_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/property/admin/properties/{property_id}/photos/{photo_id}/model-3d": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Upload Photo Three D
+     * @description Uploads the 3D version of the room in a photo (.glb), replacing the previous one.
+     */
+    put: operations["upload_photo_three_d_api_v1_property_admin_properties__property_id__photos__photo_id__model_3d_put"];
+    post?: never;
+    /** Delete Photo Three D */
+    delete: operations["delete_photo_three_d_api_v1_property_admin_properties__property_id__photos__photo_id__model_3d_delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/api/v1/property/admin/properties/{property_id}/status": {
@@ -308,6 +384,8 @@ export interface components {
       show_when_sold: boolean;
       /** Size Bytes */
       size_bytes: number;
+      /** Three D Url */
+      three_d_url?: string | null;
       /** Url */
       url: string;
     };
@@ -376,6 +454,7 @@ export interface components {
       surface_sqm: number | null;
       /** Tenant Types */
       tenant_types: components["schemas"]["TenantType"][];
+      three_d_model: components["schemas"]["ThreeDModelOut"] | null;
       /** Title */
       title: string;
       /** Total Floors */
@@ -404,6 +483,16 @@ export interface components {
     Body_upload_photo_api_v1_property_admin_properties__property_id__photos_post: {
       /** Caption */
       caption?: string | null;
+      /** File */
+      file: string;
+    };
+    /** Body_upload_photo_three_d_api_v1_property_admin_properties__property_id__photos__photo_id__model_3d_put */
+    Body_upload_photo_three_d_api_v1_property_admin_properties__property_id__photos__photo_id__model_3d_put: {
+      /** File */
+      file: string;
+    };
+    /** Body_upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put */
+    Body_upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put: {
       /** File */
       file: string;
     };
@@ -588,6 +677,8 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /** Three D Url */
+      three_d_url?: string | null;
       /** Url */
       url: string;
     };
@@ -751,6 +842,7 @@ export interface components {
       surface_sqm: number;
       /** Tenant Types */
       tenant_types: components["schemas"]["TenantType"][];
+      three_d_model: components["schemas"]["ThreeDModelOut"] | null;
       /** Title */
       title: string;
       /** Total Floors */
@@ -862,6 +954,37 @@ export interface components {
      * @enum {string}
      */
     TenantType: "students" | "workers" | "families";
+    /**
+     * ThreeDModelOut
+     * @description 3D model of the property (binary glTF, .glb).
+     */
+    ThreeDModelOut: {
+      /** Size Bytes */
+      size_bytes: number;
+      /** Url */
+      url: string;
+    };
+    /** TransferCleanup */
+    TransferCleanup: {
+      /** Deleted */
+      deleted: number;
+    };
+    /**
+     * TransferSignature
+     * @description Lets the browser upload into the transfer folder for an hour.
+     */
+    TransferSignature: {
+      /** Api Key */
+      api_key: string;
+      /** Folder */
+      folder: string;
+      /** Signature */
+      signature: string;
+      /** Timestamp */
+      timestamp: string;
+      /** Url */
+      url: string;
+    };
     /** ValidationError */
     ValidationError: {
       /** Context */
@@ -884,6 +1007,46 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  transfer_cleanup_api_v1_property_admin_media_transfer_cleanup_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TransferCleanup"];
+        };
+      };
+    };
+  };
+  transfer_signature_api_v1_property_admin_media_transfer_signature_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TransferSignature"];
+        };
+      };
+    };
+  };
   list_properties_api_v1_property_admin_properties_get: {
     parameters: {
       query?: {
@@ -1197,6 +1360,72 @@ export interface operations {
       };
     };
   };
+  upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        property_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_upload_three_d_model_api_v1_property_admin_properties__property_id__model_3d_put"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminPropertyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_three_d_model_api_v1_property_admin_properties__property_id__model_3d_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        property_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminPropertyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   upload_photo_api_v1_property_admin_properties__property_id__photos_post: {
     parameters: {
       query?: never;
@@ -1314,6 +1543,74 @@ export interface operations {
         "application/json": components["schemas"]["PhotoUpdate"];
       };
     };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminPropertyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  upload_photo_three_d_api_v1_property_admin_properties__property_id__photos__photo_id__model_3d_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        property_id: string;
+        photo_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_upload_photo_three_d_api_v1_property_admin_properties__property_id__photos__photo_id__model_3d_put"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminPropertyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  delete_photo_three_d_api_v1_property_admin_properties__property_id__photos__photo_id__model_3d_delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        property_id: string;
+        photo_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
     responses: {
       /** @description Successful Response */
       200: {
